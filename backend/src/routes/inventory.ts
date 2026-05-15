@@ -26,15 +26,14 @@ router.get("/", requirePermission("inventory", "READ"), async (req, res, next) =
     let filtered = items;
     if (search) {
       const s = (search as string).toLowerCase();
-      filtered = items.filter(
-        (i) =>
+      filtered = items.filter((i: (typeof items)[number]) =>
           i.product.name.toLowerCase().includes(s) ||
           i.product.sku.toLowerCase().includes(s)
       );
     }
     if (lowStock === "true") {
-      filtered = filtered.filter(
-        (i) => Number(i.quantity) <= Number(i.minStock)
+      filtered = filtered.filter((i: (typeof items)[number]) =>
+        Number(i.quantity) <= Number(i.minStock)
       );
     }
 

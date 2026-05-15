@@ -1,5 +1,7 @@
 # Deploy produzione — Netlify + API su VPS + GitHub
 
+Guida Netlify passo-passo (monorepo, GitHub, variabili, troubleshooting): **[`netlify-guida-completa.md`](netlify-guida-completa.md)**.
+
 ## 1. Repository GitHub
 
 Sul PC (PowerShell):
@@ -37,11 +39,7 @@ Regole:
 - Nessuno **slash finale** su `NEXT_PUBLIC_API_URL`.
 - **HTTPS** se l’API è esposta in TLS.
 
-**Impostazioni build** (site):
-
-- **Base directory:** `frontend`
-- **Build command:** `npm run build`
-- **Publish:** gestito dal plugin `@netlify/plugin-nextjs` (`frontend/netlify.toml`).
+**Impostazioni build** (site): Base directory vuota, **Package directory** `frontend`, comando da root — vedi [`netlify-guida-completa.md`](netlify-guida-completa.md).
 
 ---
 

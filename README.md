@@ -182,7 +182,7 @@ Diagnostica (prova più nomi DB con `pg`): `npm run db:debug`
 
 ## Deploy produzione
 
-Guida passo-passo **GitHub + Netlify + VPS API**: [`docs/deploy-production.md`](docs/deploy-production.md).
+Guida Netlify **completa** (monorepo, UI Package directory, variabili, troubleshooting): [`docs/netlify-guida-completa.md`](docs/netlify-guida-completa.md).
 
 Template variabili:
 
@@ -193,13 +193,13 @@ Template variabili:
 
 Il backend resta sul **VPS** (o Docker): solo il sito Next.js va su Netlify.
 
-**Impostazioni Netlify**
+**Impostazioni chiave**
 
 | Campo | Valore |
 |--------|--------|
-| Base directory | `frontend` |
-| Build command | `npm run build` |
-| Publish directory | (lasciare vuoto / default del plugin Next.js) |
+| Base directory | *(vuoto — root repo)* |
+| Package directory | **`frontend`** |
+| Build | [`frontend/netlify.toml`](frontend/netlify.toml): `npm ci` + solo workspace `crm-frontend` (**non** il backend) |
 
 **Variabili ambiente** (Site → Environment variables):
 

@@ -1,18 +1,14 @@
-# Next.js su Netlify — cartella frontend del monorepo
-# Nel pannello Netlify imposta anche:
-#   Base directory: frontend
-#   Build command: npm run build   (eseguito dentro frontend/)
-#   Publish: gestito da @netlify/plugin-nextjs
+# Netlify usa questo file quando "Package directory" = frontend.
+# NON eseguire `npm run build` dalla root (compilerebbe anche il backend).
 
 [build]
-  command = "npm run build"
-  publish = ".next"
-
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
+  command = "npm ci && npm run build --workspace=crm-frontend"
 
 [build.environment]
   NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
 
 [[headers]]
   for = "/*"
