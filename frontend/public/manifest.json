@@ -1,0 +1,16 @@
+{
+  "name": "NexusCRM",
+  "short_name": "NexusCRM",
+  "description": "Gestionale SaaS enterprise",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f12",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}

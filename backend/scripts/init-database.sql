@@ -1,0 +1,14 @@
+-- Ordine esecuzione (pgAdmin: UN file / UNA istruzione alla volta)
+--
+--  1) init-database-01-user.sql       → database postgres
+--  2) init-database-02-database.sql   → database postgres (SOLO CREATE DATABASE)
+--  3) init-database-02b-grant-db.sql   → database postgres
+--  4) init-database-grants.sql         → database crm_gestionale
+--
+-- Alternativa senza pgAdmin (consigliata su Windows):
+--  cd backend\scripts
+--  .\run-init-postgres.ps1
+--
+-- Oppure GUI pgAdmin: tasto destro Databases → Create → Database
+--   Nome: crm_gestionale   Owner: crm_user
+-- Poi esegui solo init-database-grants.sql su crm_gestionale

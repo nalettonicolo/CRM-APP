@@ -1,0 +1,28 @@
+{
+  "name": "crm-gestionale-saas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gestionale SaaS enterprise - CRM, preventivi, interventi, magazzino",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm install --workspace=backend && npm install --workspace=frontend",
+    "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
+    "db:generate": "npm run db:generate --workspace=backend",
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "db:seed": "npm run db:seed --workspace=backend",
+    "db:test": "npm run db:test --workspace=backend",
+    "db:debug": "npm run db:debug --workspace=backend",
+    "db:studio": "npm run db:studio --workspace=backend",
+    "setup": "node scripts/setup.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

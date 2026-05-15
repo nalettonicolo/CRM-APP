@@ -1,0 +1,77 @@
+import type { UserRole, PermissionAction } from "@prisma/client";
+
+const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  SUPER_ADMIN: ["*"],
+  ADMIN: [
+    "users:*",
+    "clients:*",
+    "quotes:*",
+    "reports:*",
+    "inventory:*",
+    "settings:*",
+    "events:*",
+    "products:*",
+    "services:*",
+  ],
+  COMMERCIAL: [
+    "clients:read",
+    "clients:create",
+    "clients:update",
+    "quotes:*",
+    "leads:*",
+    "events:read",
+    "events:create",
+    "events:update",
+    "services:read",
+    "products:read",
+  ],
+  TECHNICIAN: [
+    "clients:read",
+    "interventions:read",
+    "interventions:update",
+    "reports:*",
+    "events:read",
+    "events:update",
+    "inventory:read",
+    "products:read",
+  ],
+  OPERATOR: [
+    "clients:read",
+    "quotes:read",
+    "reports:read",
+    "events:read",
+    "inventory:read",
+  ],
+  WAREHOUSE: [
+    "inventory:*",
+    "products:*",
+    "reports:read",
+  ],
+  CLIENT: [
+    "portal:read",
+    "quotes:read",
+    "reports:read",
+    "invoices:read",
+    "events:read",
+    "attachments:read",
+    "attachments:create",
+  ],
+};
+
+export function hasPermission(
+  role: UserRole,
+  resource: string,
+  action: PermissionAction | string
+): boolean {
+  const perms = ROLE_PERMISSIONS[role] || [];
+  if (perms.includes("*")) return true;
+
+  const key = `${resource}:${String(action).toLowerCase()}`;
+  const wildcard = `${resource}:*`;
+
+  return perms.includes(key) || perms.includes(wildcard);
+}
+
+export function canAccessOwnOnly(role: UserRole): boolean {
+  return role === "TECHNICIAN" || role === "CLIENT";
+}
