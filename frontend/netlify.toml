@@ -1,8 +1,12 @@
 # Netlify usa questo file quando "Package directory" = frontend.
 # NON eseguire `npm run build` dalla root (compilerebbe anche il backend).
+# Publish = dove Next scrive `.next` nel monorepo (non la root repo `.next`).
+# Se nel sito Netlify c'è ancora "Publish directory" = `.next`, cancellalo:
+# questo valore nel TOML deve prevalere.
 
 [build]
   command = "npm ci && npm run build --workspace=crm-frontend"
+  publish = "frontend/.next"
 
 [build.environment]
   NODE_VERSION = "20"

@@ -28,10 +28,10 @@ Segui la procedura monorepo di Netlify ([Monorepos](https://docs.netlify.com/bui
 | **Base directory** | *(vuoto)* — root del repository |
 | **Package directory** | **`frontend`** *(solo dall’UI Netlify)* |
 | **Build command** | vuoto *(usa `netlify.toml`)* oppure `npm ci && npm run build --workspace=crm-frontend` |
-| **Publish directory** | di solito gestito dal plugin Next.js dopo il primo build riuscito |
+| **Publish directory** | **vuoto** nell’UI oppure non impostato manualmente — nel repo è definito **`frontend/.next`** in [`frontend/netlify.toml`](../frontend/netlify.toml) (path relativo alla root del repo). Se nell’UI hai `.next` senza prefisso, Netlify cerca `/repo/.next` e il plugin fallisce. |
 | **Branch** | `main` (o il branch di produzione) |
 
-Il file letto da Netlify (con **Package directory = `frontend`**) è **`frontend/netlify.toml`**: comando `npm ci` dalla root del repo e poi **solo** `npm run build --workspace=crm-frontend` (nessuna compilazione del backend su Netlify).
+Il file letto da Netlify (con **Package directory = `frontend`**) è **`frontend/netlify.toml`**: comando `npm ci` dalla root del repo, poi **solo** `npm run build --workspace=crm-frontend`, e **`publish = "frontend/.next"`** così il plugin Next trova l’output (non alla root `/repo/.next`).
 
 > Non usare **Base directory = `frontend`** da sola senza lockfile in quella cartella. **Root vuota + Package directory `frontend`** è la combinazione corretta.
 
@@ -143,7 +143,7 @@ Non è parte di Netlify, ma è obbligatorio perché il sito funzioni:
 | Sintomo | Azione |
 |---------|--------|
 | Build Netlify: “no package-lock” / dipendenze | Base directory **vuota**, Package directory **`frontend`**, comando in [`frontend/netlify.toml`](../frontend/netlify.toml); vedi [guida Netlify](netlify-guida-completa.md). |
-| Build esegue anche il backend e fallisce su Prisma | Assicurati che il comando sia solo `npm ci && npm run build --workspace=crm-frontend`, non `npm run build` dalla root del monorepo. |
+| Plugin Next: publish directory non trovata (`/repo/.next`) | Nel sito Netlify, **Build → Publish directory**: lascia **vuoto** (o allineato a `frontend/.next`). Il valore nel TOML è `publish = "frontend/.next"`; un override UI a `.next` rompe il monorepo. |
 | Build: Next.js errore env | Imposta `NEXT_PUBLIC_*` su Netlify **prima** del deploy (poi rid deploy). |
 | Login / refresh fallisce solo in prod | HTTPS API + `TRUST_CROSS_SITE_COOKIES=true` + `FRONTEND_URL` esatto. |
 | CORS blocked | Aggiorna `FRONTEND_URL` / `FRONTEND_URLS` sul backend; riavvia API. |
