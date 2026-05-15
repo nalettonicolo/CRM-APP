@@ -27,15 +27,21 @@ Segui la procedura monorepo di Netlify ([Monorepos](https://docs.netlify.com/bui
 |----------------|--------|
 | **Base directory** | *(vuoto)* — root del repository |
 | **Package directory** | **`frontend`** *(solo dall’UI Netlify)* |
-| **Build command** | vuoto *(usa `netlify.toml`)* oppure `npm ci && npm run build --workspace=crm-frontend` |
+| **Build command** | vuoto *(usa [`frontend/netlify.toml`](../frontend/netlify.toml))* — `npm ci` con `--prefer-offline --no-audit --no-fund` + solo workspace `crm-frontend` |
 | **Publish directory** | **vuoto** nell’UI oppure non impostato manualmente — nel repo è definito **`frontend/.next`** in [`frontend/netlify.toml`](../frontend/netlify.toml) (path relativo alla root del repo). Se nell’UI hai `.next` senza prefisso, Netlify cerca `/repo/.next` e il plugin fallisce. |
 | **Branch** | `main` (o il branch di produzione) |
 
-Il file letto da Netlify (con **Package directory = `frontend`**) è **`frontend/netlify.toml`**: comando `npm ci` dalla root del repo, poi **solo** `npm run build --workspace=crm-frontend`, e **`publish = "frontend/.next"`** così il plugin Next trova l’output (non alla root `/repo/.next`).
+Il file letto da Netlify (con **Package directory = `frontend`**) è **`frontend/netlify.toml`**: dalla root del repo esegue **`npm ci --prefer-offline --no-audit --no-fund`**, poi **`npm run build --workspace=crm-frontend`**, con **`publish = "frontend/.next"`** e **`NEXT_TELEMETRY_DISABLED=1`** (meno overhead). Nessuna compilazione backend su Netlify.
 
 > Non usare **Base directory = `frontend`** da sola senza lockfile in quella cartella. **Root vuota + Package directory `frontend`** è la combinazione corretta.
 
 Node: **`NODE_VERSION=20`** in `frontend/netlify.toml`.
+
+### 2bis — Velocità e verifica prima del deploy
+
+- **Netlify:** dopo il primo build, la [dependency cache](https://docs.netlify.com/build/configure-builds/manage-dependencies/#dependency-cache) rende più veloci gli install successivi; `--prefer-offline` la sfrutta quando possibile.
+- **Locale / prima di pubblicare:** dalla root del repository esegui **`npm run verify:netlify`** (install pulito da lockfile + solo frontend, come in CI).
+- **GitHub:** su push/PR la CI esegue **in parallelo** backend e frontend (comando frontend allineato a Netlify), con **`actions/cache`** su **`frontend/.next/cache`** per ricompilazioni Next più rapide.
 
 ### 3. Variabili d’ambiente (dove cliccare in Netlify)
 
@@ -60,7 +66,7 @@ Opzionale: seconda variabile **`NEXT_PUBLIC_APP_NAME`** = `NexusCRM`.
 ### 4. Primo deploy
 
 1. **Deploy site**.
-2. Apri **Deploy log**: deve comparire `npm ci`, poi build Next.js.
+2. Apri **Deploy log**: deve comparire `npm ci` (eventualmente con flag `--prefer-offline`), poi build Next.js.
 3. Apri l’URL tipo **`https://qualcosa.netlify.app`**.
 
 Se il build fallisce, copia l’errore dalla tab **Deploy log** e confrontalo con la sezione **Troubleshooting** più sotto.

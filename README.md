@@ -199,7 +199,9 @@ Il backend resta sul **VPS** (o Docker): solo il sito Next.js va su Netlify.
 |--------|--------|
 | Base directory | *(vuoto — root repo)* |
 | Package directory | **`frontend`** |
-| Build | [`frontend/netlify.toml`](frontend/netlify.toml): `npm ci` + solo workspace `crm-frontend` (**non** il backend) |
+| Build | [`frontend/netlify.toml`](frontend/netlify.toml): `npm ci` ottimizzato + solo workspace `crm-frontend` (**non** il backend) |
+
+**Prima di push/deploy:** dalla root repo, `npm run verify:netlify` (stesso tipo di pipeline del frontend su Netlify). Su GitHub Actions i job backend e frontend sono **paralleli**.
 
 **Variabili ambiente** (Site → Environment variables):
 

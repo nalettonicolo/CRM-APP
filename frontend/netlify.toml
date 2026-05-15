@@ -5,11 +5,16 @@
 # questo valore nel TOML deve prevalere.
 
 [build]
-  command = "npm ci && npm run build --workspace=crm-frontend"
+  # --no-audit/--no-fund: evita round-trip npm in CI; dipendenze già validate in lockfile.
+  # --prefer-offline: usa la dependency cache di Netlify quando disponibile.
+  command = "npm ci --prefer-offline --no-audit --no-fund && npm run build --workspace=crm-frontend"
   publish = "frontend/.next"
 
 [build.environment]
   NODE_VERSION = "20"
+  NEXT_TELEMETRY_DISABLED = "1"
+  # Opzionale: meno verbosità npm
+  NPM_CONFIG_PROGRESS = "false"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

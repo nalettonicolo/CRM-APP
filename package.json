@@ -12,6 +12,7 @@
     "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
     "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
     "build:frontend": "npm run build --workspace=crm-frontend",
+    "verify:netlify": "npm ci --no-audit --no-fund && npm run build --workspace=crm-frontend",
     "db:generate": "npm run db:generate --workspace=backend",
     "db:migrate": "npm run db:migrate --workspace=backend",
     "db:seed": "npm run db:seed --workspace=backend",
