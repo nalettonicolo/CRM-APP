@@ -1,6 +1,6 @@
-# NexusCRM — Gestionale SaaS Enterprise
+# NexusCRM — gestionale interno
 
-Piattaforma gestionale multi-utente per CRM, preventivi, interventi tecnici, magazzino, calendario operativo e area clienti privata.
+Strumento multi-utente per **uso proprio**: clienti, preventivi, interventi, magazzino, calendario e (se serve) area cliente. Non è pensato come prodotto da rivendere: nessuna registrazione pubblica, account solo da te o da un admin.
 
 ## Stack
 
@@ -14,7 +14,7 @@ Piattaforma gestionale multi-utente per CRM, preventivi, interventi tecnici, mag
 ## Struttura progetto
 
 ```
-crm-gestionale-saas/
+CRM-APP/                 # radice repository (nome cartella sul tuo PC)
 ├── frontend/          # Next.js — deploy Netlify
 ├── backend/           # API REST Express
 ├── docs/              # Guide deploy produzione + GitHub
@@ -156,16 +156,32 @@ npm run db:seed --workspace=backend
 
 Diagnostica (prova più nomi DB con `pg`): `npm run db:debug`
 
-## Credenziali demo (dopo seed)
+## Come entrare come amministratore
+
+1. **Backend in esecuzione** (API raggiungibile da browser, stesso PC o rete/VPS).
+2. Nel **`backend/.env`** puoi definire il primo admin prima del seed:
+   - **`ADMIN_EMAIL`** — email con cui fai login (default: `admin@crm.local`)
+   - **`ADMIN_PASSWORD`** — password (default: `Admin123!`)
+3. **Seed eseguito** (`npm run db:seed --workspace=backend`): crea l’admin e **allinea sempre email, ruolo e password** dell’account definito da `ADMIN_EMAIL` alle variabili nel `.env` (così dopo aver modificato la password basta rilanciare il seed).
+4. Apri il **frontend** (es. `http://localhost:3000/login`), inserisci **email** e **password** come nel `.env` (email senza spazi; viene normalizzata in minuscolo).
+
+**Non riesci ad entrare?**
+
+- Controlla che il frontend chiami la **stessa API** del backend (`NEXT_PUBLIC_API_URL` in `frontend/.env.local`; in locale di solito `http://localhost:4000`).
+- Dal browser prova `GET http://localhost:4000/api/health` (o il tuo host API): deve rispondere `{"status":"ok",...}`.
+- Riesegui il seed dopo aver salvato `ADMIN_EMAIL` / `ADMIN_PASSWORD`:  
+  `npm run db:seed --workspace=backend`
+
+## Utenti di esempio dal seed (solo sviluppo)
 
 | Ruolo | Email | Password |
 |-------|-------|----------|
-| Super Admin | admin@crm.local | Admin123! |
+| Super Admin | `ADMIN_EMAIL` o `admin@crm.local` | `ADMIN_PASSWORD` o `Admin123!` |
 | Commerciale | commerciale@crm.local | Commerciale123! |
 | Tecnico | tecnico@crm.local | Tecnico123! |
 | Cliente | cliente@demo.it | Cliente123! |
 
-> Cambia le password in produzione.
+In **produzione** usa password lunghe e diverse; puoi rimuovere gli utenti di esempio quando non ti servono.
 
 ## Moduli implementati
 
@@ -176,7 +192,7 @@ Diagnostica (prova più nomi DB con `pg`): `npm run db:debug`
 - **Magazzino:** giacenze, movimenti, alert sottoscorta
 - **Calendario:** eventi, interventi, scadenze
 - **Area cliente:** dashboard privata (solo credenziali admin)
-- **Landing pubblica:** solo modulo contatto (nessuna registrazione)
+- **Home pubblica:** presentazione sintetica e link ad **Accedi** (nessuna registrazione pubblica)
 - **Impostazioni:** branding, dati azienda, SMTP
 - **Audit log** e notifiche
 

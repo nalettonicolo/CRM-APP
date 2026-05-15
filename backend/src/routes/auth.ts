@@ -18,13 +18,19 @@ import { UnauthorizedError, ValidationError } from "../utils/errors.js";
 const router = Router();
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.string().email()),
   password: z.string().min(1),
 });
 
 router.post("/login", async (req, res, next) => {
   try {
-    const { email, password } = loginSchema.parse(req.body);
+    const parsed = loginSchema.parse(req.body);
+    const email = parsed.email;
+    const password = parsed.password.trim();
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || user.status === "SUSPENDED") {

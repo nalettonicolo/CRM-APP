@@ -48,22 +48,29 @@ async function main() {
     });
   }
 
-  const adminHash = await bcrypt.hash(
-    process.env.ADMIN_PASSWORD || "Admin123!",
-    12
-  );
+  const adminEmail = (process.env.ADMIN_EMAIL || "admin@crm.local")
+    .trim()
+    .toLowerCase();
+  const adminPlain = (process.env.ADMIN_PASSWORD || "Admin123!").trim();
+  const adminHash = await bcrypt.hash(adminPlain, 12);
 
+  // Aggiorna sempre hash / stato admin così ADMIN_EMAIL e ADMIN_PASSWORD nel .env
+  // restano allineati dopo ogni `db:seed` (prima update: {} lasciava la vecchia password).
   const admin = await prisma.user.upsert({
-    where: { email: process.env.ADMIN_EMAIL || "admin@crm.local" },
+    where: { email: adminEmail },
     create: {
-      email: process.env.ADMIN_EMAIL || "admin@crm.local",
+      email: adminEmail,
       passwordHash: adminHash,
       firstName: "Super",
       lastName: "Admin",
       role: "SUPER_ADMIN",
       status: "ACTIVE",
     },
-    update: {},
+    update: {
+      passwordHash: adminHash,
+      role: "SUPER_ADMIN",
+      status: "ACTIVE",
+    },
   });
 
   const warehouse = await prisma.warehouse.upsert({
@@ -81,7 +88,7 @@ async function main() {
   const settings = [
     {
       key: "app_name",
-      value: { name: "NexusCRM", tagline: "Gestionale enterprise" },
+      value: { name: "NexusCRM", tagline: "Gestione interna — clienti e interventi" },
     },
     {
       key: "colors",
@@ -97,7 +104,7 @@ async function main() {
         phone: "+39 02 0000000",
       },
     },
-    { key: "footer", value: { text: "© 2026 NexusCRM — Tutti i diritti riservati" } },
+    { key: "footer", value: { text: "© NexusCRM — uso interno" } },
   ];
 
   for (const s of settings) {
@@ -354,7 +361,7 @@ async function main() {
   const existingWelcome = await prisma.notification.findFirst({
     where: {
       userId: admin.id,
-      title: "Benvenuto in NexusCRM",
+      title: "Benvenuto",
     },
   });
   if (!existingWelcome) {
@@ -362,17 +369,17 @@ async function main() {
       data: {
         userId: admin.id,
         type: "INFO",
-        title: "Benvenuto in NexusCRM",
+        title: "Benvenuto",
         message:
-          "Il sistema è stato configurato con successo. Esplora la dashboard!",
+          "Ambiente configurato. Da qui gestisci clienti, preventivi, interventi e magazzino.",
       },
     });
   }
 
   console.log("✅ Seed completato!");
   console.log("");
-  console.log("Credenziali demo:");
-  console.log("  Admin:        admin@crm.local / Admin123!");
+  console.log("Credenziali di accesso (override con ADMIN_EMAIL / ADMIN_PASSWORD nel .env):");
+  console.log(`  Admin:        ${adminEmail} / (password = valore corrente di ADMIN_PASSWORD nel .env)`);
   console.log("  Commerciale:  commerciale@crm.local / Commerciale123!");
   console.log("  Tecnico:      tecnico@crm.local / Tecnico123!");
   console.log("  Cliente:      cliente@demo.it / Cliente123!");
