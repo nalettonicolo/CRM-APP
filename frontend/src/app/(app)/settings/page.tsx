@@ -126,10 +126,10 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Testi del sito (home pubblica)</CardTitle>
+            <CardTitle>Testi sito pubblico (servizi audio/luci)</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Badge, titoli, paragrafo accesso, righe piè di pagina e tre box
-              descrittivi.
+              Hero, tre servizi in evidenza, testo sopra il modulo contatti e riga
+              del footer. Non è una pagina di vendita software.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -161,7 +161,7 @@ export default function SettingsPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">
-                Sezione &quot;Accesso&quot; (testo)
+                Testo sopra il modulo contatti
               </label>
               <textarea
                 className={textareaClass}

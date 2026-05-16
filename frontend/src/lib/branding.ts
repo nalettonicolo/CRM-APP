@@ -16,29 +16,36 @@ export interface SiteHomeSettings {
   features: SiteHomeFeature[];
 }
 
+/** Testi home pubblica: servizi audio/luci, non vendita software. */
 export const DEFAULT_SITE_HOME: SiteHomeSettings = {
-  badge: "Gestionale per uso interno",
-  headline: "Clienti, preventivi e interventi in un solo posto",
+  badge: "Tecnico audio e luci · eventi live",
+  headline: "Audio professionale e illuminazione per il tuo evento",
   subheadline:
-    "Pensato per chi gestisce assistenza e commerciale nella propria attività: preventivi, magazzino, calendario e — se ti serve — un accesso dedicato ai clienti.",
+    "Consulenza, progettazione, allestimento e operatività in sala: concerti, manifestazioni, matrimoni e spettacoli. Preventivi chiari, attrezzatura professionale e supporto in ogni fase.",
   accessIntro:
-    "Non c'è registrazione pubblica: gli utenti li crei tu (admin) da Impostazioni. Il primo account di sistema viene dal seed sul database con le variabili ADMIN_EMAIL e ADMIN_PASSWORD nel backend/.env — vedi README del progetto.",
-  footerLine: "Nicolò Service — uso interno",
+    "Descrivi data, luogo e tipo di evento: ti rispondiamo con disponibilità e un preventivo su misura. Per urgenze indica il recapito telefonico nel messaggio.",
+  footerLine: "Nicolò Service — tecnico audio e luci",
   features: [
     {
-      title: "Operatività in tempo reale",
-      description: "Dashboard KPI, alert magazzino e calendario integrato.",
+      title: "Audio live",
+      description:
+        "Mix FOH e monitor, microfonazione, sistemi line array e gestione del suono in tempo reale per band, DJ e speech.",
     },
     {
-      title: "Accessi controllati",
-      description: "JWT, ruoli e permessi: solo chi autorizzi entra o vede i dati.",
+      title: "Luci e scenografia",
+      description:
+        "Progetto luci, dimmer e moving head, controllo DMX, atmosphere per club, teatro e cerimonie.",
     },
     {
-      title: "Strumenti per tecnici",
-      description: "Report, checklist, materiali e scarico magazzino da campo.",
+      title: "Organizzazione tecnica",
+      description:
+        "Sopralluogo, rider tecnico, montaggio e smontaggio, coordinamento con venue e produzione.",
     },
   ],
 };
+
+export const DEFAULT_TAGLINE =
+  "Tecnico professionista audio · luci · eventi";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null && !Array.isArray(v);
@@ -88,7 +95,6 @@ export function mergeSiteHome(raw: unknown): SiteHomeSettings {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-/** Risolve URL assoluto per file serviti dall'API (`/uploads/...`). */
 export function publicAssetUrl(pathOrUrl: string | undefined | null): string {
   if (!pathOrUrl?.trim()) return "";
   const s = pathOrUrl.trim();

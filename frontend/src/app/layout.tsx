@@ -6,9 +6,9 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Nicolò Service — gestionale interno",
+  title: "Nicolò Service — tecnico audio e luci",
   description:
-    "Gestione clienti, preventivi, interventi, magazzino e contatti della tua attività",
+    "Servizi professionali di audio live, illuminazione e supporto tecnico per eventi, concerti e manifestazioni.",
   manifest: "/manifest.json",
 };
 

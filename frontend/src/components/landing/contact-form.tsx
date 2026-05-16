@@ -71,7 +71,7 @@ export function ContactForm() {
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Azienda</label>
-          <Input name="company" placeholder="La tua azienda" />
+          <Input name="company" placeholder="Venue / artista / organizzazione" />
         </div>
       </div>
       <div>
@@ -81,12 +81,12 @@ export function ContactForm() {
           required
           rows={4}
           className="flex w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-          placeholder="Descrivi la tua richiesta..."
+          placeholder="Data, luogo, tipo di evento, esigenze audio/luci, orari montaggio..."
         />
       </div>
       {error && <p className="text-sm text-red-500">{error}</p>}
       <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? "Invio..." : "Invia richiesta"}
+        {loading ? "Invio..." : "Invia richiesta preventivo"}
       </Button>
     </motion.form>
   );

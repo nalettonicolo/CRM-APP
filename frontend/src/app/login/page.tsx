@@ -48,7 +48,14 @@ export default function LoginPage() {
         router.push("/dashboard");
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Credenziali non valide");
+      const msg = err instanceof Error ? err.message : "Credenziali non valide";
+      if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+        setError(
+          "Impossibile contattare il server. Avvia l'API (porta 4000) e verifica NEXT_PUBLIC_API_URL."
+        );
+      } else {
+        setError(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -78,8 +85,8 @@ export default function LoginPage() {
             <p className="mt-1 text-sm text-muted-foreground">{tagline}</p>
           )}
           <p className="mt-4 max-w-md text-muted-foreground">
-            Accesso riservato: usa le credenziali dell&apos;amministratore (account creati
-            da seed o da te da Impostazioni).
+            Area riservata al personale e agli amministratori. Inserisci le credenziali
+            del tuo account.
           </p>
         </motion.div>
       </div>
@@ -92,8 +99,7 @@ export default function LoginPage() {
         >
           <h2 className="text-2xl font-semibold">Accedi</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Email e password che hai configurato (es. nel seed /{" "}
-            <span className="font-mono text-xs">ADMIN_EMAIL</span>)
+            Usa l&apos;email e la password del tuo account amministratore.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">

@@ -86,7 +86,7 @@ export function Sidebar() {
         )}
         <div>
           <p className="font-semibold text-white">{appName}</p>
-          <p className="text-xs text-white/50">Uso interno</p>
+          <p className="text-xs text-white/50">Audio · luci · eventi</p>
         </div>
       </div>
 

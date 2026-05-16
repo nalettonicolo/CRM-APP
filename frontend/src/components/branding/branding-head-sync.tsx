@@ -23,7 +23,7 @@ export function BrandingHeadSync() {
     const name = (
       (data.app_name as { name?: string })?.name || DEFAULT_APP_NAME
     ).trim();
-    document.title = `${name} — gestionale interno`;
+    document.title = `${name} — tecnico audio e luci`;
 
     const sub = mergeSiteHome(data.site_home).subheadline;
     const metaDesc = sub.length > 160 ? `${sub.slice(0, 157)}…` : sub;

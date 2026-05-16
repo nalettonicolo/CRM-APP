@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { ArrowRight, CheckCircle, Shield, Zap } from "lucide-react";
+import { ArrowRight, Lightbulb, Mic2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ContactForm } from "@/components/landing/contact-form";
 import { settingsApi } from "@/lib/api";
 import {
   DEFAULT_APP_NAME,
@@ -12,7 +13,7 @@ import {
   publicAssetUrl,
 } from "@/lib/branding";
 
-const featureIcons = [Zap, Shield, CheckCircle];
+const featureIcons = [Mic2, Lightbulb, Wrench];
 
 export default function LandingPage() {
   const { data } = useQuery({
@@ -40,7 +41,7 @@ export default function LandingPage() {
   return (
     <motion.div className="min-h-screen gradient-mesh" initial={false}>
       <nav className="flex items-center justify-between px-6 py-4 lg:px-12">
-        <div className="flex items-center gap-2">
+        <motion.div className="flex items-center gap-2">
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -49,25 +50,27 @@ export default function LandingPage() {
               className="h-9 w-9 rounded-lg border border-border/40 bg-card object-contain p-0.5"
             />
           ) : (
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
+            <motion.div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
               {firstLetter}
-            </div>
+            </motion.div>
           )}
           <span className="text-lg font-semibold">{appName}</span>
-        </div>
+        </motion.div>
         <div className="flex items-center gap-3">
           <Link href="/login">
-            <Button variant="ghost">Accedi</Button>
-          </Link>
-          <Link href="#accesso">
-            <Button variant="outline">
-              Come si entra <ArrowRight className="h-4 w-4" />
+            <Button variant="ghost" size="sm">
+              Area riservata
             </Button>
           </Link>
-        </div>
+          <Link href="#contatto">
+            <Button size="sm">
+              Richiedi preventivo <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </motion.div>
       </nav>
 
-      <section className="mx-auto max-w-6xl px-6 py-20 text-center lg:py-32">
+      <section className="mx-auto max-w-6xl px-6 py-20 text-center lg:py-28">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -82,18 +85,18 @@ export default function LandingPage() {
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
             {site.subheadline}
           </p>
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link href="/login">
+          <motion.div className="mt-10 flex flex-wrap justify-center gap-4">
+            <Link href="#contatto">
               <Button size="lg">
-                Apri il gestionale <ArrowRight className="h-4 w-4" />
+                Richiedi preventivo <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
-            <Link href="#funzionalita">
+            <Link href="#servizi">
               <Button size="lg" variant="outline">
-                Cosa include
+                I nostri servizi
               </Button>
             </Link>
-          </div>
+          </motion.div>
         </motion.div>
 
         <motion.div
@@ -102,33 +105,40 @@ export default function LandingPage() {
           transition={{ delay: 0.3, duration: 0.6 }}
           className="mx-auto mt-16 max-w-5xl overflow-hidden rounded-2xl border border-border glass shadow-2xl"
         >
-          <div className="aspect-video bg-gradient-to-br from-primary/20 via-transparent to-purple-500/10 p-8">
+          <motion.div className="aspect-video bg-gradient-to-br from-primary/20 via-transparent to-purple-500/10 p-8">
             <div className="grid h-full grid-cols-3 gap-4">
-              {["Dashboard", "Preventivi", "Magazzino"].map((label) => (
+              {[
+                { label: "Audio live", hint: "FOH · monitor · RF" },
+                { label: "Luci evento", hint: "DMX · atmosphere" },
+                { label: "Produzione", hint: "Montaggio · rider" },
+              ].map((card) => (
                 <div
-                  key={label}
+                  key={card.label}
                   className="rounded-xl bg-card/80 p-4 text-left shadow-lg backdrop-blur"
                 >
                   <div className="mb-2 h-2 w-16 rounded bg-primary/30" />
                   <div className="space-y-2">
-                    <motion.div className="h-2 w-full rounded bg-muted" />
+                    <div className="h-2 w-full rounded bg-muted" />
                     <motion.div className="h-2 w-3/4 rounded bg-muted" />
-                    <motion.div className="h-2 w-1/2 rounded bg-muted" />
                   </div>
-                  <p className="mt-4 text-xs font-medium text-muted-foreground">
-                    {label}
-                  </p>
+                  <p className="mt-4 text-xs font-medium">{card.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{card.hint}</p>
                 </div>
               ))}
             </div>
-          </div>
+          </motion.div>
         </motion.div>
       </section>
 
-      <section id="funzionalita" className="mx-auto max-w-6xl px-6 py-20">
+      <section id="servizi" className="mx-auto max-w-6xl px-6 py-20">
+        <h2 className="mb-2 text-center text-2xl font-bold">Servizi</h2>
+        <p className="mb-12 text-center text-muted-foreground">
+          Soluzioni tecniche per eventi dal vivo — su misura per venue, artisti e
+          organizzatori.
+        </p>
         <div className="grid gap-8 md:grid-cols-3">
           {site.features.map((f, i) => {
-            const Icon = featureIcons[i] ?? Zap;
+            const Icon = featureIcons[i] ?? Mic2;
             return (
               <motion.div
                 key={`${f.title}-${i}`}
@@ -144,32 +154,21 @@ export default function LandingPage() {
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </section>
 
-      <section id="accesso" className="mx-auto max-w-xl px-6 py-20">
-        <h2 className="mb-2 text-center text-2xl font-bold">Accesso</h2>
-        <p className="mb-6 whitespace-pre-wrap text-center text-muted-foreground">
-          {site.accessIntro}
-        </p>
-        <div className="rounded-2xl border border-border bg-card p-6 text-center shadow-lg">
-          <p className="mb-4 text-sm text-muted-foreground">
-            Ruolo <strong>SUPER_ADMIN</strong>: tutti i moduli dopo il login.
-          </p>
-          <Link href="/login">
-            <Button size="lg" className="w-full sm:w-auto">
-              Vai al login
-            </Button>
-          </Link>
-        </div>
+      <section id="contatto" className="mx-auto max-w-xl px-6 py-20">
+        <h2 className="mb-2 text-center text-2xl font-bold">Contatti e preventivi</h2>
+        <p className="mb-8 text-center text-muted-foreground">{site.accessIntro}</p>
+        <ContactForm />
       </section>
 
-      <footer className="border-t border-border py-8 px-6 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-border px-6 py-8 text-center text-sm text-muted-foreground">
         <p>
           © {new Date().getFullYear()} {site.footerLine}
         </p>
         {contactParts.length > 0 && (
-          <p className="mt-3 max-w-lg mx-auto break-words">
+          <p className="mx-auto mt-3 max-w-lg break-words">
             {contactParts.join(" · ")}
           </p>
         )}

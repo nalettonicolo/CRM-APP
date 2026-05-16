@@ -61,8 +61,8 @@ async function main() {
     create: {
       email: adminEmail,
       passwordHash: adminHash,
-      firstName: "Super",
-      lastName: "Admin",
+      firstName: "Nicolò",
+      lastName: "Service",
       role: "SUPER_ADMIN",
       status: "ACTIVE",
     },
@@ -86,25 +86,28 @@ async function main() {
   });
 
   const siteHomeDefault = {
-    badge: "Gestionale per uso interno",
-    headline: "Clienti, preventivi e interventi in un solo posto",
+    badge: "Tecnico audio e luci · eventi live",
+    headline: "Audio professionale e illuminazione per il tuo evento",
     subheadline:
-      "Pensato per chi gestisce assistenza e commerciale nella propria attività: preventivi, magazzino, calendario e — se ti serve — un accesso dedicato ai clienti.",
+      "Consulenza, progettazione, allestimento e operatività in sala: concerti, manifestazioni, matrimoni e spettacoli. Preventivi chiari, attrezzatura professionale e supporto in ogni fase.",
     accessIntro:
-      "Non c'è registrazione pubblica: gli utenti li crei tu (admin) da Impostazioni. Il primo account di sistema viene dal seed sul database con le variabili ADMIN_EMAIL e ADMIN_PASSWORD nel backend/.env — vedi README del progetto.",
-    footerLine: "Nicolò Service — uso interno",
+      "Descrivi data, luogo e tipo di evento: ti rispondiamo con disponibilità e un preventivo su misura. Per urgenze indica il recapito telefonico nel messaggio.",
+    footerLine: "Nicolò Service — tecnico audio e luci",
     features: [
       {
-        title: "Operatività in tempo reale",
-        description: "Dashboard KPI, alert magazzino e calendario integrato.",
+        title: "Audio live",
+        description:
+          "Mix FOH e monitor, microfonazione, sistemi line array e gestione del suono in tempo reale per band, DJ e speech.",
       },
       {
-        title: "Accessi controllati",
-        description: "JWT, ruoli e permessi: solo chi autorizzi entra o vede i dati.",
+        title: "Luci e scenografia",
+        description:
+          "Progetto luci, dimmer e moving head, controllo DMX, atmosphere per club, teatro e cerimonie.",
       },
       {
-        title: "Strumenti per tecnici",
-        description: "Report, checklist, materiali e scarico magazzino da campo.",
+        title: "Organizzazione tecnica",
+        description:
+          "Sopralluogo, rider tecnico, montaggio e smontaggio, coordinamento con venue e produzione.",
       },
     ],
   };
@@ -114,7 +117,7 @@ async function main() {
       key: "app_name",
       value: {
         name: "Nicolò Service",
-        tagline: "Gestione interna — clienti e interventi",
+        tagline: "Tecnico professionista audio · luci · eventi",
       },
     },
     { key: "logo", value: { url: "" } },
@@ -134,7 +137,7 @@ async function main() {
         website: "",
       },
     },
-    { key: "footer", value: { text: "© Nicolò Service — uso interno" } },
+    { key: "footer", value: { text: "© Nicolò Service — audio e luci per eventi" } },
     { key: "site_home", value: siteHomeDefault },
   ];
 
@@ -181,10 +184,10 @@ async function main() {
   });
 
   const services = [
-    { name: "Installazione impianto", category: "Installazione", price: 450, duration: 240 },
-    { name: "Manutenzione ordinaria", category: "Manutenzione", price: 120, duration: 60 },
-    { name: "Diagnosi tecnica", category: "Assistenza", price: 80, duration: 45 },
-    { name: "Configurazione software", category: "IT", price: 95, duration: 90 },
+    { name: "Service audio evento (giornata)", category: "Audio", price: 650, duration: 480 },
+    { name: "Messa in luce e operatore luci", category: "Luci", price: 520, duration: 420 },
+    { name: "Noleggio impianto audio base", category: "Noleggio", price: 280, duration: 240 },
+    { name: "Tecnico di sala / FOH", category: "Audio", price: 95, duration: 60 },
   ];
 
   for (const s of services) {
@@ -208,10 +211,10 @@ async function main() {
   }
 
   const products = [
-    { name: "Cavo Ethernet Cat6", sku: "CAB-ETH-001", category: "Cavi", price: 2.5, minStock: 50 },
-    { name: "Router WiFi 6", sku: "RT-WIFI6-01", category: "Networking", price: 89, minStock: 5 },
-    { name: "Sensore temperatura", sku: "SNS-TEMP-01", category: "Sensori", price: 35, minStock: 10 },
-    { name: "UPS 1500VA", sku: "UPS-1500", category: "Alimentazione", price: 220, minStock: 3 },
+    { name: "Mixer digitale 16 canali", sku: "AUD-MIX-16", category: "Audio", price: 45, minStock: 2 },
+    { name: "Radiomicrofono UHF", sku: "AUD-RF-UHF", category: "Audio", price: 12, minStock: 8 },
+    { name: "Testa mobile LED PAR", sku: "LUX-PAR-LED", category: "Luci", price: 18, minStock: 12 },
+    { name: "Cavo DMX 5m", sku: "LUX-DMX-5M", category: "Luci", price: 3.5, minStock: 30 },
   ];
 
   for (const p of products) {
@@ -402,7 +405,7 @@ async function main() {
         type: "INFO",
         title: "Benvenuto",
         message:
-          "Ambiente configurato. Da qui gestisci clienti, preventivi, interventi e magazzino.",
+          "Gestionale operativo pronto: clienti, eventi, preventivi audio/luci e magazzino attrezzature.",
       },
     });
   }
