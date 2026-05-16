@@ -202,6 +202,7 @@ In **produzione** usa password lunghe e diverse; puoi rimuovere gli utenti di es
 
 ## Deploy produzione
 
+**Checklist “voglio andare online ora”:** [`docs/andare-online-ora.md`](docs/andare-online-ora.md)  
 Guida Netlify **completa** (monorepo, UI Package directory, variabili, troubleshooting): [`docs/netlify-guida-completa.md`](docs/netlify-guida-completa.md).
 
 Template variabili:
