@@ -5,6 +5,8 @@ out/
 .env
 .env.local
 .env.*.local
+CREDENZIALI-ACCESSO.txt
+backend/CREDENZIALI-ACCESSO.txt
 uploads/
 *.log
 .DS_Store
@@ -14,3 +16,6 @@ coverage/
 *.tsbuildinfo
 backups/*.sql
 !backups/.gitkeep
+
+# Local Netlify folder
+.netlify
