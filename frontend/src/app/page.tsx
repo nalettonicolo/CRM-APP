@@ -67,7 +67,7 @@ export default function LandingPage() {
               Richiedi preventivo <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-        </motion.div>
+        </div>
       </nav>
 
       <section className="mx-auto max-w-6xl px-6 py-20 text-center lg:py-28">
