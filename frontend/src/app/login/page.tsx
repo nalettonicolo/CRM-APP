@@ -50,8 +50,10 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Credenziali non valide";
       if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
+        const api =
+          process.env.NEXT_PUBLIC_API_URL || "(NEXT_PUBLIC_API_URL non impostata)";
         setError(
-          "Impossibile contattare il server. Avvia l'API (porta 4000) e verifica NEXT_PUBLIC_API_URL."
+          `Impossibile contattare l'API (${api}). Da ovunque serve un backend in HTTPS: imposta la stessa URL su Netlify (variabili d'ambiente) e sul server, poi rifai il deploy.`
         );
       } else {
         setError(msg);
