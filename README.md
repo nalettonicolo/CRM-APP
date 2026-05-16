@@ -1,4 +1,4 @@
-# NexusCRM — gestionale interno
+# Nicolò Service — gestionale interno
 
 Strumento multi-utente per **uso proprio**: clienti, preventivi, interventi, magazzino, calendario e (se serve) area cliente. Non è pensato come prodotto da rivendere: nessuna registrazione pubblica, account solo da te o da un admin.
 
@@ -113,6 +113,10 @@ npm run db:push --workspace=backend
 npm run db:seed --workspace=backend
 ```
 
+Il backend esegue `prisma generate` in **`postinstall`**. Se compare *@prisma/client did not initialize*, esegui: `npm run db:generate --workspace=backend`.
+
+Su **Windows**, se `next build` fallisce su `.next` (`ENOTEMPTY`), il frontend pulisce la cache prima del build (`prebuild`); puoi anche eliminare manualmente `frontend/.next`.
+
 Oppure setup automatico:
 ```bash
 node scripts/setup.js
@@ -132,7 +136,7 @@ npm run dev
 
 Il database **`Nicolò Service`** sul server è valido e raggiungibile (lo confermano anche `psql` e il driver `pg`). Con **Prisma**, invece, la stessa connessione può fallire con messaggi fuorvianti tipo *database non esiste*.
 
-**Soluzione consigliata per NexusCRM:** crea un database **solo ASCII**, ad esempio **`crm_gestionale`**, e usalo in `DATABASE_URL`.
+**Soluzione consigliata per Nicolò Service / questo progetto:** crea un database **solo ASCII**, ad esempio **`crm_gestionale`**, e usalo in `DATABASE_URL`.
 
 Sul server Linux Mint:
 
@@ -193,7 +197,7 @@ In **produzione** usa password lunghe e diverse; puoi rimuovere gli utenti di es
 - **Calendario:** eventi, interventi, scadenze
 - **Area cliente:** dashboard privata (solo credenziali admin)
 - **Home pubblica:** presentazione sintetica e link ad **Accedi** (nessuna registrazione pubblica)
-- **Impostazioni:** branding, dati azienda, SMTP
+- **Impostazioni:** testi home pubblica, logo/favicon, contatti footer, nome/colori
 - **Audit log** e notifiche
 
 ## Deploy produzione
@@ -223,7 +227,7 @@ Il backend resta sul **VPS** (o Docker): solo il sito Next.js va su Netlify.
 
 ```
 NEXT_PUBLIC_API_URL=https://api.tuodominio.it
-NEXT_PUBLIC_APP_NAME=NexusCRM
+NEXT_PUBLIC_APP_NAME=Nicolò Service
 ```
 
 Senza slash finale. Usa **HTTPS** se l’API è in TLS.

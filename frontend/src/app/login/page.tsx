@@ -4,16 +4,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { authApi } from "@/lib/api";
+import { authApi, settingsApi } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
+import { DEFAULT_APP_NAME, publicAssetUrl } from "@/lib/branding";
 
 export default function LoginPage() {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const { data: pub } = useQuery({
+    queryKey: ["settings", "public"],
+    queryFn: settingsApi.public,
+    staleTime: 60 * 1000,
+  });
+
+  const appName =
+    ((pub?.app_name as { name?: string })?.name || DEFAULT_APP_NAME).trim() ||
+    DEFAULT_APP_NAME;
+  const tagline = (pub?.app_name as { tagline?: string })?.tagline?.trim();
+  const logoSrc = publicAssetUrl((pub?.logo as { url?: string })?.url);
+  const brandInitial = appName.charAt(0).toUpperCase() || "N";
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -46,13 +61,25 @@ export default function LoginPage() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
         >
-          <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">
-            N
-          </div>
-          <h1 className="text-3xl font-bold">NexusCRM</h1>
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt=""
+              className="mb-6 h-12 w-12 rounded-xl border border-border object-contain p-0.5"
+            />
+          ) : (
+            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">
+              {brandInitial}
+            </div>
+          )}
+          <h1 className="text-3xl font-bold">{appName}</h1>
+          {tagline && (
+            <p className="mt-1 text-sm text-muted-foreground">{tagline}</p>
+          )}
           <p className="mt-4 max-w-md text-muted-foreground">
-            Accedi al gestionale enterprise. Area riservata — nessuna
-            registrazione pubblica.
+            Accesso riservato: usa le credenziali dell&apos;amministratore (account creati
+            da seed o da te da Impostazioni).
           </p>
         </motion.div>
       </div>
@@ -65,7 +92,8 @@ export default function LoginPage() {
         >
           <h2 className="text-2xl font-semibold">Accedi</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Inserisci le credenziali fornite dall&apos;amministratore
+            Email e password che hai configurato (es. nel seed /{" "}
+            <span className="font-mono text-xs">ADMIN_EMAIL</span>)
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-4">

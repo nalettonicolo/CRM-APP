@@ -1,7 +1,7 @@
 {
-  "name": "NexusCRM",
-  "short_name": "NexusCRM",
-  "description": "Gestionale SaaS enterprise",
+  "name": "Nicolò Service",
+  "short_name": "Nicolò Service",
+  "description": "Gestione interna clienti, preventivi, magazzino",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0f12",

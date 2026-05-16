@@ -85,11 +85,40 @@ async function main() {
     });
   });
 
+  const siteHomeDefault = {
+    badge: "Gestionale per uso interno",
+    headline: "Clienti, preventivi e interventi in un solo posto",
+    subheadline:
+      "Pensato per chi gestisce assistenza e commerciale nella propria attività: preventivi, magazzino, calendario e — se ti serve — un accesso dedicato ai clienti.",
+    accessIntro:
+      "Non c'è registrazione pubblica: gli utenti li crei tu (admin) da Impostazioni. Il primo account di sistema viene dal seed sul database con le variabili ADMIN_EMAIL e ADMIN_PASSWORD nel backend/.env — vedi README del progetto.",
+    footerLine: "Nicolò Service — uso interno",
+    features: [
+      {
+        title: "Operatività in tempo reale",
+        description: "Dashboard KPI, alert magazzino e calendario integrato.",
+      },
+      {
+        title: "Accessi controllati",
+        description: "JWT, ruoli e permessi: solo chi autorizzi entra o vede i dati.",
+      },
+      {
+        title: "Strumenti per tecnici",
+        description: "Report, checklist, materiali e scarico magazzino da campo.",
+      },
+    ],
+  };
+
   const settings = [
     {
       key: "app_name",
-      value: { name: "NexusCRM", tagline: "Gestione interna — clienti e interventi" },
+      value: {
+        name: "Nicolò Service",
+        tagline: "Gestione interna — clienti e interventi",
+      },
     },
+    { key: "logo", value: { url: "" } },
+    { key: "favicon", value: { url: "" } },
     {
       key: "colors",
       value: { primary: "#6366f1", accent: "#8b5cf6", sidebar: "#0f0f12" },
@@ -97,14 +126,16 @@ async function main() {
     {
       key: "company",
       value: {
-        name: "La Tua Azienda S.r.l.",
-        vat: "IT00000000000",
-        address: "Via Example 1, Milano",
-        email: "info@azienda.it",
-        phone: "+39 02 0000000",
+        name: "Nicolò Service",
+        vat: "",
+        address: "",
+        email: "",
+        phone: "",
+        website: "",
       },
     },
-    { key: "footer", value: { text: "© NexusCRM — uso interno" } },
+    { key: "footer", value: { text: "© Nicolò Service — uso interno" } },
+    { key: "site_home", value: siteHomeDefault },
   ];
 
   for (const s of settings) {

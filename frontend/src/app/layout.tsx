@@ -6,9 +6,9 @@ import { Providers } from "@/components/providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "NexusCRM — Gestionale SaaS Enterprise",
+  title: "Nicolò Service — gestionale interno",
   description:
-    "Gestione clienti, preventivi, interventi, magazzino e area clienti privata",
+    "Gestione clienti, preventivi, interventi, magazzino e contatti della tua attività",
   manifest: "/manifest.json",
 };
 

@@ -8,7 +8,15 @@ const router = Router();
 
 router.get("/public", async (_req, res, next) => {
   try {
-    const keys = ["app_name", "logo", "colors", "favicon", "footer", "company"];
+    const keys = [
+    "app_name",
+    "logo",
+    "colors",
+    "favicon",
+    "footer",
+    "company",
+    "site_home",
+  ];
     const settings = await prisma.setting.findMany({
       where: { key: { in: keys } },
     });

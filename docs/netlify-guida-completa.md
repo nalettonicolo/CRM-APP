@@ -1,4 +1,4 @@
-# Guida Netlify — NexusCRM (monorepo)
+# Guida Netlify — Nicolò Service (monorepo)
 
 Questa guida collega **GitHub → Netlify → frontend Next.js**. Il backend API e PostgreSQL restano sul tuo **VPS/server Linux** (non su Netlify).
 
@@ -61,7 +61,7 @@ L’**API pubblica** del gestionale è il server Node/Express sul VPS (es. `http
 
 Se l’API non esiste ancora: puoi temporaneamente mettere un URL segnaposto solo per far passare il build; l’app in produzione **non potrà fare login/dati reali** finché non imposti l’URL vero dell’API e ridistribuisci.
 
-Opzionale: seconda variabile **`NEXT_PUBLIC_APP_NAME`** = `NexusCRM`.
+Opzionale: seconda variabile **`NEXT_PUBLIC_APP_NAME`** = `Nicolò Service`.
 
 ### 4. Primo deploy
 

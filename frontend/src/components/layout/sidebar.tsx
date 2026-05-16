@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
+import { useQuery } from "@tanstack/react-query";
 import {
   LayoutDashboard,
   Users,
@@ -17,7 +18,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
-import { authApi } from "@/lib/api";
+import { authApi, settingsApi } from "@/lib/api";
+import { DEFAULT_APP_NAME, publicAssetUrl } from "@/lib/branding";
 
 const staffNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -38,9 +40,21 @@ const clientNav = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const { user, logout, isAuthenticated } = useAuthStore();
   const isClient = user?.role === "CLIENT";
   const nav = isClient ? clientNav : staffNav;
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: settingsApi.get,
+    enabled: isAuthenticated,
+  });
+
+  const appName =
+    ((settings?.app_name as { name?: string })?.name || DEFAULT_APP_NAME).trim() ||
+    DEFAULT_APP_NAME;
+  const logoSrc = publicAssetUrl((settings?.logo as { url?: string })?.url);
+  const initial = appName.charAt(0).toUpperCase() || "N";
 
   const handleLogout = async () => {
     try {
@@ -55,23 +69,31 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)]">
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white"
-        >
-          N
-        </motion.div>
+        {logoSrc ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={logoSrc}
+            alt=""
+            className="h-9 w-9 rounded-lg border border-white/10 bg-white/5 object-contain p-0.5"
+          />
+        ) : (
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white"
+          >
+            {initial}
+          </motion.div>
+        )}
         <div>
-          <p className="font-semibold text-white">NexusCRM</p>
-          <p className="text-xs text-white/50">Gestionale SaaS</p>
+          <p className="font-semibold text-white">{appName}</p>
+          <p className="text-xs text-white/50">Uso interno</p>
         </div>
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4">
         {nav.map((item) => {
           const active =
-            pathname === item.href ||
-            pathname.startsWith(item.href + "/");
+            pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link key={item.href} href={item.href}>
               <motion.span

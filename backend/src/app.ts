@@ -19,6 +19,7 @@ import publicRoutes from "./routes/public.js";
 import portalRoutes from "./routes/portal.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import notificationRoutes from "./routes/notifications.js";
+import uploadRoutes from "./routes/uploads.js";
 
 const app = express();
 
@@ -73,6 +74,7 @@ app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
+app.use("/api/uploads", uploadRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/quotes", quoteRoutes);

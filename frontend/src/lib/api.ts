@@ -250,7 +250,33 @@ export const eventsApi = {
 export const settingsApi = {
   public: () => api<Record<string, unknown>>("/settings/public"),
   get: () => api<Record<string, unknown>>("/settings"),
+  update: (key: string, value: unknown) =>
+    api<{ key: string; value: unknown }>(`/settings/${encodeURIComponent(key)}`, {
+      method: "PUT",
+      body: JSON.stringify({ value }),
+    }),
 };
+
+export async function uploadBrandingAsset(file: File, kind: "logo" | "favicon") {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(
+    `${API_URL}/api/uploads/branding?kind=${encodeURIComponent(kind)}`,
+    {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+      credentials: "include",
+    }
+  );
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) {
+    throw new ApiError(res.status, data.error || "Upload fallito");
+  }
+  return data as { relativeUrl: string; url: string };
+}
 
 export const portalApi = {
   dashboard: () => api<PortalDashboard>("/portal/dashboard"),

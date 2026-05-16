@@ -2,7 +2,7 @@
   "name": "crm-gestionale-saas",
   "version": "1.0.0",
   "private": true,
-  "description": "Gestionale SaaS enterprise - CRM, preventivi, interventi, magazzino",
+  "description": "Nicolò Service — gestionale interno (CRM, preventivi, magazzino)",
   "workspaces": [
     "backend",
     "frontend"

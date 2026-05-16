@@ -32,7 +32,7 @@ Nel sito Netlify → **Site configuration → Environment variables**:
 | Chiave | Valore esempio |
 |--------|----------------|
 | `NEXT_PUBLIC_API_URL` | `https://api.tuo-dominio.it` |
-| `NEXT_PUBLIC_APP_NAME` | `NexusCRM` |
+| `NEXT_PUBLIC_APP_NAME` | `Nicolò Service` |
 
 Regole:
 
