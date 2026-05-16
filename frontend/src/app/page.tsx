@@ -154,7 +154,7 @@ export default function LandingPage() {
               </motion.div>
             );
           })}
-        </motion.div>
+        </div>
       </section>
 
       <section id="contatto" className="mx-auto max-w-xl px-6 py-20">
