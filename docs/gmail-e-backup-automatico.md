@@ -1,5 +1,8 @@
 # Gmail SMTP + backup automatico (Mint + Google Drive)
 
+> **Guida passo-passo completa (SMTP, form contatti, deploy Mint, troubleshooting):**  
+> vedi [`guida-email-smtp-completa.md`](./guida-email-smtp-completa.md)
+
 ## Parte 1 — Email con Gmail
 
 ### 1. Password per le app (obbligatoria)

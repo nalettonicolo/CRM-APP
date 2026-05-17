@@ -38,14 +38,9 @@ jobs:
           script_stop: true
           script: |
             set -e
+            export SKIP_PULL=1
             cd ~/CRM-APP
             git pull origin main
-            cd backend
-            npx prisma db push
-            npm ci
-            npm run build
-            pm2 restart crm-api --update-env
-            pm2 restart crm-tunnel --update-env 2>/dev/null || true
-            pm2 save
-            curl -sf http://127.0.0.1:4100/api/health || curl -sf http://127.0.0.1:4000/api/health
+            chmod +x backend/scripts/*.sh
+            bash backend/scripts/deploy-completo-mint.sh
             echo "Deploy Mint completato."

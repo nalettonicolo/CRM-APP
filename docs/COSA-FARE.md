@@ -34,80 +34,56 @@ Se `git push` chiede credenziali, usa il token GitHub o SSH già configurato.
 
 ---
 
-## 2. Sul server Linux Mint (API + database)
+## 2. Sul server Linux Mint (deploy completo)
 
-Collegati in SSH:
-
-```bash
-ssh nicolo@192.168.1.53
-```
-
-### 2.1 Aggiorna il codice
+Sul Mint (SSH o terminale locale):
 
 ```bash
 cd ~/CRM-APP
 git pull origin main
+chmod +x backend/scripts/*.sh
+./backend/scripts/deploy-completo-mint.sh
 ```
 
-### 2.2 Aggiorna database (nuove colonne 2FA, ecc.)
+Lo script esegue in automatico: `prisma db push`, build API, PM2 `crm-api`, tunnel `crm-tunnel` (veloce **senza dominio** o permanente se esiste `~/.cloudflared/config.yml`), aggiornamento `API_URL` se serve, healthcheck.
+
+**Prima volta o PM2 vuoto / errore 1033:**
 
 ```bash
-cd ~/CRM-APP/backend
-npm ci
-npx prisma db push
+./backend/scripts/ripristina-mint-pm2.sh
+./backend/scripts/aggiorna-url-tunnel.sh   # se tunnel veloce e URL nuovo
 ```
 
-> Se `prisma generate` dà errore EPERM, ferma prima l’API: `pm2 stop crm-api`
-
-### 2.3 Ricompila e riavvia API
+**Boot automatico (una volta):**
 
 ```bash
-npm run build
-pm2 restart crm-api --update-env
-pm2 logs crm-api --lines 30
+pm2 startup
+# esegui la riga sudo che stampa
+pm2 save
 ```
 
-Verifica:
-
-```bash
-curl -s http://127.0.0.1:4100/api/health
-```
-
-Deve rispondere `{"status":"ok",...}` (porta **4100** se l’hai lasciata così nel `.env`).
-
-### 2.4 Tunnel Cloudflare (accesso da Internet)
-
-Il tunnel **quick** si chiude se chiudi il terminale. Per usarlo ora:
-
-```bash
-cloudflared tunnel --url http://127.0.0.1:4100
-```
-
-Copia l’URL `https://....trycloudflare.com` e aggiorna:
-
-**File `~/CRM-APP/backend/.env`:**
+### 2.1 `.env` produzione (esempio senza dominio)
 
 ```env
-API_URL=https://TUO-URL-TUNNEL.trycloudflare.com
+API_URL=https://TUO-URL.trycloudflare.com
 FRONTEND_URL=https://nicoloservice.netlify.app
 PORT=4100
 TRUST_CROSS_SITE_COOKIES=true
 ALLOW_NETLIFY_PREVIEWS=true
 ```
 
-Poi:
+Dopo ogni **nuovo** URL tunnel: stesso valore su Netlify `NEXT_PUBLIC_API_URL` → **Clear cache and deploy**.
+
+Guide: [`ripristino-pm2-tunnel-1033.md`](./ripristino-pm2-tunnel-1033.md), [`guida-email-smtp-completa.md`](./guida-email-smtp-completa.md).
+
+### 2.2 Deploy manuale (alternativa)
 
 ```bash
-pm2 restart crm-api --update-env
+cd ~/CRM-APP/backend
+./scripts/upgrade-mint.sh
 ```
 
-Test dall’esterno:
-
-```bash
-curl -s https://TUO-URL-TUNNEL.trycloudflare.com/api/health
-```
-
-> **Consiglio a medio termine:** tunnel Cloudflare permanente o dominio + Nginx, così l’URL non cambia ogni volta.
+Verifica: `curl -s http://127.0.0.1:4100/api/health` → `{"status":"ok",...}`.
 
 ### 2.5 Backup manuale (da impostazioni o terminale)
 
@@ -141,7 +117,7 @@ Apri: https://nicoloservice.netlify.app
 |------|------|
 | Login admin | `/login` — credenziali da seed (`ADMIN_EMAIL` / `ADMIN_PASSWORD` nel `.env` server) |
 | Logo grande in home | **Impostazioni → Logo** (poi rideploy Netlify se non vedi subito: svuota cache) |
-| SMTP email reali | **Impostazioni → Email SMTP** (host, porta, utente, password) |
+| SMTP email reali | **Impostazioni → Email Gmail (SMTP)** — guida: [`docs/guida-email-smtp-completa.md`](guida-email-smtp-completa.md) |
 | Colori aziendali | **Impostazioni → Colori** (si applicano al tema) |
 | Utenti staff | **Utenti** (solo Admin) |
 | Account cliente portale | **Utenti → Nuovo** con ruolo **CLIENT** e `clientId` collegato |
@@ -203,8 +179,9 @@ SMTP_FROM_NAME=Nicolò Service
 | Problema | Soluzione |
 |----------|-----------|
 | Login “rete / API” | Tunnel spento o `NEXT_PUBLIC_API_URL` sbagliato su Netlify |
+| Tunnel fisso + riavvio Mint | [`guida-tunnel-da-sito-cloudflare.md`](guida-tunnel-da-sito-cloudflare.md) (da browser) oppure [`guida-tunnel-permanente-pm2.md`](guida-tunnel-permanente-pm2.md) (da terminale) |
 | 401 dopo login | `TRUST_CROSS_SITE_COOKIES=true` + redeploy Netlify |
-| PDF / email non partono | Configura SMTP; senza SMTP l’API simula solo in log |
+| PDF / email non partono | Segui [`guida-email-smtp-completa.md`](guida-email-smtp-completa.md); senza SMTP l’API non invia (solo log) |
 | Allegati non caricano | Cartella `uploads` scrivibile sul server; `pm2` user con permessi |
 | Errori Prisma | `npx prisma db push` sul server dopo ogni pull importante |
 | Build Netlify fallisce | Controlla log; in locale: `$env:NODE_ENV="production"; npm run build --workspace=crm-frontend` |

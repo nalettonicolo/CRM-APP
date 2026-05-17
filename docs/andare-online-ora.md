@@ -33,53 +33,37 @@ Senza API pubblica in **HTTPS**, il login da `nicoloservice.netlify.app` **non f
 
 ## Passo 2 — API sul server Mint (obbligatorio)
 
-Sul PC/Linux dove gira PostgreSQL (`192.168.1.53`):
+Sul Mint (`192.168.1.53`), con `backend/.env` già configurato (modello: `backend/.env.example`):
 
 ```bash
-cd /percorso/CRM-APP
+cd ~/CRM-APP
 git pull origin main
-npm ci
-npm run db:generate --workspace=backend
-npm run build --workspace=backend
+chmod +x backend/scripts/*.sh
+./backend/scripts/deploy-completo-mint.sh
 ```
 
-Crea `backend/.env` di **produzione** (modello: `backend/.env.example`, sezione Produzione):
+Esempio `.env` **senza dominio** (tunnel trycloudflare):
 
 ```env
 NODE_ENV=production
-PORT=4000
-API_URL=https://api.TUO-DOMINIO.it
+PORT=4100
+API_URL=https://xxx.trycloudflare.com
 FRONTEND_URL=https://nicoloservice.netlify.app
 TRUST_CROSS_SITE_COOKIES=true
 ALLOW_NETLIFY_PREVIEWS=true
-
-DATABASE_URL=postgresql://postgres:PASSWORD@127.0.0.1:5432/crm_gestionale?schema=public
-JWT_SECRET=stringa-lunga-random-min-32-caratteri
-JWT_REFRESH_SECRET=altra-stringa-lunga-random
+DATABASE_URL=postgresql://...
+JWT_SECRET=...
+JWT_REFRESH_SECRET=...
 ```
 
-Avvia l’API (esempio con PM2):
+Se PM2 è vuoto: `./backend/scripts/ripristina-mint-pm2.sh` poi `./backend/scripts/aggiorna-url-tunnel.sh`.
 
-```bash
-cd backend
-npm run start
-# oppure: pm2 start dist/index.js --name crm-api
-```
+### Esporre l’API su Internet (senza comprare dominio)
 
-L’API deve essere raggiungibile da Internet in **HTTPS** (non basta `192.168.1.53` se sei fuori casa).
+**Cloudflare Tunnel veloce** in PM2 — URL `https://....trycloudflare.com` (può cambiare se ricrei il tunnel).  
+Guide: [`ripristino-pm2-tunnel-1033.md`](./ripristino-pm2-tunnel-1033.md), [`COSA-FARE.md`](./COSA-FARE.md).
 
-### Esporre l’API su Internet
-
-Scegli **una** strada:
-
-**A) Dominio + Nginx + Let’s Encrypt** (consigliato in produzione)  
-Reverse proxy da `https://api.tuodominio.it` → `http://127.0.0.1:4000`, certificato TLS, firewall che apre 443.
-
-**B) Cloudflare Tunnel** (veloce per iniziare)  
-Sul Mint: installa `cloudflared`, tunnel verso `localhost:4000`, ottieni un hostname `https://xxx.trycloudflare.com` o sottodominio tuo → usa quell’URL come `NEXT_PUBLIC_API_URL` e `API_URL`.
-
-**C) Router**  
-Port forwarding `443` → server Mint + DNS (No-IP, DuckDNS) se hai IP pubblico.
+Con dominio in futuro: [`guida-tunnel-permanente-pm2.md`](./guida-tunnel-permanente-pm2.md).
 
 ---
 

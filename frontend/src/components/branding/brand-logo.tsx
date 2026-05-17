@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { publicAssetUrl } from "@/lib/branding";
 
@@ -18,13 +19,16 @@ export function BrandLogo({
 }: BrandLogoProps) {
   const src = publicAssetUrl(logoUrl);
   const letter = appName.charAt(0).toUpperCase() || "N";
+  const [failed, setFailed] = useState(false);
 
-  if (src) {
+  if (src && !failed) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
         alt={appName}
+        referrerPolicy="no-referrer"
+        onError={() => setFailed(true)}
         className={cn(
           "object-contain",
           variant === "nav" && "h-11 w-auto max-w-[180px]",

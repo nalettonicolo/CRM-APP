@@ -820,8 +820,23 @@ export async function uploadGalleryImage(file: File) {
   return data as { relativeUrl: string; url: string };
 }
 
+/** Impostazioni pubbliche: niente redirect al login se il token in localStorage è scaduto. */
+export async function fetchPublicSettings(): Promise<Record<string, unknown>> {
+  const res = await fetch(`${API_URL}/api/settings/public`, {
+    method: "GET",
+    cache: "no-store",
+  });
+  const data = (await res.json().catch(() => ({}))) as {
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new ApiError(res.status, data.error || "Impossibile caricare impostazioni");
+  }
+  return data as Record<string, unknown>;
+}
+
 export const settingsApi = {
-  public: () => api<Record<string, unknown>>("/settings/public"),
+  public: fetchPublicSettings,
   get: () => api<Record<string, unknown>>("/settings"),
   update: (key: string, value: unknown) =>
     api<{ key: string; value: unknown }>(`/settings/${encodeURIComponent(key)}`, {

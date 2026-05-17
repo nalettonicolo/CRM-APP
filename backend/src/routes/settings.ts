@@ -11,6 +11,7 @@ import {
 } from "../services/email.js";
 import { getSmtpConfig, isSmtpConfigured } from "../services/smtpConfig.js";
 import { ValidationError } from "../utils/errors.js";
+import { withAbsoluteAssetUrls } from "../utils/publicAssetUrl.js";
 
 const router = Router();
 
@@ -30,7 +31,7 @@ router.get("/public", async (_req, res, next) => {
     });
     const result: Record<string, unknown> = {};
     for (const s of settings) result[s.key] = s.value;
-    res.json(result);
+    res.json(withAbsoluteAssetUrls(result));
   } catch (e) {
     next(e);
   }

@@ -1,0 +1,17 @@
+# Copia su Mint: ~/.cloudflared/config.yml
+# Sostituisci <UUID> con l'ID del tunnel (cartella in ~/.cloudflared/*.json)
+# Sostituisci hostname con il tuo (dominio Cloudflare o hostname pubblico del tunnel)
+
+tunnel: crm-nicolo-service
+credentials-file: /home/nicolo/.cloudflared/<UUID>.json
+
+ingress:
+  # Opzione A — dominio tuo (es. api.nicoloservice.it)
+  - hostname: api.tuodominio.it
+    service: http://127.0.0.1:4100
+
+  # Opzione B — hostname assegnato da Cloudflare Zero Trust (scommenta e usa il tuo)
+  # - hostname: crm-nicolo-service.cfargotunnel.com
+  #   service: http://127.0.0.1:4100
+
+  - service: http_status:404

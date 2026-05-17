@@ -99,6 +99,7 @@ export function publicAssetUrl(pathOrUrl: string | undefined | null): string {
   if (!pathOrUrl?.trim()) return "";
   const s = pathOrUrl.trim();
   if (/^https?:\/\//i.test(s)) return s;
-  if (s.startsWith("/uploads/")) return s;
-  return `${API_URL.replace(/\/$/, "")}${s.startsWith("/") ? s : `/${s}`}`;
+  const base = API_URL.replace(/\/$/, "");
+  if (!base) return s.startsWith("/") ? s : `/${s}`;
+  return `${base}${s.startsWith("/") ? s : `/${s}`}`;
 }

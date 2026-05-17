@@ -139,11 +139,21 @@ cloudflared tunnel route dns crm-nicolo-service api.tuodominio.it
 pm2 start cloudflared --name crm-tunnel -- tunnel --config /home/nicolo/.cloudflared/config.yml run
 ```
 
-### Passo D7 — Salva PM2 al riavvio
+### Passo D7 — PM2: salva + avvio automatico al boot
+
+```bash
+pm2 save
+pm2 startup
+```
+
+Esegui la riga **`sudo env PATH=... pm2 startup systemd -u nicolo --hp /home/nicolo`** che PM2 stampa, poi di nuovo:
 
 ```bash
 pm2 save
 ```
+
+**Guida dettagliata (consigliata):** [`guida-tunnel-permanente-pm2.md`](./guida-tunnel-permanente-pm2.md)  
+**Script rapido:** `backend/scripts/setup-tunnel-pm2.sh`
 
 ### Passo D8 — Aggiorna `.env` Mint con URL fisso
 
@@ -348,4 +358,4 @@ rclone ls gdrive:CRM-Backups
 4. G (Netlify)  
 5. H (Gmail test)  
 6. I (backup + Drive)  
-7. Pianifica D (tunnel permanente) quando hai dominio Cloudflare
+7. **D** — Tunnel permanente + `pm2 startup`: [`guida-tunnel-permanente-pm2.md`](./guida-tunnel-permanente-pm2.md)

@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { authenticate, adminOnly } from "../middleware/auth.js";
 import { paramId } from "../utils/params.js";
 import { NotFoundError } from "../utils/errors.js";
+import { toPublicAssetUrl } from "../utils/publicAssetUrl.js";
 
 const router = Router();
 
@@ -14,7 +15,12 @@ router.get("/public", async (_req, res, next) => {
       orderBy: [{ sortOrder: "asc" }, { eventDate: "desc" }, { createdAt: "desc" }],
       take: 24,
     });
-    res.json(items);
+    res.json(
+      items.map((item) => ({
+        ...item,
+        imagePath: toPublicAssetUrl(item.imagePath),
+      }))
+    );
   } catch (e) {
     next(e);
   }

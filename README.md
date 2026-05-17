@@ -203,12 +203,14 @@ In **produzione** usa password lunghe e diverse; puoi rimuovere gli utenti di es
 ## Deploy produzione
 
 **Checklist “voglio andare online ora”:** [`docs/andare-online-ora.md`](docs/andare-online-ora.md)  
+**Mint (API + tunnel PM2):** sul server `git pull` poi `backend/scripts/deploy-completo-mint.sh` — vedi [`docs/COSA-FARE.md`](docs/COSA-FARE.md).  
 Guida Netlify **completa** (monorepo, UI Package directory, variabili, troubleshooting): [`docs/netlify-guida-completa.md`](docs/netlify-guida-completa.md).
 
 Template variabili:
 
 - `backend/.env.example` — variabili API (sviluppo e produzione, vedi commenti nel file)
 - `frontend/.env.example` — variabili Netlify / locale
+- [`docs/guida-email-smtp-completa.md`](docs/guida-email-smtp-completa.md) — Gmail SMTP, form contatti, deploy Mint, troubleshooting
 
 ### Frontend — Netlify
 
