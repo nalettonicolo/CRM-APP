@@ -37,14 +37,16 @@ export default function NewQuotePage() {
                     title: data.title,
                     notes: data.notes,
                     validUntil: data.validUntil,
-                    depositPercent: data.depositPercent,
-                    depositAmount: data.depositAmount,
+                    paymentTerms: data.paymentTerms,
                     items: data.items.map((i) => ({
                       type: i.type,
                       description: i.description,
                       quantity: i.quantity,
                       unitPrice: i.unitPrice,
                       vatRate: i.vatRate,
+                      unit: i.unit,
+                      serviceId: i.serviceId,
+                      productId: i.productId,
                     })),
                   });
                   router.push(`/quotes/${quote.id}`);

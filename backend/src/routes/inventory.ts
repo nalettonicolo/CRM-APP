@@ -115,11 +115,12 @@ router.get("/products", requirePermission("products", "READ"), async (_req, res,
   }
 });
 
-router.get("/services", requirePermission("services", "READ"), async (_req, res, next) => {
+router.get("/services", requirePermission("services", "READ"), async (req, res, next) => {
   try {
+    const all = req.query.all === "1" || req.query.all === "true";
     const services = await prisma.service.findMany({
-      where: { isActive: true },
-      orderBy: { name: "asc" },
+      where: all ? undefined : { isActive: true },
+      orderBy: [{ category: "asc" }, { name: "asc" }],
     });
     res.json(services);
   } catch (e) {
@@ -248,19 +249,24 @@ router.post("/services", requirePermission("services", "CREATE"), async (req: Au
         description: z.string().optional(),
         category: z.string().optional(),
         price: z.number(),
+        unit: z.string().optional(),
         vatRate: z.number().optional(),
+        vatExempt: z.boolean().optional(),
         duration: z.number().optional(),
         operatorCost: z.number().optional(),
       })
       .parse(req.body);
 
+    const vatExempt = data.vatExempt === true;
     const service = await prisma.service.create({
       data: {
         name: data.name,
         description: data.description,
         category: data.category,
+        unit: data.unit?.trim() || undefined,
         price: toDecimal(data.price),
-        vatRate: toDecimal(data.vatRate ?? 22),
+        vatExempt,
+        vatRate: toDecimal(vatExempt ? 0 : (data.vatRate ?? 22)),
         duration: data.duration,
         operatorCost:
           data.operatorCost != null ? toDecimal(data.operatorCost) : undefined,
@@ -288,7 +294,9 @@ router.patch("/services/:id", requirePermission("services", "UPDATE"), async (re
         description: z.string().optional(),
         category: z.string().optional(),
         price: z.number().optional(),
+        unit: z.string().optional(),
         vatRate: z.number().optional(),
+        vatExempt: z.boolean().optional(),
         duration: z.number().optional(),
         operatorCost: z.number().optional(),
         isActive: z.boolean().optional(),
@@ -298,14 +306,26 @@ router.patch("/services/:id", requirePermission("services", "UPDATE"), async (re
     const existing = await prisma.service.findUnique({ where: { id: paramId(req) } });
     if (!existing) throw new NotFoundError();
 
+    const vatExempt = data.vatExempt ?? existing.vatExempt;
+    const vatRate = vatExempt
+      ? 0
+      : data.vatRate != null
+        ? data.vatRate
+        : Number(existing.vatRate);
+
     const service = await prisma.service.update({
       where: { id: paramId(req) },
       data: {
         name: data.name,
         description: data.description,
         category: data.category,
+        unit:
+          data.unit !== undefined
+            ? data.unit.trim() || null
+            : undefined,
         price: data.price != null ? toDecimal(data.price) : undefined,
-        vatRate: data.vatRate != null ? toDecimal(data.vatRate) : undefined,
+        vatExempt: data.vatExempt,
+        vatRate: toDecimal(vatRate),
         duration: data.duration,
         operatorCost:
           data.operatorCost != null ? toDecimal(data.operatorCost) : undefined,

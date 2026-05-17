@@ -74,9 +74,14 @@ export default function ProductsPage() {
     <>
       <Header title="Prodotti" />
       <div className="p-3 sm:p-4 md:p-6">
-        <Link href="/inventory" className="text-sm text-primary hover:underline">
-          ← Magazzino
-        </Link>
+        <div className="flex flex-wrap gap-3 text-sm">
+          <Link href="/inventory" className="text-primary hover:underline">
+            ← Magazzino
+          </Link>
+          <Link href="/inventory/services" className="text-primary hover:underline">
+            Catalogo servizi →
+          </Link>
+        </div>
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Catalogo prodotti</CardTitle>

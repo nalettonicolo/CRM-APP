@@ -15,6 +15,7 @@ router.post("/contact", async (req, res, next) => {
         phone: z.string().optional(),
         company: z.string().optional(),
         message: z.string().min(10),
+        services: z.array(z.string().min(1)).optional(),
       })
       .parse(req.body);
 
@@ -25,6 +26,7 @@ router.post("/contact", async (req, res, next) => {
         phone: data.phone,
         company: data.company,
         message: data.message,
+        services: data.services ?? [],
         source: "website",
       },
     });
@@ -36,6 +38,7 @@ router.post("/contact", async (req, res, next) => {
         "Nuova richiesta contatto",
         `<p><strong>${data.name}</strong> (${data.email})</p>
          <p>${data.company || ""}</p>
+         ${data.services?.length ? `<p><strong>Servizi:</strong> ${data.services.join(", ")}</p>` : ""}
          <p>${data.message}</p>`
       ),
     });

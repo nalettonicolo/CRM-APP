@@ -1,16 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Search } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ClickableRow } from "@/components/detail/detail-shell";
+import { ClientDetailDialog } from "@/components/clients/client-detail-dialog";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
-import { clientsApi } from "@/lib/api";
+import { clientsApi, type Client } from "@/lib/api";
 import { clientStatusLabels } from "@/lib/labels";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -37,10 +36,11 @@ function clientDisplayName(client: {
 }
 
 export default function ClientsPage() {
-  const router = useRouter();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editClient, setEditClient] = useState<Client | null>(null);
   const { data, isLoading } = useQuery({
     queryKey: ["clients", search, status],
     queryFn: () => {
@@ -119,9 +119,10 @@ export default function ClientsPage() {
                     </tr>
                   ) : (
                     data?.data.map((client) => (
-                      <ClickableRow
+                      <tr
                         key={client.id}
-                        onClick={() => router.push(`/clients/${client.id}`)}
+                        className="cursor-pointer border-b border-border transition-colors hover:bg-muted/40"
+                        onClick={() => setSelectedId(client.id)}
                       >
                         <td className="px-4 py-3 font-medium">
                           {clientDisplayName(client)}
@@ -152,7 +153,7 @@ export default function ClientsPage() {
                               ? formatDate(client.createdAt)
                               : "—"}
                         </td>
-                      </ClickableRow>
+                      </tr>
                     ))
                   )}
                 </tbody>
@@ -161,7 +162,30 @@ export default function ClientsPage() {
           </CardContent>
         </Card>
       </div>
-      <ClientFormDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ClientDetailDialog
+        clientId={selectedId}
+        open={!!selectedId && !editClient}
+        onOpenChange={(open) => !open && setSelectedId(null)}
+        onEdit={() => {
+          if (!selectedId) return;
+          clientsApi.get(selectedId).then((c) => setEditClient(c));
+        }}
+      />
+      <ClientFormDialog
+        open={dialogOpen || !!editClient}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDialogOpen(false);
+            setEditClient(null);
+            setSelectedId(null);
+          }
+        }}
+        client={editClient}
+        onSaved={() => {
+          setEditClient(null);
+          setSelectedId(null);
+        }}
+      />
     </>
   );
 }

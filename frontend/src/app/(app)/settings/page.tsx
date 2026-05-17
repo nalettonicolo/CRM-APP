@@ -619,6 +619,20 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
+            <CardTitle>Piani di pagamento</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Modelli di acconti e saldi riutilizzabili in ogni preventivo.
+            </p>
+            <Link href="/settings/payment-terms">
+              <Button variant="outline">Gestisci modelli acconti</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Automazione preventivi</CardTitle>
           </CardHeader>
           <CardContent>

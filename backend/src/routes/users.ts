@@ -40,9 +40,10 @@ router.get("/", async (_req, res, next) => {
         role: true,
         status: true,
         phone: true,
+        clientId: true,
         lastLoginAt: true,
         createdAt: true,
-        client: { select: { companyName: true } },
+        client: { select: { id: true, companyName: true, contactName: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -118,6 +119,11 @@ router.patch("/:id", async (req: AuthRequest, res, next) => {
         lastName: true,
         role: true,
         status: true,
+        phone: true,
+        clientId: true,
+        createdAt: true,
+        lastLoginAt: true,
+        client: { select: { id: true, companyName: true, contactName: true } },
       },
     });
     res.json(user);

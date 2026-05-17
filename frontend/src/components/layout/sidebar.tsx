@@ -12,6 +12,7 @@ import {
   Wrench,
   Package,
   Boxes,
+  Briefcase,
   Calendar,
   Settings,
   LogOut,
@@ -38,6 +39,7 @@ const staffNav = [
   { href: "/reports", label: "Report", icon: ClipboardList },
   { href: "/inventory", label: "Magazzino", icon: Package },
   { href: "/inventory/products", label: "Prodotti", icon: Boxes },
+  { href: "/inventory/services", label: "Catalogo servizi", icon: Briefcase },
   { href: "/calendar", label: "Calendario", icon: Calendar },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ];

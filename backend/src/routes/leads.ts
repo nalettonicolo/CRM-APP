@@ -45,6 +45,27 @@ router.get("/", requirePermission("leads", "READ"), async (req, res, next) => {
   }
 });
 
+router.get(
+  "/:id",
+  requirePermission("leads", "READ"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const lead = await prisma.lead.findUnique({
+        where: { id: paramId(req) },
+        include: {
+          client: {
+            select: { id: true, companyName: true, contactName: true, email: true },
+          },
+        },
+      });
+      if (!lead) throw new NotFoundError();
+      res.json(lead);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 router.patch(
   "/:id",
   requirePermission("leads", "UPDATE"),

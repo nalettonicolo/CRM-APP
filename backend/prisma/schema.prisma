@@ -290,6 +290,7 @@ model Lead {
   phone       String?
   company     String?
   message     String?  @db.Text
+  services    String[] @default([])
   source      String?  @default("website")
   status      String   @default("new")
   assignedTo  String?
@@ -307,8 +308,10 @@ model Service {
   name         String
   description  String?     @db.Text
   category     String?
+  unit         String?
   price        Decimal     @db.Decimal(12, 2)
   vatRate      Decimal     @default(22) @db.Decimal(5, 2)
+  vatExempt    Boolean     @default(false)
   duration     Int?
   operatorCost Decimal?    @db.Decimal(12, 2)
   isActive     Boolean     @default(true)
@@ -387,6 +390,7 @@ model Quote {
   sentAt          DateTime?
   acceptedAt      DateTime?
   items           QuoteItem[]
+  paymentTerms    QuotePaymentTerm[]
   attachments     Attachment[]  @relation("QuoteAttachments")
   invoicePreviews InvoicePreview[]
   createdAt       DateTime      @default(now())
@@ -397,6 +401,43 @@ model Quote {
   @@index([number])
 }
 
+model QuotePaymentTerm {
+  id        String   @id @default(cuid())
+  quoteId   String
+  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  label     String
+  note      String?  @db.Text
+  percent   Decimal? @db.Decimal(5, 2)
+  amount    Decimal  @default(0) @db.Decimal(12, 2)
+  isBalance Boolean  @default(false)
+  sortOrder Int      @default(0)
+
+  @@index([quoteId])
+}
+
+model PaymentTermTemplate {
+  id        String                      @id @default(cuid())
+  name      String
+  isDefault Boolean                     @default(false)
+  items     PaymentTermTemplateItem[]
+  createdAt DateTime                    @default(now())
+  updatedAt DateTime                    @updatedAt
+}
+
+model PaymentTermTemplateItem {
+  id         String              @id @default(cuid())
+  templateId String
+  template   PaymentTermTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label      String
+  note       String?             @db.Text
+  percent    Decimal?            @db.Decimal(5, 2)
+  amount     Decimal?            @db.Decimal(12, 2)
+  isBalance  Boolean             @default(false)
+  sortOrder  Int                 @default(0)
+
+  @@index([templateId])
+}
+
 model QuoteItem {
   id          String   @id @default(cuid())
   quoteId     String
@@ -404,6 +445,7 @@ model QuoteItem {
   type        String
   description String
   quantity    Decimal  @db.Decimal(12, 3)
+  unit        String?
   unitPrice   Decimal  @db.Decimal(12, 2)
   vatRate     Decimal  @default(22) @db.Decimal(5, 2)
   discount    Decimal  @default(0) @db.Decimal(5, 2)

@@ -236,6 +236,7 @@ export interface Quote {
   clientId?: string;
   client?: Client;
   items?: QuoteItem[];
+  paymentTerms?: QuotePaymentTerm[];
   createdBy?: { firstName: string; lastName: string; email?: string };
   createdAt: string;
   updatedAt?: string;
@@ -246,15 +247,80 @@ export interface Quote {
   clientSignature?: string | null;
 }
 
+export interface QuotePaymentTerm {
+  id?: string;
+  label: string;
+  note?: string | null;
+  percent?: number | string | null;
+  amount?: number | string;
+  isBalance: boolean;
+  sortOrder?: number;
+}
+
+export interface PaymentTermTemplate {
+  id: string;
+  name: string;
+  isDefault: boolean;
+  items: {
+    id?: string;
+    label: string;
+    note?: string | null;
+    percent?: number | string | null;
+    amount?: number | string | null;
+    isBalance: boolean;
+    sortOrder: number;
+  }[];
+}
+
+export type PaymentTermDraft = {
+  label: string;
+  note?: string;
+  percent?: number;
+  amount?: number;
+  isBalance?: boolean;
+};
+
+export const paymentTermTemplatesApi = {
+  list: () => api<PaymentTermTemplate[]>("/payment-term-templates"),
+  create: (data: {
+    name: string;
+    isDefault?: boolean;
+    items: PaymentTermDraft[];
+  }) =>
+    api<PaymentTermTemplate>("/payment-term-templates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (
+    id: string,
+    data: Partial<{
+      name: string;
+      isDefault: boolean;
+      items: PaymentTermDraft[];
+    }>
+  ) =>
+    api<PaymentTermTemplate>(`/payment-term-templates/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/payment-term-templates/${id}`, {
+      method: "DELETE",
+    }),
+};
+
 export interface QuoteItem {
   id: string;
   type: string;
   description: string;
   quantity: number | string;
+  unit?: string | null;
   unitPrice: number | string;
   vatRate: number | string;
   discount: number | string;
   total: number | string;
+  serviceId?: string | null;
+  productId?: string | null;
 }
 
 export const dashboardApi = {
@@ -307,7 +373,20 @@ export const inventoryApi = {
     return api<InventoryItem[]>(`/inventory${q}`);
   },
   products: () => api<Product[]>("/inventory/products"),
-  services: () => api<Service[]>("/inventory/services"),
+  services: (params?: { all?: boolean }) => {
+    const q = params?.all ? "?all=1" : "";
+    return api<Service[]>(`/inventory/services${q}`);
+  },
+  createService: (data: Partial<Service>) =>
+    api<Service>("/inventory/services", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateService: (id: string, data: Partial<Service>) =>
+    api<Service>(`/inventory/services/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   createProduct: (data: Partial<Product>) =>
     api<Product>("/inventory/products", {
       method: "POST",
@@ -347,6 +426,13 @@ export interface Service {
   name: string;
   price: number | string;
   category?: string;
+  description?: string;
+  unit?: string | null;
+  vatRate?: number | string;
+  vatExempt?: boolean;
+  duration?: number | null;
+  operatorCost?: number | string;
+  isActive?: boolean;
 }
 
 export const interventionsApi = {
@@ -460,9 +546,10 @@ export interface StaffUser {
   role: string;
   status: string;
   phone?: string;
+  clientId?: string | null;
   lastLoginAt?: string | null;
   createdAt: string;
-  client?: { companyName?: string };
+  client?: { id: string; companyName?: string; contactName?: string };
 }
 
 export const usersApi = {
@@ -478,7 +565,18 @@ export const usersApi = {
     status?: string;
   }) =>
     api<StaffUser>("/users", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<{ password: string; role: string; status: string }>) =>
+  update: (
+    id: string,
+    data: Partial<{
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+      role: string;
+      status: string;
+    }>
+  ) =>
     api<StaffUser>(`/users/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -702,8 +800,17 @@ export interface LeadItem {
   phone?: string;
   company?: string;
   message?: string;
+  services?: string[];
+  source?: string;
   status: string;
   createdAt: string;
+  clientId?: string | null;
+  client?: {
+    id: string;
+    companyName?: string;
+    contactName?: string;
+    email?: string;
+  };
   assignedTo?: { firstName: string; lastName: string };
 }
 
@@ -712,6 +819,7 @@ export const leadsApi = {
     const q = params ? "?" + new URLSearchParams(params).toString() : "";
     return api<{ data: LeadItem[]; total: number }>(`/leads${q}`);
   },
+  get: (id: string) => api<LeadItem>(`/leads/${id}`),
   update: (
     id: string,
     data: { status?: string; assignedToId?: string; convertToClient?: boolean }
@@ -767,6 +875,7 @@ export const publicApi = {
     phone?: string;
     company?: string;
     message: string;
+    services?: string[];
   }) =>
     fetch(`${API_URL}/api/public/contact`, {
       method: "POST",

@@ -7,6 +7,11 @@ import {
   type AuthRequest,
 } from "../middleware/auth.js";
 import { calculateQuoteTotals, toDecimal } from "../services/quoteCalculator.js";
+import {
+  resolvePaymentTerms,
+  type PaymentTermInput,
+} from "../services/paymentTerms.js";
+import { paymentTermInputSchema } from "./paymentTermTemplates.js";
 import { logActivity } from "../services/activityLog.js";
 import { sendEmail, emailTemplate } from "../services/email.js";
 import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
@@ -22,10 +27,42 @@ const quoteItemInputSchema = z.object({
   discount: z.number().optional(),
   serviceId: z.string().optional(),
   productId: z.string().optional(),
+  unit: z.string().optional(),
 });
 
 const router = Router();
 router.use(authenticate);
+
+function paymentTermsForCalc(
+  terms: z.infer<typeof paymentTermInputSchema>[] | undefined
+): PaymentTermInput[] | undefined {
+  if (!terms?.length) return undefined;
+  return terms.map((t) => ({
+    label: t.label,
+    note: t.note,
+    percent: t.percent,
+    amount: t.amount,
+    isBalance: t.isBalance,
+  }));
+}
+
+function buildPaymentTermsCreate(
+  total: number,
+  terms: z.infer<typeof paymentTermInputSchema>[] | undefined
+) {
+  if (!terms?.length) return undefined;
+  const resolved = resolvePaymentTerms(total, paymentTermsForCalc(terms)!);
+  return {
+    create: resolved.map((t, idx) => ({
+      label: t.label,
+      note: t.note || undefined,
+      percent: t.percent != null ? toDecimal(t.percent) : undefined,
+      amount: toDecimal(t.amount),
+      isBalance: t.isBalance === true,
+      sortOrder: idx,
+    })),
+  };
+}
 
 async function generateQuoteNumber(): Promise<string> {
   const year = new Date().getFullYear();
@@ -73,6 +110,7 @@ router.get("/:id", requirePermission("quotes", "READ"), async (req: AuthRequest,
       include: {
         client: true,
         items: { orderBy: { sortOrder: "asc" } },
+        paymentTerms: { orderBy: { sortOrder: "asc" } },
         createdBy: { select: { firstName: true, lastName: true, email: true } },
       },
     });
@@ -102,20 +140,8 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         discountAmount: z.number().optional(),
         depositPercent: z.number().optional(),
         depositAmount: z.number().optional(),
-        items: z
-          .array(
-            z.object({
-              type: z.enum(["service", "product", "custom"]),
-              description: z.string(),
-              quantity: z.number(),
-              unitPrice: z.number(),
-              vatRate: z.number().optional(),
-              discount: z.number().optional(),
-              serviceId: z.string().optional(),
-              productId: z.string().optional(),
-            })
-          )
-          .optional(),
+        paymentTerms: z.array(paymentTermInputSchema).optional(),
+        items: z.array(quoteItemInputSchema).optional(),
       })
       .parse(req.body);
 
@@ -141,10 +167,15 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         discountAmount: body.discountAmount,
         depositPercent: body.depositPercent,
         depositAmount: body.depositAmount,
+        paymentTerms: paymentTermsForCalc(body.paymentTerms),
       }
     );
 
     const number = await generateQuoteNumber();
+    const paymentTermsCreate = buildPaymentTermsCreate(
+      totals.total,
+      body.paymentTerms
+    );
     const quote = await prisma.quote.create({
       data: {
         number,
@@ -156,7 +187,9 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         notes: body.notes,
         discountPercent: toDecimal(body.discountPercent || 0),
         discountAmount: toDecimal(body.discountAmount || 0),
-        depositPercent: toDecimal(body.depositPercent || 0),
+        depositPercent: toDecimal(totals.depositAmount > 0 && totals.total > 0
+          ? (totals.depositAmount / totals.total) * 100
+          : body.depositPercent || 0),
         depositAmount: toDecimal(totals.depositAmount),
         subtotal: toDecimal(totals.subtotal),
         vatAmount: toDecimal(totals.vatAmount),
@@ -170,6 +203,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
             unitPrice: toDecimal(item.unitPrice),
             vatRate: toDecimal(item.vatRate ?? 22),
             discount: toDecimal(item.discount ?? 0),
+            unit: item.unit || undefined,
             total: toDecimal(
               item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100)
             ),
@@ -178,8 +212,13 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
             sortOrder: idx,
           })),
         },
+        ...(paymentTermsCreate && { paymentTerms: paymentTermsCreate }),
       },
-      include: { items: true, client: true },
+      include: {
+        items: true,
+        paymentTerms: { orderBy: { sortOrder: "asc" } },
+        client: true,
+      },
     });
 
     await logActivity({
@@ -202,6 +241,7 @@ async function loadQuoteForPdf(id: string, user: AuthRequest["user"]) {
     include: {
       client: true,
       items: { orderBy: { sortOrder: "asc" } },
+      paymentTerms: { orderBy: { sortOrder: "asc" } },
     },
   });
   if (!quote) throw new NotFoundError();
@@ -300,6 +340,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
         discountAmount: z.number().optional(),
         depositPercent: z.number().optional(),
         depositAmount: z.number().optional(),
+        paymentTerms: z.array(paymentTermInputSchema).optional(),
         items: z.array(quoteItemInputSchema).optional(),
         status: z
           .enum(["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED"])
@@ -310,7 +351,10 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
 
     const existing = await prisma.quote.findUnique({
       where: { id: paramId(req) },
-      include: { items: { orderBy: { sortOrder: "asc" } } },
+      include: {
+        items: { orderBy: { sortOrder: "asc" } },
+        paymentTerms: { orderBy: { sortOrder: "asc" } },
+      },
     });
     if (!existing) throw new NotFoundError();
 
@@ -328,17 +372,39 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           discount: Number(i.discount),
         }));
 
+    const paymentTermsInput =
+      body.paymentTerms !== undefined
+        ? paymentTermsForCalc(body.paymentTerms)
+        : existing.paymentTerms.length
+          ? existing.paymentTerms.map((t) => ({
+              label: t.label,
+              note: t.note,
+              percent: t.percent != null ? Number(t.percent) : null,
+              amount: Number(t.amount),
+              isBalance: t.isBalance,
+            }))
+          : undefined;
+
     const totals = calculateQuoteTotals(itemsForCalc, {
       discountPercent:
         body.discountPercent ?? Number(existing.discountPercent),
       discountAmount: body.discountAmount ?? Number(existing.discountAmount),
       depositPercent: body.depositPercent ?? Number(existing.depositPercent),
       depositAmount: body.depositAmount,
+      paymentTerms: paymentTermsInput,
     });
+
+    const paymentTermsCreate = buildPaymentTermsCreate(
+      totals.total,
+      body.paymentTerms
+    );
 
     const quote = await prisma.$transaction(async (tx) => {
       if (body.items) {
         await tx.quoteItem.deleteMany({ where: { quoteId: existing.id } });
+      }
+      if (body.paymentTerms !== undefined) {
+        await tx.quotePaymentTerm.deleteMany({ where: { quoteId: existing.id } });
       }
 
       return tx.quote.update({
@@ -361,9 +427,11 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           ...(body.discountAmount !== undefined && {
             discountAmount: toDecimal(body.discountAmount),
           }),
-          ...(body.depositPercent !== undefined && {
-            depositPercent: toDecimal(body.depositPercent),
-          }),
+          depositPercent: toDecimal(
+            totals.total > 0
+              ? (totals.depositAmount / totals.total) * 100
+              : 0
+          ),
           depositAmount: toDecimal(totals.depositAmount),
           subtotal: toDecimal(totals.subtotal),
           vatAmount: toDecimal(totals.vatAmount),
@@ -378,6 +446,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
                 unitPrice: toDecimal(item.unitPrice),
                 vatRate: toDecimal(item.vatRate ?? 22),
                 discount: toDecimal(item.discount ?? 0),
+                unit: item.unit || undefined,
                 total: toDecimal(
                   item.quantity *
                     item.unitPrice *
@@ -389,6 +458,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
               })),
             },
           }),
+          ...(paymentTermsCreate && { paymentTerms: paymentTermsCreate }),
           ...(body.status === "SENT" && { sentAt: new Date() }),
           ...(body.status === "ACCEPTED" && {
             acceptedAt: new Date(),
@@ -398,6 +468,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
         },
         include: {
           items: { orderBy: { sortOrder: "asc" } },
+          paymentTerms: { orderBy: { sortOrder: "asc" } },
           client: true,
         },
       });

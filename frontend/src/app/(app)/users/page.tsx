@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { KeyRound, Plus } from "lucide-react";
+import { KeyRound, Pencil, Plus } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { usersApi } from "@/lib/api";
+import { usersApi, type StaffUser } from "@/lib/api";
 import { userRoleLabels, userStatusLabels } from "@/lib/labels";
 import { useAuthStore } from "@/store/auth";
 import { cn, formatDate } from "@/lib/utils";
@@ -29,6 +30,10 @@ const ROLES = [
   "CLIENT",
 ] as const;
 
+function userDisplayName(u: StaffUser) {
+  return [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
+}
+
 export default function UsersPage() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -36,6 +41,8 @@ export default function UsersPage() {
   const queryClient = useQueryClient();
 
   const [createOpen, setCreateOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<StaffUser | null>(null);
+  const [editing, setEditing] = useState(false);
   const [resetUserId, setResetUserId] = useState<string | null>(null);
   const [resetPassword, setResetPassword] = useState("");
   const [form, setForm] = useState({
@@ -46,11 +53,32 @@ export default function UsersPage() {
     phone: "",
     role: "TECHNICIAN",
   });
+  const [editForm, setEditForm] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    phone: "",
+    role: "TECHNICIAN",
+    status: "ACTIVE",
+  });
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (user && !isAdmin) router.replace("/dashboard");
   }, [user, isAdmin, router]);
+
+  useEffect(() => {
+    if (selectedUser && !editing) {
+      setEditForm({
+        email: selectedUser.email,
+        firstName: selectedUser.firstName,
+        lastName: selectedUser.lastName,
+        phone: selectedUser.phone || "",
+        role: selectedUser.role,
+        status: selectedUser.status,
+      });
+    }
+  }, [selectedUser, editing]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["users"],
@@ -75,6 +103,24 @@ export default function UsersPage() {
     onError: (err: Error) => setError(err.message),
   });
 
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      usersApi.update(selectedUser!.id, {
+        email: editForm.email,
+        firstName: editForm.firstName,
+        lastName: editForm.lastName,
+        phone: editForm.phone || undefined,
+        role: editForm.role,
+        status: editForm.status,
+      }),
+    onSuccess: (updated) => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      setSelectedUser(updated);
+      setEditing(false);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
   const resetMutation = useMutation({
     mutationFn: () =>
       usersApi.resetPassword(resetUserId!, resetPassword),
@@ -84,6 +130,17 @@ export default function UsersPage() {
     },
     onError: (err: Error) => setError(err.message),
   });
+
+  function openUser(u: StaffUser) {
+    setError("");
+    setEditing(false);
+    setSelectedUser(u);
+  }
+
+  function closeDetail() {
+    setSelectedUser(null);
+    setEditing(false);
+  }
 
   if (!isAdmin) {
     return (
@@ -127,7 +184,11 @@ export default function UsersPage() {
                     </tr>
                   ) : (
                     data?.map((u) => (
-                      <tr key={u.id} className="border-b border-border">
+                      <tr
+                        key={u.id}
+                        className="cursor-pointer border-b border-border transition-colors hover:bg-muted/40"
+                        onClick={() => openUser(u)}
+                      >
                         <td className="px-4 py-3 font-medium">
                           {u.firstName} {u.lastName}
                         </td>
@@ -154,7 +215,8 @@ export default function UsersPage() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setError("");
                               setResetUserId(u.id);
                             }}
@@ -171,6 +233,185 @@ export default function UsersPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={!!selectedUser} onOpenChange={(open) => !open && closeDetail()}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editing ? "Modifica utente" : "Riepilogo utente"}
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedUser && !editing && (
+            <div className="space-y-4 text-sm">
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Nome</dt>
+                  <dd className="text-lg font-semibold">
+                    {userDisplayName(selectedUser)}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-muted-foreground">Email</dt>
+                  <dd>
+                    <a
+                      href={`mailto:${selectedUser.email}`}
+                      className="text-primary hover:underline"
+                    >
+                      {selectedUser.email}
+                    </a>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Telefono</dt>
+                  <dd>{selectedUser.phone || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Ruolo</dt>
+                  <dd className="font-medium">
+                    {userRoleLabels[selectedUser.role] || selectedUser.role}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Stato</dt>
+                  <dd>
+                    {userStatusLabels[selectedUser.status] || selectedUser.status}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-muted-foreground">Creato</dt>
+                  <dd>{formatDate(selectedUser.createdAt)}</dd>
+                </div>
+                {selectedUser.lastLoginAt && (
+                  <div>
+                    <dt className="text-muted-foreground">Ultimo accesso</dt>
+                    <dd>{formatDate(selectedUser.lastLoginAt)}</dd>
+                  </div>
+                )}
+              </dl>
+
+              {selectedUser.role === "CLIENT" && selectedUser.client && (
+                <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-muted-foreground">
+                  Cliente collegato:{" "}
+                  <Link
+                    href={`/clients/${selectedUser.client.id}`}
+                    className="font-medium text-primary hover:underline"
+                    onClick={() => closeDetail()}
+                  >
+                    {selectedUser.client.companyName ||
+                      selectedUser.client.contactName ||
+                      "Scheda cliente"}
+                  </Link>
+                </p>
+              )}
+            </div>
+          )}
+
+          {selectedUser && editing && (
+            <div className="grid gap-3">
+              <Input
+                placeholder="Email"
+                type="email"
+                value={editForm.email}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, email: e.target.value }))
+                }
+              />
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  placeholder="Nome"
+                  value={editForm.firstName}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, firstName: e.target.value }))
+                  }
+                />
+                <Input
+                  placeholder="Cognome"
+                  value={editForm.lastName}
+                  onChange={(e) =>
+                    setEditForm((f) => ({ ...f, lastName: e.target.value }))
+                  }
+                />
+              </div>
+              <Input
+                placeholder="Telefono"
+                value={editForm.phone}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, phone: e.target.value }))
+                }
+              />
+              <select
+                className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                value={editForm.role}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, role: e.target.value }))
+                }
+              >
+                {user?.role === "SUPER_ADMIN" && (
+                  <option value="SUPER_ADMIN">Admin</option>
+                )}
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {userRoleLabels[r]}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                value={editForm.status}
+                onChange={(e) =>
+                  setEditForm((f) => ({ ...f, status: e.target.value }))
+                }
+              >
+                {Object.entries(userStatusLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
+
+          <DialogFooter className="flex-wrap gap-2 sm:justify-between">
+            <Button variant="outline" onClick={closeDetail}>
+              Chiudi
+            </Button>
+            <div className="flex flex-wrap gap-2">
+              {selectedUser && !editing && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setError("");
+                      setResetUserId(selectedUser.id);
+                    }}
+                  >
+                    <KeyRound className="h-4 w-4" /> Reset password
+                  </Button>
+                  <Button onClick={() => { setError(""); setEditing(true); }}>
+                    <Pencil className="h-4 w-4" /> Modifica
+                  </Button>
+                </>
+              )}
+              {selectedUser && editing && (
+                <>
+                  <Button variant="outline" onClick={() => setEditing(false)}>
+                    Annulla
+                  </Button>
+                  <Button
+                    disabled={updateMutation.isPending}
+                    onClick={() => updateMutation.mutate()}
+                  >
+                    {updateMutation.isPending ? "Salvataggio..." : "Salva"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>

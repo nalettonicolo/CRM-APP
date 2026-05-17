@@ -45,6 +45,27 @@ export const interventionStatusLabels: Record<string, string> = {
   CANCELLED: "Annullato",
 };
 
+export const leadStatusLabels: Record<string, string> = {
+  new: "Nuova",
+  NEW: "Nuova",
+  contacted: "Contattata",
+  CONTACTED: "Contattata",
+  qualified: "Qualificata",
+  QUALIFIED: "Qualificata",
+  CONVERTED: "Convertita",
+  converted: "Convertita",
+  lost: "Persa",
+  LOST: "Persa",
+};
+
+export const CONTACT_SERVICE_OPTIONS = [
+  "Audio live",
+  "Luci e scenografia",
+  "Organizzazione tecnica",
+  "Consulenza / preventivo",
+  "Altro",
+] as const;
+
 export const eventTypeLabels: Record<string, string> = {
   APPOINTMENT: "Appuntamento",
   INTERVENTION: "Intervento",
@@ -60,3 +81,20 @@ export const reportStatusLabels: Record<string, string> = {
   APPROVED: "Approvato",
   REJECTED: "Rifiutato",
 };
+
+/** Unità di misura catalogo servizi (value salvato in DB) */
+export const SERVICE_UNIT_OPTIONS: { value: string; label: string }[] = [
+  { value: "ora", label: "Ora" },
+  { value: "gg", label: "Giornata" },
+  { value: "km", label: "Chilometro (km)" },
+  { value: "notte", label: "Pernottamento" },
+  { value: "pz", label: "Pezzo" },
+  { value: "forfait", label: "Forfait" },
+  { value: "evento", label: "Evento" },
+];
+
+export function serviceUnitLabel(unit?: string | null): string {
+  if (!unit) return "";
+  const found = SERVICE_UNIT_OPTIONS.find((o) => o.value === unit);
+  return found?.label ?? unit;
+}

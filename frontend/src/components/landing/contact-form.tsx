@@ -5,11 +5,20 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { publicApi } from "@/lib/api";
+import { CONTACT_SERVICE_OPTIONS } from "@/lib/labels";
+import { cn } from "@/lib/utils";
 
 export function ContactForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [services, setServices] = useState<string[]>([]);
+
+  function toggleService(label: string) {
+    setServices((prev) =>
+      prev.includes(label) ? prev.filter((s) => s !== label) : [...prev, label]
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -23,8 +32,10 @@ export function ContactForm() {
         phone: (fd.get("phone") as string) || undefined,
         company: (fd.get("company") as string) || undefined,
         message: fd.get("message") as string,
+        services: services.length > 0 ? services : undefined,
       });
       setDone(true);
+      setServices([]);
       e.currentTarget.reset();
     } catch {
       setError("Errore invio. Riprova più tardi.");
@@ -59,10 +70,10 @@ export function ContactForm() {
           <label className="mb-1 block text-sm font-medium">Nome *</label>
           <Input name="name" required placeholder="Mario Rossi" />
         </div>
-        <motion.div>
+        <div>
           <label className="mb-1 block text-sm font-medium">Email *</label>
           <Input name="email" type="email" required placeholder="mario@azienda.it" />
-        </motion.div>
+        </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -74,6 +85,33 @@ export function ContactForm() {
           <Input name="company" placeholder="Venue / artista / organizzazione" />
         </div>
       </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium">
+          Servizi di interesse
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {CONTACT_SERVICE_OPTIONS.map((label) => {
+            const selected = services.includes(label);
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={() => toggleService(label)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  selected
+                    ? "border-primary bg-primary/15 text-primary"
+                    : "border-border bg-muted/40 text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div>
         <label className="mb-1 block text-sm font-medium">Messaggio *</label>
         <textarea

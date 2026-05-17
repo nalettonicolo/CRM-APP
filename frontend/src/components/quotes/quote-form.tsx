@@ -5,7 +5,19 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { clientsApi, type Quote } from "@/lib/api";
+import {
+  clientsApi,
+  inventoryApi,
+  type PaymentTermDraft,
+  type Product,
+  type Quote,
+  type Service,
+} from "@/lib/api";
+import { PaymentScheduleEditor } from "@/components/quotes/payment-schedule-editor";
+import {
+  SERVICE_UNIT_OPTIONS,
+  serviceUnitLabel,
+} from "@/lib/labels";
 
 export type QuoteItemDraft = {
   type: "custom" | "service" | "product";
@@ -13,6 +25,9 @@ export type QuoteItemDraft = {
   quantity: number;
   unitPrice: number;
   vatRate: number;
+  unit?: string;
+  serviceId?: string;
+  productId?: string;
 };
 
 export type QuoteFormPayload = {
@@ -22,6 +37,7 @@ export type QuoteFormPayload = {
   validUntil?: string;
   depositPercent?: number;
   depositAmount?: number;
+  paymentTerms?: PaymentTermDraft[];
   items: QuoteItemDraft[];
 };
 
@@ -49,12 +65,24 @@ export function QuoteForm({
     queryFn: () => clientsApi.list({ limit: "200" }),
   });
 
+  const { data: catalogServices = [] } = useQuery({
+    queryKey: ["services", "catalog"],
+    queryFn: () => inventoryApi.services(),
+  });
+
+  const { data: catalogProducts = [] } = useQuery({
+    queryKey: ["products", "catalog"],
+    queryFn: inventoryApi.products,
+  });
+
+  const [pickService, setPickService] = useState("");
+  const [pickProduct, setPickProduct] = useState("");
+
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [validUntil, setValidUntil] = useState("");
-  const [depositPercent, setDepositPercent] = useState("");
-  const [depositAmount, setDepositAmount] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTermDraft[]>([]);
   const [items, setItems] = useState<QuoteItemDraft[]>([emptyItem()]);
 
   useEffect(() => {
@@ -62,16 +90,43 @@ export function QuoteForm({
       setClientId(initial.clientId || "");
       setTitle(initial.title || "");
       setNotes(initial.notes || "");
-      setDepositPercent(
-        Number(initial.depositPercent) > 0
-          ? String(Number(initial.depositPercent))
-          : ""
-      );
-      setDepositAmount(
-        Number(initial.depositAmount) > 0
-          ? String(Number(initial.depositAmount))
-          : ""
-      );
+      if (initial.paymentTerms?.length) {
+        setPaymentTerms(
+          initial.paymentTerms.map((t) => ({
+            label: t.label,
+            note: t.note || undefined,
+            percent:
+              t.percent != null && Number(t.percent) > 0
+                ? Number(t.percent)
+                : undefined,
+            amount:
+              !t.isBalance && Number(t.amount) > 0 && !t.percent
+                ? Number(t.amount)
+                : undefined,
+            isBalance: t.isBalance,
+          }))
+        );
+      } else if (Number(initial.depositAmount) > 0) {
+        setPaymentTerms([
+          {
+            label: "Acconto",
+            percent:
+              Number(initial.depositPercent) > 0
+                ? Number(initial.depositPercent)
+                : undefined,
+            amount:
+              Number(initial.depositPercent) <= 0
+                ? Number(initial.depositAmount)
+                : undefined,
+          },
+          {
+            label: "Saldo",
+            isBalance: true,
+          },
+        ]);
+      } else {
+        setPaymentTerms([]);
+      }
       if (initial.validUntil) {
         setValidUntil(initial.validUntil.slice(0, 10));
       }
@@ -83,6 +138,9 @@ export function QuoteForm({
             quantity: Number(i.quantity),
             unitPrice: Number(i.unitPrice),
             vatRate: Number(i.vatRate),
+            unit: i.unit || undefined,
+            serviceId: i.serviceId || undefined,
+            productId: i.productId || undefined,
           }))
         );
       }
@@ -95,6 +153,44 @@ export function QuoteForm({
     );
   }
 
+  function addFromService(s: Service) {
+    const desc = s.description
+      ? `${s.name} — ${s.description}`
+      : s.name;
+    setItems((rows) => {
+      const blank =
+        rows.length === 1 && !rows[0].description.trim();
+      const row: QuoteItemDraft = {
+        type: "service",
+        serviceId: s.id,
+        description: desc,
+        quantity: 1,
+        unit: s.unit || undefined,
+        unitPrice: Number(s.price),
+        vatRate: s.vatExempt ? 0 : Number(s.vatRate ?? 22),
+      };
+      return blank ? [row] : [...rows, row];
+    });
+    setPickService("");
+  }
+
+  function addFromProduct(p: Product) {
+    setItems((rows) => {
+      const blank =
+        rows.length === 1 && !rows[0].description.trim();
+      const row: QuoteItemDraft = {
+        type: "product",
+        productId: p.id,
+        description: p.name,
+        quantity: 1,
+        unitPrice: Number(p.price),
+        vatRate: 22,
+      };
+      return blank ? [row] : [...rows, row];
+    });
+    setPickProduct("");
+  }
+
   function lineNet(item: QuoteItemDraft) {
     return item.quantity * item.unitPrice;
   }
@@ -105,12 +201,6 @@ export function QuoteForm({
     0
   );
   const grandTotal = subtotalNet + vatTotal;
-  const depPct = parseFloat(depositPercent) || 0;
-  const depAmt =
-    parseFloat(depositAmount) ||
-    (depPct > 0 ? (grandTotal * depPct) / 100 : 0);
-  const balance = Math.max(0, grandTotal - depAmt);
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!clientId) return;
@@ -121,8 +211,15 @@ export function QuoteForm({
       validUntil: validUntil
         ? new Date(`${validUntil}T12:00:00`).toISOString()
         : undefined,
-      depositPercent: depPct > 0 ? depPct : undefined,
-      depositAmount: depAmt > 0 ? depAmt : undefined,
+      paymentTerms: paymentTerms
+        .filter((t) => t.label.trim())
+        .map((t) => ({
+          label: t.label.trim(),
+          note: t.note?.trim() || undefined,
+          percent: t.isBalance ? undefined : t.percent,
+          amount: t.isBalance ? undefined : t.amount,
+          isBalance: t.isBalance === true,
+        })),
       items: items.filter((i) => i.description.trim()),
     });
   }
@@ -163,83 +260,105 @@ export function QuoteForm({
         </div>
       </div>
 
-      <div className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-2">
-        <div>
-          <label className="mb-1 block text-sm font-medium">Acconto %</label>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            step="0.01"
-            placeholder="es. 30"
-            value={depositPercent}
-            onChange={(e) => setDepositPercent(e.target.value)}
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Oppure importo fisso sotto
-          </p>
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Acconto €</label>
-          <Input
-            type="number"
-            min={0}
-            step="0.01"
-            placeholder="es. 200"
-            value={depositAmount}
-            onChange={(e) => setDepositAmount(e.target.value)}
-          />
-        </div>
-        <p className="sm:col-span-2 text-sm text-muted-foreground">
-          Totale indicativo:{" "}
-          <strong>
-            €{" "}
-            {grandTotal.toLocaleString("it-IT", {
-              minimumFractionDigits: 2,
-            })}
-          </strong>
-          {depAmt > 0 && (
-            <>
-              {" "}
-              · Acconto:{" "}
-              <strong>
-                €{" "}
-                {depAmt.toLocaleString("it-IT", {
-                  minimumFractionDigits: 2,
-                })}
-              </strong>{" "}
-              · Saldo:{" "}
-              <strong>
-                €{" "}
-                {balance.toLocaleString("it-IT", {
-                  minimumFractionDigits: 2,
-                })}
-              </strong>
-            </>
-          )}
-        </p>
-      </div>
+      <PaymentScheduleEditor
+        terms={paymentTerms}
+        onChange={setPaymentTerms}
+        grandTotal={grandTotal}
+      />
 
       <div>
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold">Voci</h3>
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h3 className="text-sm font-semibold">Voci</h3>
+            <p className="text-xs text-muted-foreground">
+              <a href="/inventory/services" className="text-primary hover:underline">
+                Catalogo servizi
+              </a>
+            </p>
+          </div>
           <Button
             type="button"
             variant="outline"
             size="sm"
             onClick={() => setItems((rows) => [...rows, emptyItem()])}
           >
-            <Plus className="h-4 w-4" /> Riga
+            <Plus className="h-4 w-4" /> Riga vuota
           </Button>
+        </div>
+        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Catalogo servizi
+            </label>
+            <div className="flex gap-2">
+              <select
+                className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+                value={pickService}
+                onChange={(e) => setPickService(e.target.value)}
+              >
+                <option value="">Seleziona…</option>
+                {catalogServices.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.category ? `[${s.category}] ` : ""}
+                    {s.name}
+                    {s.unit ? ` (${serviceUnitLabel(s.unit)})` : ""}
+                    {s.vatExempt ? " · no IVA" : ""}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!pickService}
+                onClick={() => {
+                  const s = catalogServices.find((x) => x.id === pickService);
+                  if (s) addFromService(s);
+                }}
+              >
+                Aggiungi
+              </Button>
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Catalogo prodotti
+            </label>
+            <div className="flex gap-2">
+              <select
+                className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+                value={pickProduct}
+                onChange={(e) => setPickProduct(e.target.value)}
+              >
+                <option value="">Seleziona…</option>
+                {catalogProducts.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!pickProduct}
+                onClick={() => {
+                  const p = catalogProducts.find((x) => x.id === pickProduct);
+                  if (p) addFromProduct(p);
+                }}
+              >
+                Aggiungi
+              </Button>
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left">
                 <th className="px-3 py-2 font-medium">Descrizione</th>
-                <th className="px-3 py-2 font-medium text-right w-20">Q.tà</th>
+                <th className="px-3 py-2 font-medium text-right w-24">Q.tà</th>
+                <th className="px-3 py-2 font-medium text-left w-24">U.M.</th>
                 <th className="px-3 py-2 font-medium text-right w-28">Prezzo</th>
-                <th className="px-3 py-2 font-medium text-right w-20">IVA %</th>
+                <th className="px-3 py-2 font-medium text-right w-20">IVA</th>
                 <th className="px-3 py-2 w-10" />
               </tr>
             </thead>
@@ -268,6 +387,28 @@ export function QuoteForm({
                     />
                   </td>
                   <td className="px-3 py-2">
+                    <select
+                      className="flex h-10 w-full min-w-[5rem] rounded-lg border border-border bg-background px-2 text-xs"
+                      value={item.unit || ""}
+                      onChange={(e) =>
+                        updateItem(index, {
+                          unit: e.target.value || undefined,
+                        })
+                      }
+                    >
+                      <option value="">—</option>
+                      {SERVICE_UNIT_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.value}
+                        </option>
+                      ))}
+                      {item.unit &&
+                        !SERVICE_UNIT_OPTIONS.some((o) => o.value === item.unit) && (
+                          <option value={item.unit}>{item.unit}</option>
+                        )}
+                    </select>
+                  </td>
+                  <td className="px-3 py-2">
                     <Input
                       type="number"
                       min={0}
@@ -280,15 +421,21 @@ export function QuoteForm({
                     />
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      className="text-right"
-                      value={item.vatRate}
-                      onChange={(e) =>
-                        updateItem(index, { vatRate: Number(e.target.value) })
-                      }
-                    />
+                    {item.vatRate === 0 ? (
+                      <span className="flex h-10 items-center justify-end text-xs text-muted-foreground">
+                        Esente
+                      </span>
+                    ) : (
+                      <Input
+                        type="number"
+                        min={0}
+                        className="text-right"
+                        value={item.vatRate}
+                        onChange={(e) =>
+                          updateItem(index, { vatRate: Number(e.target.value) })
+                        }
+                      />
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <Button

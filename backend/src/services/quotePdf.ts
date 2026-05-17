@@ -94,7 +94,10 @@ export async function generateQuotePdf(
       if (y > 700) doc.addPage();
       doc.fontSize(9).text(item.description, colDesc, doc.y, { width: 250 });
       const rowY = y;
-      doc.text(money(item.quantity), colQty, rowY, { width: 50, align: "right" });
+      const qtyText = item.unit
+        ? `${money(item.quantity)} ${item.unit}`
+        : money(item.quantity);
+      doc.text(qtyText, colQty, rowY, { width: 50, align: "right" });
       doc.text(`€ ${money(item.unitPrice)}`, colPrice, rowY, {
         width: 70,
         align: "right",
@@ -122,13 +125,47 @@ export async function generateQuotePdf(
     addTotalLine("IVA", `€ ${money(quote.vatAmount)}`);
     addTotalLine("Totale", `€ ${money(quote.total)}`, true);
 
-    const depPct = Number(quote.depositPercent);
-    const depAmt = Number(quote.depositAmount);
-    if (depPct > 0 || depAmt > 0) {
-      const depLabel =
-        depPct > 0 ? `Acconto (${money(depPct)}%)` : "Acconto richiesto";
-      addTotalLine(depLabel, `€ ${money(depAmt)}`);
-      addTotalLine("Saldo da versare", `€ ${money(quote.balanceDue)}`, true);
+    const paymentTerms = quote.paymentTerms as
+      | {
+          label: string;
+          note?: string | null;
+          percent?: unknown;
+          amount: unknown;
+          isBalance: boolean;
+        }[]
+      | undefined;
+
+    if (paymentTerms && paymentTerms.length > 0) {
+      doc.moveDown(0.3);
+      doc.fontSize(9).font("Helvetica-Bold").text("Piano di pagamento");
+      doc.font("Helvetica");
+      doc.moveDown(0.2);
+      for (const term of paymentTerms) {
+        const pct =
+          term.percent != null && Number(term.percent) > 0
+            ? ` (${money(term.percent)}%)`
+            : "";
+        const note = term.note?.trim() ? ` — ${term.note.trim()}` : "";
+        addTotalLine(
+          `${term.label}${pct}${note}`,
+          `€ ${money(term.amount)}`
+        );
+      }
+      if (Number(quote.balanceDue) >= 0) {
+        const hasBalanceRow = paymentTerms.some((t) => t.isBalance);
+        if (!hasBalanceRow && Number(quote.balanceDue) > 0) {
+          addTotalLine("Saldo da versare", `€ ${money(quote.balanceDue)}`, true);
+        }
+      }
+    } else {
+      const depPct = Number(quote.depositPercent);
+      const depAmt = Number(quote.depositAmount);
+      if (depPct > 0 || depAmt > 0) {
+        const depLabel =
+          depPct > 0 ? `Acconto (${money(depPct)}%)` : "Acconto richiesto";
+        addTotalLine(depLabel, `€ ${money(depAmt)}`);
+        addTotalLine("Saldo da versare", `€ ${money(quote.balanceDue)}`, true);
+      }
     }
 
     if (quote.notes) {

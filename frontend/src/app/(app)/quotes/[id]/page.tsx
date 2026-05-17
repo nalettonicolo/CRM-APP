@@ -186,8 +186,10 @@ export default function QuoteDetailPage() {
               ))}
             </div>
 
-            {(Number(quote.discountAmount) > 0 || Number(quote.depositAmount) > 0) && (
-              <DetailSection title="Sconti e acconti">
+            {(Number(quote.discountAmount) > 0 ||
+              Number(quote.depositAmount) > 0 ||
+              (quote.paymentTerms && quote.paymentTerms.length > 0)) && (
+              <DetailSection title="Sconti e pagamenti">
                 <dl className="grid gap-3 text-sm sm:grid-cols-2">
                   {Number(quote.discountPercent) > 0 && (
                     <>
@@ -201,19 +203,43 @@ export default function QuoteDetailPage() {
                       <dd>{formatCurrency(Number(quote.discountAmount))}</dd>
                     </>
                   )}
-                  {Number(quote.depositPercent) > 0 && (
-                    <>
-                      <dt className="text-muted-foreground">Acconto %</dt>
-                      <dd>{Number(quote.depositPercent)}%</dd>
-                    </>
-                  )}
-                  {Number(quote.depositAmount) > 0 && (
-                    <>
+                </dl>
+                {quote.paymentTerms && quote.paymentTerms.length > 0 ? (
+                  <ul className="mt-3 space-y-2 text-sm">
+                    {quote.paymentTerms.map((t) => (
+                      <li
+                        key={t.id}
+                        className="flex flex-wrap justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
+                      >
+                        <span>
+                          <span className="font-medium">{t.label}</span>
+                          {t.note ? (
+                            <span className="text-muted-foreground">
+                              {" "}
+                              — {t.note}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span className="tabular-nums font-medium">
+                          {formatCurrency(Number(t.amount))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  Number(quote.depositAmount) > 0 && (
+                    <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                      {Number(quote.depositPercent) > 0 && (
+                        <>
+                          <dt className="text-muted-foreground">Acconto %</dt>
+                          <dd>{Number(quote.depositPercent)}%</dd>
+                        </>
+                      )}
                       <dt className="text-muted-foreground">Acconto</dt>
                       <dd>{formatCurrency(Number(quote.depositAmount))}</dd>
-                    </>
-                  )}
-                </dl>
+                    </dl>
+                  )
+                )}
               </DetailSection>
             )}
 

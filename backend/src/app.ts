@@ -27,6 +27,7 @@ import invoiceRoutes from "./routes/invoices.js";
 import automationRoutes from "./routes/automation.js";
 import searchRoutes from "./routes/search.js";
 import backupRoutes from "./routes/backup.js";
+import paymentTermTemplatesRoutes from "./routes/paymentTermTemplates.js";
 
 const app = express();
 
@@ -104,6 +105,7 @@ app.use("/api/invoices", invoiceRoutes);
 app.use("/api/automation", automationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/backup", backupRoutes);
+app.use("/api/payment-term-templates", paymentTermTemplatesRoutes);
 
 app.use(errorHandler);
 

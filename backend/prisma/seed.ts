@@ -184,10 +184,18 @@ async function main() {
   });
 
   const services = [
-    { name: "Service audio evento (giornata)", category: "Audio", price: 650, duration: 480 },
-    { name: "Messa in luce e operatore luci", category: "Luci", price: 520, duration: 420 },
-    { name: "Noleggio impianto audio base", category: "Noleggio", price: 280, duration: 240 },
-    { name: "Tecnico di sala / FOH", category: "Audio", price: 95, duration: 60 },
+    { name: "Servizio tecnico", category: "Manodopera", price: 45, unit: "ora", duration: 60, vatExempt: false },
+    { name: "Tecnico audio FOH", category: "Audio", price: 60, unit: "ora", duration: 60, vatExempt: false },
+    { name: "Operatore luci", category: "Luci", price: 55, unit: "ora", duration: 60, vatExempt: false },
+    { name: "Service audio evento", category: "Audio", price: 650, unit: "evento", duration: 480, vatExempt: false },
+    { name: "Messa in luce e operatore luci", category: "Luci", price: 520, unit: "evento", duration: 420, vatExempt: false },
+    { name: "Montaggio e smontaggio impianto", category: "Servizi", price: 350, unit: "forfait", duration: 240, vatExempt: false },
+    { name: "Noleggio impianto audio base", category: "Noleggio", price: 280, unit: "gg", duration: 240, vatExempt: false },
+    { name: "Rimborso chilometrico", category: "Trasferte", price: 0.5, unit: "km", duration: null, vatExempt: false },
+    { name: "Trasferta / vitto", category: "Trasferte", price: 80, unit: "pz", duration: null, vatExempt: false },
+    { name: "Pernottamento", category: "Trasferte", price: 90, unit: "notte", duration: null, vatExempt: false },
+    { name: "Materiali vari", category: "Varie", price: 0, unit: "pz", duration: null, vatExempt: true },
+    { name: "Diritti SIAE / pass-through", category: "Varie", price: 0, unit: "forfait", duration: null, vatExempt: true },
   ];
 
   for (const s of services) {
@@ -197,18 +205,68 @@ async function main() {
         id: `svc-${s.name.replace(/\s/g, "-").toLowerCase()}`,
         name: s.name,
         category: s.category,
+        unit: s.unit,
         price: s.price,
-        vatRate: 22,
-        duration: s.duration,
+        vatExempt: s.vatExempt,
+        vatRate: s.vatExempt ? 0 : 22,
+        duration: s.duration ?? undefined,
         isActive: true,
       },
-      update: {},
+      update: {
+        price: s.price,
+        category: s.category,
+        unit: s.unit,
+        vatExempt: s.vatExempt,
+        vatRate: s.vatExempt ? 0 : 22,
+        duration: s.duration ?? undefined,
+      },
     }).catch(() =>
       prisma.service.create({
-        data: { ...s, price: s.price, vatRate: 22, isActive: true },
+        data: {
+          name: s.name,
+          category: s.category,
+          unit: s.unit,
+          price: s.price,
+          vatExempt: s.vatExempt,
+          vatRate: s.vatExempt ? 0 : 22,
+          duration: s.duration ?? undefined,
+          isActive: true,
+        },
       })
     );
   }
+
+  await prisma.paymentTermTemplate.upsert({
+    where: { id: "tpl-pagamento-standard" },
+    create: {
+      id: "tpl-pagamento-standard",
+      name: "Standard (accettazione + evento + saldo)",
+      isDefault: true,
+      items: {
+        create: [
+          {
+            label: "Acconto all'accettazione",
+            note: "Alla conferma del preventivo",
+            percent: 30,
+            sortOrder: 0,
+          },
+          {
+            label: "Acconto prima dell'evento",
+            note: "Entro 7 giorni dalla data evento",
+            percent: 40,
+            sortOrder: 1,
+          },
+          {
+            label: "Saldo a fine lavori",
+            note: "A conclusione del servizio",
+            isBalance: true,
+            sortOrder: 2,
+          },
+        ],
+      },
+    },
+    update: { isDefault: true },
+  });
 
   const products = [
     { name: "Mixer digitale 16 canali", sku: "AUD-MIX-16", category: "Audio", price: 45, minStock: 2 },

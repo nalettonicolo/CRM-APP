@@ -1,4 +1,8 @@
 import { Decimal } from "@prisma/client/runtime/library";
+import {
+  type PaymentTermInput,
+  paymentTermsTotals,
+} from "./paymentTerms.js";
 
 export interface QuoteItemInput {
   quantity: number;
@@ -30,6 +34,7 @@ export function calculateQuoteTotals(
     discountAmount?: number;
     depositPercent?: number;
     depositAmount?: number;
+    paymentTerms?: PaymentTermInput[];
   } = {}
 ): QuoteTotals {
   const subtotal = items.reduce((sum, i) => sum + calculateItemTotal(i), 0);
@@ -51,13 +56,21 @@ export function calculateQuoteTotals(
 
   const total = Math.round((afterDiscount + vatAmount) * 100) / 100;
 
-  let deposit = options.depositAmount || 0;
-  if (options.depositPercent) {
-    deposit = total * (options.depositPercent / 100);
-  }
-  deposit = Math.round(deposit * 100) / 100;
+  let deposit: number;
+  let balanceDue: number;
 
-  const balanceDue = Math.round((total - deposit) * 100) / 100;
+  if (options.paymentTerms && options.paymentTerms.length > 0) {
+    const pt = paymentTermsTotals(total, options.paymentTerms);
+    deposit = pt.depositAmount;
+    balanceDue = pt.balanceDue;
+  } else {
+    deposit = options.depositAmount || 0;
+    if (options.depositPercent) {
+      deposit = total * (options.depositPercent / 100);
+    }
+    deposit = Math.round(deposit * 100) / 100;
+    balanceDue = Math.round((total - deposit) * 100) / 100;
+  }
 
   return {
     subtotal: Math.round(subtotal * 100) / 100,
