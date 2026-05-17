@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { MonthCalendar } from "@/components/calendar/month-calendar";
+import { UpcomingEventsPanel } from "@/components/events/upcoming-events-panel";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,22 @@ export default function CalendarPage() {
   const [startAt, setStartAt] = useState("");
   const qc = useQueryClient();
 
+  const upcomingFrom = useMemo(() => new Date().toISOString(), []);
+
+  const { data: upcoming = [], isLoading: upcomingLoading } = useQuery({
+    queryKey: ["events", "upcoming"],
+    queryFn: async () => {
+      const all = await eventsApi.list(upcomingFrom);
+      return all
+        .filter((e) => new Date(e.startAt) >= new Date())
+        .sort(
+          (a, b) =>
+            new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+        )
+        .slice(0, 12);
+    },
+  });
+
   const createMut = useMutation({
     mutationFn: () =>
       eventsApi.create({
@@ -43,16 +60,31 @@ export default function CalendarPage() {
     <>
       <Header title="Calendario" />
       <div className="p-3 sm:p-4 md:p-6">
-        <div className="mb-4 flex justify-end">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Vista mensile e lista dei prossimi appuntamenti
+          </p>
           <Button onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" /> Nuovo evento
           </Button>
         </div>
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <MonthCalendar />
-          </CardContent>
-        </Card>
+
+        <div className="grid gap-6 xl:grid-cols-3">
+          <div className="order-2 xl:order-1 xl:col-span-2">
+            <Card>
+              <CardContent className="p-4 sm:p-6">
+                <MonthCalendar />
+              </CardContent>
+            </Card>
+          </div>
+          <div className="order-1 xl:order-2 xl:col-span-1">
+            <UpcomingEventsPanel
+              events={upcoming}
+              loading={upcomingLoading}
+              variant="sidebar"
+            />
+          </div>
+        </div>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>

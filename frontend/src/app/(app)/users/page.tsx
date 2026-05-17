@@ -213,7 +213,7 @@ export default function UsersPage() {
               onChange={(e) => setForm({ ...form, role: e.target.value })}
             >
               {user?.role === "SUPER_ADMIN" && (
-                <option value="SUPER_ADMIN">Super admin</option>
+                <option value="SUPER_ADMIN">Admin</option>
               )}
               {ROLES.map((r) => (
                 <option key={r} value={r}>

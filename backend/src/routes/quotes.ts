@@ -13,6 +13,17 @@ import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 
+const quoteItemInputSchema = z.object({
+  type: z.enum(["service", "product", "custom"]).default("custom"),
+  description: z.string(),
+  quantity: z.number(),
+  unitPrice: z.number(),
+  vatRate: z.number().optional(),
+  discount: z.number().optional(),
+  serviceId: z.string().optional(),
+  productId: z.string().optional(),
+});
+
 const router = Router();
 router.use(authenticate);
 
@@ -146,7 +157,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         discountPercent: toDecimal(body.discountPercent || 0),
         discountAmount: toDecimal(body.discountAmount || 0),
         depositPercent: toDecimal(body.depositPercent || 0),
-        depositAmount: toDecimal(totals.total * ((body.depositPercent || 0) / 100) || body.depositAmount || 0),
+        depositAmount: toDecimal(totals.depositAmount),
         subtotal: toDecimal(totals.subtotal),
         vatAmount: toDecimal(totals.vatAmount),
         total: toDecimal(totals.total),
@@ -277,26 +288,129 @@ router.post(
 
 router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequest, res, next) => {
   try {
-    const data = z
+    const body = z
       .object({
+        clientId: z.string().optional(),
+        title: z.string().optional().nullable(),
+        category: z.string().optional().nullable(),
+        validUntil: z.string().datetime().optional().nullable(),
+        notes: z.string().optional().nullable(),
+        internalNotes: z.string().optional().nullable(),
+        discountPercent: z.number().optional(),
+        discountAmount: z.number().optional(),
+        depositPercent: z.number().optional(),
+        depositAmount: z.number().optional(),
+        items: z.array(quoteItemInputSchema).optional(),
         status: z
           .enum(["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED"])
           .optional(),
-        title: z.string().optional(),
-        notes: z.string().optional(),
         signedByClient: z.boolean().optional(),
       })
       .parse(req.body);
 
-    const quote = await prisma.quote.update({
+    const existing = await prisma.quote.findUnique({
       where: { id: paramId(req) },
-      data: {
-        ...data,
-        ...(data.status === "SENT" && { sentAt: new Date() }),
-        ...(data.status === "ACCEPTED" && { acceptedAt: new Date() }),
-        ...(data.signedByClient && { signedAt: new Date() }),
-      },
+      include: { items: { orderBy: { sortOrder: "asc" } } },
     });
+    if (!existing) throw new NotFoundError();
+
+    const itemsForCalc = body.items
+      ? body.items.map((i) => ({
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+          vatRate: i.vatRate,
+          discount: i.discount,
+        }))
+      : existing.items.map((i) => ({
+          quantity: Number(i.quantity),
+          unitPrice: Number(i.unitPrice),
+          vatRate: Number(i.vatRate),
+          discount: Number(i.discount),
+        }));
+
+    const totals = calculateQuoteTotals(itemsForCalc, {
+      discountPercent:
+        body.discountPercent ?? Number(existing.discountPercent),
+      discountAmount: body.discountAmount ?? Number(existing.discountAmount),
+      depositPercent: body.depositPercent ?? Number(existing.depositPercent),
+      depositAmount: body.depositAmount,
+    });
+
+    const quote = await prisma.$transaction(async (tx) => {
+      if (body.items) {
+        await tx.quoteItem.deleteMany({ where: { quoteId: existing.id } });
+      }
+
+      return tx.quote.update({
+        where: { id: existing.id },
+        data: {
+          ...(body.clientId !== undefined && { clientId: body.clientId }),
+          ...(body.title !== undefined && { title: body.title }),
+          ...(body.category !== undefined && { category: body.category }),
+          ...(body.notes !== undefined && { notes: body.notes }),
+          ...(body.internalNotes !== undefined && {
+            internalNotes: body.internalNotes,
+          }),
+          ...(body.validUntil !== undefined && {
+            validUntil: body.validUntil ? new Date(body.validUntil) : null,
+          }),
+          ...(body.status !== undefined && { status: body.status }),
+          ...(body.discountPercent !== undefined && {
+            discountPercent: toDecimal(body.discountPercent),
+          }),
+          ...(body.discountAmount !== undefined && {
+            discountAmount: toDecimal(body.discountAmount),
+          }),
+          ...(body.depositPercent !== undefined && {
+            depositPercent: toDecimal(body.depositPercent),
+          }),
+          depositAmount: toDecimal(totals.depositAmount),
+          subtotal: toDecimal(totals.subtotal),
+          vatAmount: toDecimal(totals.vatAmount),
+          total: toDecimal(totals.total),
+          balanceDue: toDecimal(totals.balanceDue),
+          ...(body.items && {
+            items: {
+              create: body.items.map((item, idx) => ({
+                type: item.type,
+                description: item.description,
+                quantity: toDecimal(item.quantity),
+                unitPrice: toDecimal(item.unitPrice),
+                vatRate: toDecimal(item.vatRate ?? 22),
+                discount: toDecimal(item.discount ?? 0),
+                total: toDecimal(
+                  item.quantity *
+                    item.unitPrice *
+                    (1 - (item.discount || 0) / 100)
+                ),
+                serviceId: item.serviceId,
+                productId: item.productId,
+                sortOrder: idx,
+              })),
+            },
+          }),
+          ...(body.status === "SENT" && { sentAt: new Date() }),
+          ...(body.status === "ACCEPTED" && {
+            acceptedAt: new Date(),
+            signedByClient: true,
+          }),
+          ...(body.signedByClient && { signedAt: new Date(), signedByClient: true }),
+        },
+        include: {
+          items: { orderBy: { sortOrder: "asc" } },
+          client: true,
+        },
+      });
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: quote.clientId,
+      action: "UPDATE",
+      entityType: "quote",
+      entityId: quote.id,
+    });
+
     res.json(quote);
   } catch (e) {
     next(e);

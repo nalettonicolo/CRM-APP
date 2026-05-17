@@ -241,6 +241,9 @@ export interface Quote {
   updatedAt?: string;
   sentAt?: string;
   acceptedAt?: string;
+  signedAt?: string;
+  signedByClient?: boolean;
+  clientSignature?: string | null;
 }
 
 export interface QuoteItem {

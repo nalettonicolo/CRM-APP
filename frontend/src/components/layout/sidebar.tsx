@@ -26,6 +26,7 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { authApi, settingsApi } from "@/lib/api";
 import { DEFAULT_APP_NAME, publicAssetUrl } from "@/lib/branding";
+import { userRoleLabels } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
 
 const staffNav = [
@@ -163,7 +164,9 @@ export function Sidebar({
           <p className="truncate text-sm font-medium text-white">
             {user?.firstName} {user?.lastName}
           </p>
-          <p className="text-xs text-white/50">{user?.role}</p>
+          <p className="text-xs text-white/50">
+            {user?.role ? userRoleLabels[user.role] || user.role : ""}
+          </p>
         </div>
         <button
           type="button"

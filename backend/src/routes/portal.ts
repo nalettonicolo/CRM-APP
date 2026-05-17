@@ -1,8 +1,13 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticate, type AuthRequest } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
-import { ForbiddenError, NotFoundError } from "../utils/errors.js";
+import {
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 
 const router = Router();
@@ -57,17 +62,28 @@ router.get("/dashboard", async (req: AuthRequest, res, next) => {
 router.post("/quotes/:id/sign", async (req: AuthRequest, res, next) => {
   try {
     const clientId = requireClient(req);
+    const { signature } = z
+      .object({ signature: z.string().min(20) })
+      .parse(req.body);
+
     const quote = await prisma.quote.findFirst({
       where: { id: paramId(req), clientId },
     });
     if (!quote) throw new NotFoundError();
+    if (!["SENT", "DRAFT"].includes(quote.status)) {
+      throw new ValidationError(
+        "Il preventivo non può essere firmato in questo stato"
+      );
+    }
 
     const updated = await prisma.quote.update({
       where: { id: quote.id },
       data: {
         signedByClient: true,
         signedAt: new Date(),
-        status: quote.status === "DRAFT" ? "SENT" : quote.status,
+        acceptedAt: new Date(),
+        status: "ACCEPTED",
+        clientSignature: signature,
       },
     });
 

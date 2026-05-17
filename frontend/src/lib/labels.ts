@@ -23,8 +23,8 @@ export const paymentStatusLabels: Record<string, string> = {
 };
 
 export const userRoleLabels: Record<string, string> = {
-  SUPER_ADMIN: "Super admin",
-  ADMIN: "Amministratore",
+  SUPER_ADMIN: "Admin",
+  ADMIN: "Admin",
   COMMERCIAL: "Commerciale",
   TECHNICIAN: "Tecnico",
   OPERATOR: "Operatore",
@@ -43,6 +43,15 @@ export const interventionStatusLabels: Record<string, string> = {
   IN_PROGRESS: "In corso",
   COMPLETED: "Completato",
   CANCELLED: "Annullato",
+};
+
+export const eventTypeLabels: Record<string, string> = {
+  APPOINTMENT: "Appuntamento",
+  INTERVENTION: "Intervento",
+  MEETING: "Riunione",
+  DEADLINE: "Scadenza",
+  REMINDER: "Promemoria",
+  OTHER: "Altro",
 };
 
 export const reportStatusLabels: Record<string, string> = {

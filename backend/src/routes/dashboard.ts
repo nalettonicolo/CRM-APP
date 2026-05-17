@@ -33,7 +33,7 @@ router.get("/stats", async (req: AuthRequest, res, next) => {
       prisma.quote.count({ where: { status: "ACCEPTED" } }),
       prisma.event.findMany({
         where: { startAt: { gte: today } },
-        take: 5,
+        take: 10,
         orderBy: { startAt: "asc" },
         include: {
           client: { select: { companyName: true, contactName: true } },

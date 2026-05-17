@@ -159,7 +159,12 @@ export default function QuoteDetailPage() {
                 { label: "Imponibile", value: quote.subtotal },
                 { label: "IVA", value: quote.vatAmount },
                 { label: "Totale", value: quote.total, highlight: true },
-                { label: "Saldo residuo", value: quote.balanceDue },
+                ...(Number(quote.depositAmount) > 0
+                  ? [
+                      { label: "Acconto", value: quote.depositAmount },
+                      { label: "Saldo residuo", value: quote.balanceDue },
+                    ]
+                  : [{ label: "Saldo residuo", value: quote.balanceDue }]),
               ].map((row) => (
                 <div
                   key={row.label}
@@ -263,6 +268,33 @@ export default function QuoteDetailPage() {
                 </p>
               </DetailSection>
             )}
+
+            <DetailSection title="Firma e accettazione">
+              {quote.signedByClient && quote.clientSignature ? (
+                <div className="space-y-2">
+                  <p className="text-sm text-green-700">
+                    Firmato e accettato
+                    {quote.signedAt
+                      ? ` il ${formatDate(quote.signedAt)}`
+                      : ""}
+                  </p>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={quote.clientSignature}
+                    alt="Firma cliente"
+                    className="max-h-24 rounded-lg border border-border bg-white p-2"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    La firma compare anche nel PDF del preventivo.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  In attesa di firma dal portale cliente (stato Inviato). Nel PDF
+                  sono presenti le righe per firma e restituzione cartacea.
+                </p>
+              )}
+            </DetailSection>
 
             <DetailSection title="Allegati">
               <AttachmentPanel entityType="quote" entityId={id} />

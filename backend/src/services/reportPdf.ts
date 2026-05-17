@@ -5,9 +5,12 @@ import type {
   ReportMaterial,
   User,
 } from "@prisma/client";
-import { loadCompanySettings } from "./quotePdf.js";
-
-type CompanyInfo = Awaited<ReturnType<typeof loadCompanySettings>>;
+import {
+  drawPdfLetterhead,
+  loadCompanySettings,
+  loadLogoFilePath,
+  type CompanyInfo,
+} from "./pdfBranding.js";
 
 type ReportWithRelations = InterventionReport & {
   client: Client;
@@ -22,10 +25,38 @@ function money(n: number | { toString(): string }) {
   });
 }
 
-export function generateReportPdf(
+type PdfDoc = InstanceType<typeof PDFDocument>;
+
+function drawSignatureImage(
+  doc: PdfDoc,
+  label: string,
+  dataUrl: string | null | undefined
+): void {
+  doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000").text(label);
+  const sig = dataUrl?.trim();
+  if (sig?.startsWith("data:image")) {
+    try {
+      const base64 = sig.includes(",") ? sig.split(",")[1]! : sig;
+      const buf = Buffer.from(base64, "base64");
+      const y = doc.y + 4;
+      doc.image(buf, 50, y, { width: 160, height: 55, fit: [160, 55] });
+      doc.y = y + 62;
+    } catch {
+      doc.font("Helvetica").fontSize(9).text("Firma non disponibile", 50);
+    }
+  } else {
+    doc.font("Helvetica").fontSize(9).fillColor("#52525b").text("Non presente", 50);
+  }
+  doc.moveDown(0.5);
+}
+
+export async function generateReportPdf(
   report: ReportWithRelations,
-  company: CompanyInfo
+  company?: CompanyInfo
 ): Promise<Buffer> {
+  const companyInfo = company ?? (await loadCompanySettings());
+  const logoPath = await loadLogoFilePath();
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const chunks: Buffer[] = [];
@@ -33,31 +64,20 @@ export function generateReportPdf(
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const companyName = company.name || "Report intervento";
-    doc.fontSize(18).text(companyName, { align: "left" });
-    doc.fontSize(10).fillColor("#52525b");
-    const lines = [
-      company.address,
-      company.vat ? `P.IVA: ${company.vat}` : null,
-      [company.phone, company.email].filter(Boolean).join(" · "),
-    ].filter(Boolean) as string[];
-    for (const line of lines) doc.text(line);
-    doc.fillColor("#000000").moveDown();
-
-    doc.fontSize(14).text(`Report ${report.number}`, { align: "right" });
-    doc
-      .fontSize(10)
-      .text(`Stato: ${report.status}`, { align: "right" })
-      .text(`Data: ${report.createdAt.toLocaleDateString("it-IT")}`, {
-        align: "right",
-      });
+    const subtitleRight = [
+      `Stato: ${report.status}`,
+      `Data: ${report.createdAt.toLocaleDateString("it-IT")}`,
+    ];
     if (report.submittedAt) {
-      doc.text(
-        `Inviato: ${report.submittedAt.toLocaleDateString("it-IT")}`,
-        { align: "right" }
+      subtitleRight.push(
+        `Inviato: ${report.submittedAt.toLocaleDateString("it-IT")}`
       );
     }
-    doc.moveDown();
+
+    drawPdfLetterhead(doc, companyInfo, logoPath, {
+      titleRight: `Report ${report.number}`,
+      subtitleRight,
+    });
 
     const clientName =
       report.client.companyName ||
@@ -130,25 +150,11 @@ export function generateReportPdf(
       doc.moveDown();
     }
 
+    if (doc.y > 580) doc.addPage();
     doc.fontSize(11).text("Firme", { underline: true });
-    doc.fontSize(9).fillColor("#52525b");
-    if (report.technicianSignature) {
-      doc.text("Firma tecnico: registrata");
-    } else {
-      doc.text("Firma tecnico: non presente");
-    }
-    if (report.clientSignature) {
-      doc.text("Firma cliente: registrata");
-    } else {
-      doc.text("Firma cliente: non presente");
-    }
-    doc
-      .fillColor("#71717a")
-      .fontSize(8)
-      .text(
-        "Le firme digitali sono archiviate nel sistema e non sono riprodotte in questo PDF.",
-        { width: 500 }
-      );
+    doc.moveDown(0.5);
+    drawSignatureImage(doc, "Firma tecnico", report.technicianSignature);
+    drawSignatureImage(doc, "Firma cliente", report.clientSignature);
 
     doc.end();
   });

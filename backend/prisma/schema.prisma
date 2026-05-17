@@ -383,6 +383,7 @@ model Quote {
   category        String?
   signedAt        DateTime?
   signedByClient  Boolean       @default(false)
+  clientSignature String?       @db.Text
   sentAt          DateTime?
   acceptedAt      DateTime?
   items           QuoteItem[]

@@ -50,6 +50,16 @@ export default function EditQuotePage() {
                       await quotesApi.update(id, {
                         title: data.title,
                         notes: data.notes,
+                        validUntil: data.validUntil ?? null,
+                        depositPercent: data.depositPercent,
+                        depositAmount: data.depositAmount,
+                        items: data.items.map((i) => ({
+                          type: i.type,
+                          description: i.description,
+                          quantity: i.quantity,
+                          unitPrice: i.unitPrice,
+                          vatRate: i.vatRate,
+                        })),
                       });
                       router.push(`/quotes/${id}`);
                     } catch (err: unknown) {

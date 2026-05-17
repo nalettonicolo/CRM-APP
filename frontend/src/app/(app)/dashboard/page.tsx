@@ -23,6 +23,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { dashboardApi, type DashboardLayout } from "@/lib/api";
+import { UpcomingEventsPanel } from "@/components/events/upcoming-events-panel";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 const statCards = [
@@ -153,6 +154,16 @@ export default function DashboardPage() {
         </div>
         )}
 
+        {widgets.events !== false && (
+          <div className="mt-6">
+            <UpcomingEventsPanel
+              events={data?.upcomingEvents}
+              loading={isLoading}
+              variant="prominent"
+            />
+          </div>
+        )}
+
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           {widgets.chart !== false && (
           <Card>
@@ -217,31 +228,6 @@ export default function DashboardPage() {
         </div>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          {widgets.events !== false && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Prossimi eventi</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3">
-                {data?.upcomingEvents?.map((ev) => (
-                  <li
-                    key={ev.id}
-                    className="flex items-center justify-between border-b border-border pb-2 last:border-0"
-                  >
-                    <span className="font-medium">{ev.title}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {formatDate(ev.startAt)}
-                    </span>
-                  </li>
-                )) ?? (
-                  <p className="text-sm text-muted-foreground">Nessun evento</p>
-                )}
-              </ul>
-            </CardContent>
-          </Card>
-          )}
-
           {widgets.activity !== false && (
           <Card>
             <CardHeader>

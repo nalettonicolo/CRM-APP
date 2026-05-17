@@ -36,6 +36,9 @@ export default function NewQuotePage() {
                     clientId: data.clientId,
                     title: data.title,
                     notes: data.notes,
+                    validUntil: data.validUntil,
+                    depositPercent: data.depositPercent,
+                    depositAmount: data.depositAmount,
                     items: data.items.map((i) => ({
                       type: i.type,
                       description: i.description,

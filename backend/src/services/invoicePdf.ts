@@ -1,8 +1,11 @@
 import PDFDocument from "pdfkit";
 import type { Client, InvoicePreview, Quote } from "@prisma/client";
-import { loadCompanySettings } from "./quotePdf.js";
-
-type CompanyInfo = Awaited<ReturnType<typeof loadCompanySettings>>;
+import {
+  drawPdfLetterhead,
+  loadCompanySettings,
+  loadLogoFilePath,
+  type CompanyInfo,
+} from "./pdfBranding.js";
 
 type InvoiceWithRelations = InvoicePreview & {
   client: Client;
@@ -16,10 +19,13 @@ function money(n: number | { toString(): string }) {
   });
 }
 
-export function generateInvoicePdf(
+export async function generateInvoicePdf(
   invoice: InvoiceWithRelations,
-  company: CompanyInfo
+  company?: CompanyInfo
 ): Promise<Buffer> {
+  const companyInfo = company ?? (await loadCompanySettings());
+  const logoPath = await loadLogoFilePath();
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const chunks: Buffer[] = [];
@@ -27,35 +33,22 @@ export function generateInvoicePdf(
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const companyName = company.name || "Fattura proforma";
-    doc.fontSize(18).text(companyName, { align: "left" });
-    doc.fontSize(10).fillColor("#52525b");
-    const lines = [
-      company.address,
-      company.vat ? `P.IVA: ${company.vat}` : null,
-      [company.phone, company.email].filter(Boolean).join(" · "),
-    ].filter(Boolean) as string[];
-    for (const line of lines) doc.text(line);
-    doc.fillColor("#000000").moveDown();
-
-    doc.fontSize(14).text(`Fattura proforma ${invoice.number}`, {
-      align: "right",
-    });
-    doc
-      .fontSize(10)
-      .text(`Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`, {
-        align: "right",
-      });
+    const subtitleRight = [
+      `Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`,
+    ];
     if (invoice.dueDate) {
-      doc.text(
-        `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`,
-        { align: "right" }
+      subtitleRight.push(
+        `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`
       );
     }
     if (invoice.quote) {
-      doc.text(`Rif. preventivo: ${invoice.quote.number}`, { align: "right" });
+      subtitleRight.push(`Rif. preventivo: ${invoice.quote.number}`);
     }
-    doc.moveDown();
+
+    drawPdfLetterhead(doc, companyInfo, logoPath, {
+      titleRight: `Fattura proforma ${invoice.number}`,
+      subtitleRight,
+    });
 
     const clientName =
       invoice.client.companyName ||
@@ -94,7 +87,7 @@ export function generateInvoicePdf(
     if (invoice.notes) {
       doc.moveDown();
       doc.fillColor("#52525b").fontSize(9).text("Note", { underline: true });
-      doc.text(invoice.notes);
+      doc.fillColor("#000000").text(invoice.notes);
     }
 
     doc.end();

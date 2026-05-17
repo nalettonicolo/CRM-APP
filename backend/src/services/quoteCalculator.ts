@@ -11,6 +11,7 @@ export interface QuoteTotals {
   subtotal: number;
   vatAmount: number;
   total: number;
+  depositAmount: number;
   balanceDue: number;
 }
 
@@ -62,6 +63,7 @@ export function calculateQuoteTotals(
     subtotal: Math.round(subtotal * 100) / 100,
     vatAmount: Math.round(vatAmount * 100) / 100,
     total,
+    depositAmount: deposit,
     balanceDue,
   };
 }

@@ -15,6 +15,16 @@ export type QuoteItemDraft = {
   vatRate: number;
 };
 
+export type QuoteFormPayload = {
+  clientId: string;
+  title: string;
+  notes?: string;
+  validUntil?: string;
+  depositPercent?: number;
+  depositAmount?: number;
+  items: QuoteItemDraft[];
+};
+
 const emptyItem = (): QuoteItemDraft => ({
   type: "custom",
   description: "",
@@ -30,12 +40,7 @@ export function QuoteForm({
   submitLabel,
 }: {
   initial?: Quote | null;
-  onSubmit: (data: {
-    clientId: string;
-    title: string;
-    notes?: string;
-    items: QuoteItemDraft[];
-  }) => void;
+  onSubmit: (data: QuoteFormPayload) => void;
   loading?: boolean;
   submitLabel: string;
 }) {
@@ -47,6 +52,9 @@ export function QuoteForm({
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [validUntil, setValidUntil] = useState("");
+  const [depositPercent, setDepositPercent] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
   const [items, setItems] = useState<QuoteItemDraft[]>([emptyItem()]);
 
   useEffect(() => {
@@ -54,6 +62,19 @@ export function QuoteForm({
       setClientId(initial.clientId || "");
       setTitle(initial.title || "");
       setNotes(initial.notes || "");
+      setDepositPercent(
+        Number(initial.depositPercent) > 0
+          ? String(Number(initial.depositPercent))
+          : ""
+      );
+      setDepositAmount(
+        Number(initial.depositAmount) > 0
+          ? String(Number(initial.depositAmount))
+          : ""
+      );
+      if (initial.validUntil) {
+        setValidUntil(initial.validUntil.slice(0, 10));
+      }
       if (initial.items?.length) {
         setItems(
           initial.items.map((i) => ({
@@ -74,11 +95,21 @@ export function QuoteForm({
     );
   }
 
-  function lineTotal(item: QuoteItemDraft) {
-    return item.quantity * item.unitPrice * (1 + item.vatRate / 100);
+  function lineNet(item: QuoteItemDraft) {
+    return item.quantity * item.unitPrice;
   }
 
-  const grandTotal = items.reduce((sum, item) => sum + lineTotal(item), 0);
+  const subtotalNet = items.reduce((sum, item) => sum + lineNet(item), 0);
+  const vatTotal = items.reduce(
+    (sum, item) => sum + lineNet(item) * (item.vatRate / 100),
+    0
+  );
+  const grandTotal = subtotalNet + vatTotal;
+  const depPct = parseFloat(depositPercent) || 0;
+  const depAmt =
+    parseFloat(depositAmount) ||
+    (depPct > 0 ? (grandTotal * depPct) / 100 : 0);
+  const balance = Math.max(0, grandTotal - depAmt);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -87,6 +118,11 @@ export function QuoteForm({
       clientId,
       title,
       notes: notes || undefined,
+      validUntil: validUntil
+        ? new Date(`${validUntil}T12:00:00`).toISOString()
+        : undefined,
+      depositPercent: depPct > 0 ? depPct : undefined,
+      depositAmount: depAmt > 0 ? depAmt : undefined,
       items: items.filter((i) => i.description.trim()),
     });
   }
@@ -117,6 +153,71 @@ export function QuoteForm({
           <label className="mb-1 block text-sm font-medium">Titolo</label>
           <Input value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Valido fino al</label>
+          <Input
+            type="date"
+            value={validUntil}
+            onChange={(e) => setValidUntil(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div className="grid gap-4 rounded-xl border border-border bg-muted/20 p-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Acconto %</label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            step="0.01"
+            placeholder="es. 30"
+            value={depositPercent}
+            onChange={(e) => setDepositPercent(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Oppure importo fisso sotto
+          </p>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Acconto €</label>
+          <Input
+            type="number"
+            min={0}
+            step="0.01"
+            placeholder="es. 200"
+            value={depositAmount}
+            onChange={(e) => setDepositAmount(e.target.value)}
+          />
+        </div>
+        <p className="sm:col-span-2 text-sm text-muted-foreground">
+          Totale indicativo:{" "}
+          <strong>
+            €{" "}
+            {grandTotal.toLocaleString("it-IT", {
+              minimumFractionDigits: 2,
+            })}
+          </strong>
+          {depAmt > 0 && (
+            <>
+              {" "}
+              · Acconto:{" "}
+              <strong>
+                €{" "}
+                {depAmt.toLocaleString("it-IT", {
+                  minimumFractionDigits: 2,
+                })}
+              </strong>{" "}
+              · Saldo:{" "}
+              <strong>
+                €{" "}
+                {balance.toLocaleString("it-IT", {
+                  minimumFractionDigits: 2,
+                })}
+              </strong>
+            </>
+          )}
+        </p>
       </div>
 
       <div>
@@ -207,13 +308,6 @@ export function QuoteForm({
             </tbody>
           </table>
         </div>
-        <p className="mt-2 text-right text-sm font-medium tabular-nums">
-          Totale indicativo (lordo): €{" "}
-          {grandTotal.toLocaleString("it-IT", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </p>
       </div>
 
       <div>
