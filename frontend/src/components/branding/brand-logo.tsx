@@ -40,12 +40,14 @@ export function BrandLogo({
     );
   }
 
+  if (variant === "hero") {
+    return null;
+  }
+
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-2xl bg-primary font-bold text-white shadow-lg",
-        variant === "nav" && "h-11 w-11 shrink-0 text-sm",
-        variant === "hero" && "mx-auto h-28 w-28 text-4xl sm:h-36 sm:w-36 sm:text-5xl",
+        "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-white shadow-lg",
         className
       )}
       aria-hidden

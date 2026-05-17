@@ -98,7 +98,18 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 export function publicAssetUrl(pathOrUrl: string | undefined | null): string {
   if (!pathOrUrl?.trim()) return "";
   const s = pathOrUrl.trim();
-  if (/^https?:\/\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      if (u.pathname.startsWith("/uploads/")) {
+        return u.pathname;
+      }
+    } catch {
+      /* ignore */
+    }
+    return s;
+  }
+  if (s.startsWith("/uploads/")) return s;
   const base = API_URL.replace(/\/$/, "");
   if (!base) return s.startsWith("/") ? s : `/${s}`;
   return `${base}${s.startsWith("/") ? s : `/${s}`}`;
