@@ -25,7 +25,20 @@ chmod +x backend/scripts/ripristina-mint-pm2.sh
 ./backend/scripts/ripristina-mint-pm2.sh
 ```
 
-### 2. Se usi tunnel **veloce** (trycloudflare) — URL nuovo obbligatorio
+### 2. Errore **1033** (API locale OK, trycloudflare no)
+
+L’URL in `.env` / Netlify non corrisponde al tunnel attivo in PM2:
+
+```bash
+cd ~/CRM-APP
+git pull origin main
+chmod +x backend/scripts/*.sh
+./backend/scripts/fix-tunnel-1033.sh
+```
+
+Poi allinea Netlify `NEXT_PUBLIC_API_URL` con il nuovo `API_URL` stampato.
+
+### 3. Se usi tunnel **veloce** (trycloudflare) — URL nuovo obbligatorio
 
 ```bash
 pm2 logs crm-tunnel --lines 30

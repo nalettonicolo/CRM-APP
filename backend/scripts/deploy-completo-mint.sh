@@ -41,8 +41,11 @@ if [[ -f "$CONFIG" ]]; then
     bash "$BACKEND/scripts/setup-tunnel-pm2.sh"
   fi
 elif pm2 describe crm-tunnel >/dev/null 2>&1; then
-  pm2 restart crm-tunnel --update-env
-  echo "    Tunnel veloce riavviato (stesso URL se il processo non era stato eliminato)"
+  echo "    Tunnel veloce: ricreo (evita errore 1033 con URL vecchio in .env)"
+  pm2 delete crm-tunnel 2>/dev/null || true
+  pm2 start cloudflared --name crm-tunnel -- tunnel --url "http://127.0.0.1:${PORT}"
+  sleep 8
+  bash "$BACKEND/scripts/aggiorna-url-tunnel.sh" "$BACKEND" || true
 else
   echo "    Avvio tunnel veloce trycloudflare (senza dominio)"
   pm2 start cloudflared --name crm-tunnel -- tunnel --url "http://127.0.0.1:${PORT}"
