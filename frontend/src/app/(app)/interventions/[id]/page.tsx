@@ -1,0 +1,131 @@
+"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { Wrench } from "lucide-react";
+import { Header } from "@/components/layout/header";
+import {
+  DetailBack,
+  DetailField,
+  DetailSection,
+} from "@/components/detail/detail-shell";
+import { interventionsApi } from "@/lib/api";
+import { interventionStatusLabels } from "@/lib/labels";
+import { cn, formatDate } from "@/lib/utils";
+
+const statusColors: Record<string, string> = {
+  SCHEDULED: "bg-blue-500/15 text-blue-700",
+  IN_PROGRESS: "bg-amber-500/15 text-amber-700",
+  COMPLETED: "bg-green-500/15 text-green-700",
+  CANCELLED: "bg-red-500/15 text-red-600",
+};
+
+export default function InterventionDetailPage() {
+  const params = useParams();
+  const id = params.id as string;
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["intervention", id],
+    queryFn: () => interventionsApi.get(id),
+  });
+
+  return (
+    <>
+      <Header title="Dettaglio intervento" />
+      <div className="p-6">
+        <DetailBack href="/interventions" label="Torna agli interventi" />
+
+        {isLoading ? (
+          <p className="text-muted-foreground">Caricamento...</p>
+        ) : isError || !data ? (
+          <p className="text-destructive">Intervento non trovato.</p>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
+              <div className="flex items-start gap-4">
+                <div className="rounded-xl bg-primary/10 p-3">
+                  <Wrench className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <p className="font-mono text-sm text-muted-foreground">{data.number}</p>
+                  <h1 className="text-2xl font-bold tracking-tight">{data.title}</h1>
+                  {data.client && (
+                    <Link
+                      href={`/clients/${data.client.id}`}
+                      className="mt-2 inline-block text-sm text-primary hover:underline"
+                    >
+                      {data.client.companyName ||
+                        data.client.contactName ||
+                        "Cliente"}
+                    </Link>
+                  )}
+                </div>
+              </div>
+              <span
+                className={cn(
+                  "rounded-full px-3 py-1 text-sm font-medium",
+                  statusColors[data.status] || statusColors.SCHEDULED
+                )}
+              >
+                {interventionStatusLabels[data.status] || data.status}
+              </span>
+            </div>
+
+            <DetailSection title="Pianificazione">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailField
+                  label="Programmato"
+                  value={data.scheduledAt ? formatDate(data.scheduledAt) : undefined}
+                />
+                <DetailField
+                  label="Inizio"
+                  value={data.startedAt ? formatDate(data.startedAt) : undefined}
+                />
+                <DetailField
+                  label="Completato"
+                  value={data.completedAt ? formatDate(data.completedAt) : undefined}
+                />
+                <DetailField label="Luogo" value={data.location} />
+                {data.technician && (
+                  <DetailField
+                    label="Tecnico"
+                    value={`${data.technician.firstName} ${data.technician.lastName}`}
+                  />
+                )}
+              </div>
+            </DetailSection>
+
+            {data.description && (
+              <DetailSection title="Descrizione">
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  {data.description}
+                </p>
+              </DetailSection>
+            )}
+
+            {data.reports && data.reports.length > 0 && (
+              <DetailSection title="Report collegati">
+                <ul className="divide-y divide-border">
+                  {data.reports.map((r) => (
+                    <li key={r.id}>
+                      <Link
+                        href={`/reports/${r.id}`}
+                        className="-mx-2 flex items-center justify-between rounded-lg px-2 py-3 text-sm hover:bg-muted/30"
+                      >
+                        <span className="font-mono">{r.number}</span>
+                        <span className="text-muted-foreground">
+                          {r.status} · {Number(r.workHours)}h
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </DetailSection>
+            )}
+          </div>
+        )}
+      </div>
+    </>
+  );
+}

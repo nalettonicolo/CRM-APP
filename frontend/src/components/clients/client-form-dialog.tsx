@@ -1,0 +1,233 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { clientsApi, type Client } from "@/lib/api";
+import { clientStatusLabels } from "@/lib/labels";
+
+const emptyForm = {
+  companyName: "",
+  firstName: "",
+  lastName: "",
+  contactName: "",
+  email: "",
+  phone: "",
+  mobile: "",
+  address: "",
+  city: "",
+  province: "",
+  postalCode: "",
+  vatNumber: "",
+  fiscalCode: "",
+  notes: "",
+  status: "LEAD",
+};
+
+type FormState = typeof emptyForm;
+
+function clientToForm(client: Client): FormState {
+  return {
+    companyName: client.companyName || "",
+    firstName: client.firstName || "",
+    lastName: client.lastName || "",
+    contactName: client.contactName || "",
+    email: client.email || "",
+    phone: client.phone || "",
+    mobile: client.mobile || "",
+    address: client.address || "",
+    city: client.city || "",
+    province: client.province || "",
+    postalCode: client.postalCode || "",
+    vatNumber: client.vatNumber || "",
+    fiscalCode: client.fiscalCode || "",
+    notes: client.notes || "",
+    status: client.status || "LEAD",
+  };
+}
+
+export function ClientFormDialog({
+  open,
+  onOpenChange,
+  client,
+  onSaved,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  client?: Client | null;
+  onSaved?: (client: Client) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState<FormState>(emptyForm);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setForm(client ? clientToForm(client) : emptyForm);
+      setError("");
+    }
+  }, [open, client]);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      client
+        ? clientsApi.update(client.id, form)
+        : clientsApi.create(form),
+    onSuccess: (saved) => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      if (client) queryClient.invalidateQueries({ queryKey: ["client", client.id] });
+      onSaved?.(saved);
+      onOpenChange(false);
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{client ? "Modifica cliente" : "Nuovo cliente"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Ragione sociale</label>
+            <Input
+              value={form.companyName}
+              onChange={(e) => setField("companyName", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Nome</label>
+            <Input
+              value={form.firstName}
+              onChange={(e) => setField("firstName", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Cognome</label>
+            <Input
+              value={form.lastName}
+              onChange={(e) => setField("lastName", e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Referente</label>
+            <Input
+              value={form.contactName}
+              onChange={(e) => setField("contactName", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Email</label>
+            <Input
+              type="email"
+              value={form.email}
+              onChange={(e) => setField("email", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Telefono</label>
+            <Input
+              value={form.phone}
+              onChange={(e) => setField("phone", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Cellulare</label>
+            <Input
+              value={form.mobile}
+              onChange={(e) => setField("mobile", e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Indirizzo</label>
+            <Input
+              value={form.address}
+              onChange={(e) => setField("address", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Città</label>
+            <Input value={form.city} onChange={(e) => setField("city", e.target.value)} />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Provincia</label>
+            <Input
+              value={form.province}
+              onChange={(e) => setField("province", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">CAP</label>
+            <Input
+              value={form.postalCode}
+              onChange={(e) => setField("postalCode", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">P. IVA</label>
+            <Input
+              value={form.vatNumber}
+              onChange={(e) => setField("vatNumber", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Codice fiscale</label>
+            <Input
+              value={form.fiscalCode}
+              onChange={(e) => setField("fiscalCode", e.target.value)}
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Stato</label>
+            <select
+              className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              value={form.status}
+              onChange={(e) => setField("status", e.target.value)}
+            >
+              {Object.entries(clientStatusLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-sm font-medium">Note</label>
+            <textarea
+              className="flex min-h-[80px] w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              value={form.notes}
+              onChange={(e) => setField("notes", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {error && (
+          <p className="text-sm text-red-600">{error}</p>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Annulla
+          </Button>
+          <Button onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+            {mutation.isPending ? "Salvataggio..." : "Salva"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}

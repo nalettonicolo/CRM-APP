@@ -19,6 +19,18 @@ router.get("/", async (req: AuthRequest, res, next) => {
   }
 });
 
+router.patch("/read-all", async (req: AuthRequest, res, next) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user!.userId, isRead: false },
+      data: { isRead: true },
+    });
+    res.json({ success: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.patch("/:id/read", async (req: AuthRequest, res, next) => {
   try {
     await prisma.notification.updateMany({

@@ -86,6 +86,20 @@ export const authApi = {
       method: "POST",
       body: JSON.stringify({ token, password }),
     }),
+  setup2fa: () =>
+    api<{ secret: string; qrCodeUrl: string }>("/auth/2fa/setup", {
+      method: "POST",
+    }),
+  enable2fa: (code: string) =>
+    api<{ success: boolean }>("/auth/2fa/enable", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
+  disable2fa: (code: string) =>
+    api<{ success: boolean }>("/auth/2fa/disable", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    }),
 };
 
 export interface User {
@@ -117,13 +131,55 @@ export const clientsApi = {
 export interface Client {
   id: string;
   companyName?: string;
+  firstName?: string;
+  lastName?: string;
   contactName?: string;
   email?: string;
   phone?: string;
+  mobile?: string;
+  address?: string;
+  city?: string;
+  province?: string;
+  postalCode?: string;
+  country?: string;
+  vatNumber?: string;
+  fiscalCode?: string;
+  notes?: string;
   status: string;
   tags?: string[];
-  city?: string;
+  createdAt?: string;
+  updatedAt?: string;
   _count?: { quotes: number; interventions: number; reports: number };
+  quotes?: QuoteSummary[];
+  interventions?: InterventionSummary[];
+  reports?: ReportSummary[];
+  activities?: { id: string; action: string; entityType?: string; createdAt: string }[];
+  attachments?: { id: string; filename: string; createdAt: string }[];
+}
+
+export interface QuoteSummary {
+  id: string;
+  number: string;
+  title?: string;
+  status: string;
+  total: number | string;
+  createdAt: string;
+}
+
+export interface InterventionSummary {
+  id: string;
+  number: string;
+  title: string;
+  status: string;
+  scheduledAt?: string;
+}
+
+export interface ReportSummary {
+  id: string;
+  number: string;
+  status: string;
+  workHours: number | string;
+  createdAt: string;
 }
 
 export const quotesApi = {
@@ -139,22 +195,77 @@ export const quotesApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  sendEmail: (id: string) =>
+    api<{ success: boolean }>(`/quotes/${id}/send-email`, { method: "POST" }),
 };
+
+export async function downloadQuotePdf(id: string, filename: string) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/api/quotes/${id}/pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, "Download PDF fallito");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export interface Quote {
   id: string;
   number: string;
   title?: string;
   status: string;
+  paymentStatus?: string;
+  subtotal?: number | string;
+  discountPercent?: number | string;
+  discountAmount?: number | string;
+  vatAmount?: number | string;
   total: number | string;
+  depositPercent?: number | string;
+  depositAmount?: number | string;
   balanceDue: number | string;
-  client?: { companyName?: string; contactName?: string };
+  validUntil?: string;
+  notes?: string;
+  internalNotes?: string;
+  category?: string;
+  clientId?: string;
+  client?: Client;
+  items?: QuoteItem[];
+  createdBy?: { firstName: string; lastName: string; email?: string };
   createdAt: string;
+  updatedAt?: string;
+  sentAt?: string;
+  acceptedAt?: string;
+}
+
+export interface QuoteItem {
+  id: string;
+  type: string;
+  description: string;
+  quantity: number | string;
+  unitPrice: number | string;
+  vatRate: number | string;
+  discount: number | string;
+  total: number | string;
 }
 
 export const dashboardApi = {
   stats: () => api<DashboardStats>("/dashboard/stats"),
+  saveLayout: (layout: DashboardLayout) =>
+    api<{ success: boolean }>("/dashboard/layout", {
+      method: "PUT",
+      body: JSON.stringify(layout),
+    }),
 };
+
+export interface DashboardLayout {
+  widgets: Record<string, boolean>;
+}
 
 export interface DashboardStats {
   interventionsToday: number;
@@ -171,8 +282,13 @@ export interface EventItem {
   id: string;
   title: string;
   type?: string;
+  description?: string;
   startAt: string;
-  client?: { companyName?: string };
+  endAt?: string;
+  allDay?: boolean;
+  clientId?: string;
+  color?: string;
+  client?: { companyName?: string; contactName?: string };
 }
 
 export interface ActivityItem {
@@ -189,6 +305,20 @@ export const inventoryApi = {
   },
   products: () => api<Product[]>("/inventory/products"),
   services: () => api<Service[]>("/inventory/services"),
+  createProduct: (data: Partial<Product>) =>
+    api<Product>("/inventory/products", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateProduct: (id: string, data: Partial<Product>) =>
+    api<Product>(`/inventory/products/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  deleteProduct: (id: string) =>
+    api<{ success: boolean }>(`/inventory/products/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 export interface InventoryItem {
@@ -205,6 +335,8 @@ export interface Product {
   sku: string;
   price: number | string;
   category?: string;
+  description?: string;
+  isActive?: boolean;
 }
 
 export interface Service {
@@ -216,8 +348,40 @@ export interface Service {
 
 export const interventionsApi = {
   list: () => api<Intervention[]>("/interventions"),
+  get: (id: string) => api<InterventionDetail>(`/interventions/${id}`),
   reports: () => api<Report[]>("/interventions/reports"),
 };
+
+export const reportsApi = {
+  get: (id: string) => api<ReportDetail>(`/interventions/reports/${id}`),
+  createDraft: (data: ReportPayload) =>
+    api<ReportDetail>("/interventions/reports/draft", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<ReportPayload> & { status?: string }) =>
+    api<ReportDetail>(`/interventions/reports/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  sendEmail: (id: string) =>
+    api<{ success: boolean }>(`/interventions/reports/${id}/send-email`, {
+      method: "POST",
+    }),
+};
+
+export interface ReportPayload {
+  clientId: string;
+  interventionId?: string;
+  description?: string;
+  workHours?: number;
+  checklist?: { label: string; checked: boolean }[];
+  materials?: { name: string; quantity: number; unit?: string; productId?: string }[];
+  technicianSignature?: string;
+  latitude?: number;
+  longitude?: number;
+  status?: string;
+}
 
 export interface Intervention {
   id: string;
@@ -228,14 +392,100 @@ export interface Intervention {
   client?: { companyName?: string; contactName?: string };
 }
 
+export interface InterventionDetail extends Intervention {
+  description?: string;
+  location?: string;
+  startedAt?: string;
+  completedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  client?: Client;
+  technician?: { firstName: string; lastName: string; email?: string };
+  reports?: ReportSummary[];
+}
+
 export interface Report {
   id: string;
   number: string;
   status: string;
   workHours: number | string;
   createdAt: string;
+  client?: { companyName?: string; contactName?: string };
+}
+
+export interface ReportDetail extends Report {
+  clientId?: string;
+  description?: string;
+  checklist?: { label: string; checked: boolean }[];
+  technicianSignature?: string;
+  latitude?: number | string;
+  longitude?: number | string;
+  submittedAt?: string;
+  updatedAt?: string;
+  client?: Client;
+  technician?: { firstName: string; lastName: string; email?: string };
+  intervention?: { id: string; number: string; title: string };
+  materials?: {
+    id: string;
+    name: string;
+    quantity: number | string;
+    unit?: string;
+  }[];
+}
+
+export async function downloadReportPdf(id: string, filename: string) {
+  const token = getToken();
+  const res = await fetch(`${API_URL}/api/interventions/reports/${id}/pdf`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, "Download PDF fallito");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export interface StaffUser {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  status: string;
+  phone?: string;
+  lastLoginAt?: string | null;
+  createdAt: string;
   client?: { companyName?: string };
 }
+
+export const usersApi = {
+  list: () => api<StaffUser[]>("/users"),
+  create: (data: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    role: string;
+    clientId?: string;
+    status?: string;
+  }) =>
+    api<StaffUser>("/users", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<{ password: string; role: string; status: string }>) =>
+    api<StaffUser>(`/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  resetPassword: (id: string, password: string) =>
+    api<{ message: string }>(`/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    }),
+};
 
 export const eventsApi = {
   list: (from?: string, to?: string) => {
@@ -245,6 +495,103 @@ export const eventsApi = {
     const q = params.toString() ? `?${params}` : "";
     return api<EventItem[]>(`/events${q}`);
   },
+  create: (data: {
+    title: string;
+    type: string;
+    startAt: string;
+    endAt?: string;
+    description?: string;
+    clientId?: string;
+    allDay?: boolean;
+  }) =>
+    api<EventItem>("/events", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: Partial<{ title: string; startAt: string; endAt: string }>) =>
+    api<EventItem>(`/events/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/events/${id}`, { method: "DELETE" }),
+};
+
+export interface Invoice {
+  id: string;
+  number: string;
+  clientId: string;
+  quoteId?: string;
+  subtotal: number | string;
+  vatAmount: number | string;
+  total: number | string;
+  depositAmount?: number | string;
+  balanceDue: number | string;
+  paymentStatus: string;
+  dueDate?: string;
+  notes?: string;
+  disclaimer?: string;
+  createdAt: string;
+  client?: Client;
+  quote?: QuoteSummary;
+}
+
+export const invoicesApi = {
+  list: (params?: Record<string, string>) => {
+    const q = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api<{ data: Invoice[]; total: number }>(`/invoices${q}`);
+  },
+  get: (id: string) => api<Invoice>(`/invoices/${id}`),
+  fromQuote: (quoteId: string) =>
+    api<Invoice>("/invoices/from-quote", {
+      method: "POST",
+      body: JSON.stringify({ quoteId }),
+    }),
+};
+
+export interface AutomationRule {
+  id: string;
+  name: string;
+  category: string;
+  isActive: boolean;
+  discountPercent?: number | string;
+  discountAmount?: number | string;
+  vatRate?: number | string;
+}
+
+export const automationApi = {
+  list: () => api<AutomationRule[]>("/automation/rules"),
+  create: (data: Partial<AutomationRule>) =>
+    api<AutomationRule>("/automation/rules", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<AutomationRule>) =>
+    api<AutomationRule>(`/automation/rules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/automation/rules/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export interface SearchResult {
+  type: string;
+  id: string;
+  title: string;
+  subtitle?: string;
+  href: string;
+}
+
+export const searchApi = {
+  query: (q: string) =>
+    api<SearchResult[]>(`/search?${new URLSearchParams({ q })}`),
+};
+
+export const backupApi = {
+  trigger: () =>
+    api<{ success: boolean; file?: string }>("/backup/trigger", {
+      method: "POST",
+    }),
 };
 
 export const settingsApi = {
@@ -278,15 +625,126 @@ export async function uploadBrandingAsset(file: File, kind: "logo" | "favicon") 
   return data as { relativeUrl: string; url: string };
 }
 
+export interface AttachmentItem {
+  id: string;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  path: string;
+  url?: string;
+  createdAt: string;
+}
+
+export const attachmentsApi = {
+  list: (entityType: string, entityId: string) =>
+    api<AttachmentItem[]>(
+      `/attachments?${new URLSearchParams({ entityType, entityId })}`
+    ),
+  upload: async (file: File, entityType: string, entityId: string) => {
+    const token = getToken();
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("entityType", entityType);
+    fd.append("entityId", entityId);
+    const res = await fetch(`${API_URL}/api/attachments`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data.error || "Upload fallito");
+    return data as AttachmentItem;
+  },
+  remove: (id: string) =>
+    api<{ success: boolean }>(`/attachments/${id}`, { method: "DELETE" }),
+  downloadUrl: (item: AttachmentItem) =>
+    item.url || `${API_URL}${item.path.startsWith("/") ? item.path : `/${item.path}`}`,
+};
+
+export interface ActivityLogItem {
+  id: string;
+  action: string;
+  entityType?: string;
+  entityId?: string;
+  details?: unknown;
+  createdAt: string;
+  user?: { firstName: string; lastName: string; email?: string };
+  client?: { companyName?: string; contactName?: string };
+}
+
+export const activityLogsApi = {
+  list: (params?: Record<string, string>) => {
+    const q = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api<{ data: ActivityLogItem[]; total: number; page: number }>(
+      `/activity-logs${q}`
+    );
+  },
+};
+
+export interface LeadItem {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  company?: string;
+  message?: string;
+  status: string;
+  createdAt: string;
+  assignedTo?: { firstName: string; lastName: string };
+}
+
+export const leadsApi = {
+  list: (params?: Record<string, string>) => {
+    const q = params ? "?" + new URLSearchParams(params).toString() : "";
+    return api<{ data: LeadItem[]; total: number }>(`/leads${q}`);
+  },
+  update: (
+    id: string,
+    data: { status?: string; assignedToId?: string; convertToClient?: boolean }
+  ) =>
+    api<LeadItem>(`/leads/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+};
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  type: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export const notificationsApi = {
+  list: () => api<NotificationItem[]>("/notifications"),
+  markRead: (id: string) =>
+    api<{ success: boolean }>(`/notifications/${id}/read`, { method: "PATCH" }),
+};
+
 export const portalApi = {
   dashboard: () => api<PortalDashboard>("/portal/dashboard"),
+  documents: () =>
+    api<{ invoices: Invoice[]; quotes: Quote[] }>("/portal/documents"),
+  signQuote: (id: string, signature: string) =>
+    api<{ success: boolean }>(`/portal/quotes/${id}/sign`, {
+      method: "POST",
+      body: JSON.stringify({ signature }),
+    }),
+  confirmEvent: (id: string) =>
+    api<{ success: boolean }>(`/portal/events/${id}/confirm`, {
+      method: "POST",
+    }),
 };
 
 export interface PortalDashboard {
   quotes: Quote[];
   reports: Report[];
   interventions: Intervention[];
-  invoices: unknown[];
+  invoices: Invoice[];
   events: EventItem[];
 }
 

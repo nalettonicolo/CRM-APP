@@ -1,12 +1,16 @@
 "use client";
 
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { FileText, Plus } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ClickableRow } from "@/components/detail/detail-shell";
 import { quotesApi } from "@/lib/api";
+import { quoteStatusLabels } from "@/lib/labels";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 
 const statusStyle: Record<string, string> = {
@@ -18,6 +22,7 @@ const statusStyle: Record<string, string> = {
 };
 
 export default function QuotesPage() {
+  const router = useRouter();
   const { data, isLoading } = useQuery({
     queryKey: ["quotes"],
     queryFn: () => quotesApi.list(),
@@ -28,8 +33,10 @@ export default function QuotesPage() {
       <Header title="Preventivi" />
       <motion.div className="p-6">
         <div className="mb-6 flex justify-end">
-          <Button>
-            <Plus className="h-4 w-4" /> Nuovo preventivo
+          <Button asChild>
+            <Link href="/quotes/new">
+              <Plus className="h-4 w-4" /> Nuovo preventivo
+            </Link>
           </Button>
         </div>
 
@@ -56,9 +63,9 @@ export default function QuotesPage() {
                     </tr>
                   ) : (
                     data?.data.map((q) => (
-                      <tr
+                      <ClickableRow
                         key={q.id}
-                        className="border-b border-border hover:bg-muted/30 transition-colors"
+                        onClick={() => router.push(`/quotes/${q.id}`)}
                       >
                         <td className="px-4 py-3 font-mono text-xs">{q.number}</td>
                         <td className="px-4 py-3">
@@ -72,7 +79,7 @@ export default function QuotesPage() {
                               statusStyle[q.status]
                             )}
                           >
-                            {q.status}
+                            {quoteStatusLabels[q.status] || q.status}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right font-medium">
@@ -81,7 +88,7 @@ export default function QuotesPage() {
                         <td className="px-4 py-3 text-right text-muted-foreground">
                           {formatDate(q.createdAt)}
                         </td>
-                      </tr>
+                      </ClickableRow>
                     ))
                   )}
                 </tbody>

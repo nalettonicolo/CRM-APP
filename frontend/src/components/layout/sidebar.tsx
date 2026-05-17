@@ -8,13 +8,18 @@ import {
   LayoutDashboard,
   Users,
   FileText,
+  Receipt,
   Wrench,
   Package,
+  Boxes,
   Calendar,
   Settings,
   LogOut,
   ClipboardList,
   UserCircle,
+  UserCog,
+  Inbox,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
@@ -25,9 +30,11 @@ const staffNav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/clients", label: "Clienti", icon: Users },
   { href: "/quotes", label: "Preventivi", icon: FileText },
+  { href: "/invoices", label: "Fatture", icon: Receipt },
   { href: "/interventions", label: "Interventi", icon: Wrench },
   { href: "/reports", label: "Report", icon: ClipboardList },
   { href: "/inventory", label: "Magazzino", icon: Package },
+  { href: "/inventory/products", label: "Prodotti", icon: Boxes },
   { href: "/calendar", label: "Calendario", icon: Calendar },
   { href: "/settings", label: "Impostazioni", icon: Settings },
 ];
@@ -36,13 +43,33 @@ const clientNav = [
   { href: "/portal", label: "Area Cliente", icon: UserCircle },
   { href: "/portal/quotes", label: "Preventivi", icon: FileText },
   { href: "/portal/reports", label: "Report", icon: ClipboardList },
+  { href: "/portal/documents", label: "Documenti", icon: Receipt },
+  { href: "/portal/events", label: "Appuntamenti", icon: Calendar },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  className,
+  onNavigate,
+}: {
+  className?: string;
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuthStore();
   const isClient = user?.role === "CLIENT";
-  const nav = isClient ? clientNav : staffNav;
+  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+  const nav = isClient
+    ? clientNav
+    : [
+        ...staffNav,
+        ...(isAdmin
+          ? [
+              { href: "/leads", label: "Richieste", icon: Inbox },
+              { href: "/activity-logs", label: "Audit log", icon: History },
+              { href: "/users", label: "Utenti", icon: UserCog },
+            ]
+          : []),
+      ];
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -67,7 +94,12 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)]">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-40 flex h-screen w-64 flex-col bg-[var(--color-sidebar)] text-[var(--color-sidebar-foreground)]",
+        className
+      )}
+    >
       <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">
         {logoSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -95,7 +127,7 @@ export function Sidebar() {
           const active =
             pathname === item.href || pathname.startsWith(item.href + "/");
           return (
-            <Link key={item.href} href={item.href}>
+            <Link key={item.href} href={item.href} onClick={onNavigate}>
               <motion.span
                 whileHover={{ x: 2 }}
                 className={cn(

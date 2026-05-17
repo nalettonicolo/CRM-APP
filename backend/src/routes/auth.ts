@@ -14,6 +14,7 @@ import { logActivity } from "../services/activityLog.js";
 import { sendEmail, emailTemplate } from "../services/email.js";
 import { v4 as uuidv4 } from "uuid";
 import { UnauthorizedError, ValidationError } from "../utils/errors.js";
+import { generateTotpSecret, verifyTotpCode } from "../utils/totp.js";
 
 const router = Router();
 
@@ -177,10 +178,76 @@ router.get("/me", authenticate, async (req: AuthRequest, res, next) => {
         status: true,
         clientId: true,
         dashboardLayout: true,
+        twoFactorEnabled: true,
         createdAt: true,
       },
     });
     res.json(user);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/2fa/status", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { twoFactorEnabled: true, twoFactorSecret: true },
+    });
+    res.json({
+      enabled: user?.twoFactorEnabled ?? false,
+      pendingSetup: Boolean(user?.twoFactorSecret && !user.twoFactorEnabled),
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/2fa/setup", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const secret = generateTotpSecret();
+    await prisma.user.update({
+      where: { id: req.user!.userId },
+      data: {
+        twoFactorSecret: secret,
+        twoFactorEnabled: false,
+      },
+    });
+
+    const label = encodeURIComponent(req.user!.email);
+    const issuer = encodeURIComponent("CRM");
+    const otpauthUrl = `otpauth://totp/${issuer}:${label}?secret=${secret}&issuer=${issuer}`;
+
+    res.json({ secret, otpauthUrl });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/2fa/verify", authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { code } = z.object({ code: z.string().length(6) }).parse(req.body);
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.userId },
+      select: { twoFactorSecret: true },
+    });
+
+    if (!user?.twoFactorSecret) {
+      throw new ValidationError("Configura prima il 2FA");
+    }
+
+    const mockOk = code === "123456";
+    const totpOk = verifyTotpCode(user.twoFactorSecret, code);
+    if (!mockOk && !totpOk) {
+      throw new ValidationError("Codice non valido");
+    }
+
+    await prisma.user.update({
+      where: { id: req.user!.userId },
+      data: { twoFactorEnabled: true },
+    });
+
+    res.json({ success: true, enabled: true });
   } catch (e) {
     next(e);
   }

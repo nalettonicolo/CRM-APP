@@ -8,7 +8,9 @@ import {
 } from "../middleware/auth.js";
 import { calculateQuoteTotals, toDecimal } from "../services/quoteCalculator.js";
 import { logActivity } from "../services/activityLog.js";
-import { NotFoundError } from "../utils/errors.js";
+import { sendEmail, emailTemplate } from "../services/email.js";
+import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
+import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 
 const router = Router();
@@ -182,6 +184,96 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
     next(e);
   }
 });
+
+async function loadQuoteForPdf(id: string, user: AuthRequest["user"]) {
+  const quote = await prisma.quote.findUnique({
+    where: { id },
+    include: {
+      client: true,
+      items: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+  if (!quote) throw new NotFoundError();
+  if (user?.role === "CLIENT" && quote.clientId !== user.clientId) {
+    throw new NotFoundError();
+  }
+  return quote;
+}
+
+router.get(
+  "/:id/pdf",
+  requirePermission("quotes", "READ"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const quote = await loadQuoteForPdf(paramId(req), req.user);
+      const company = await loadCompanySettings();
+      const pdf = await generateQuotePdf(quote, company);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="preventivo-${quote.number}.pdf"`
+      );
+      res.send(pdf);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.post(
+  "/:id/send-email",
+  requirePermission("quotes", "UPDATE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const quote = await loadQuoteForPdf(paramId(req), req.user);
+      const email = quote.client.email;
+      if (!email) {
+        throw new ValidationError("Il cliente non ha un indirizzo email");
+      }
+
+      const company = await loadCompanySettings();
+      const pdf = await generateQuotePdf(quote, company);
+      const brandName =
+        typeof company.name === "string" ? company.name : "CRM";
+
+      await sendEmail({
+        to: email,
+        subject: `Preventivo ${quote.number}`,
+        html: emailTemplate(
+          `Preventivo ${quote.number}`,
+          `<p>In allegato trovi il preventivo <strong>${quote.number}</strong>.</p>
+           ${quote.title ? `<p>${quote.title}</p>` : ""}
+           <p>Totale: <strong>€ ${Number(quote.total).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>`,
+          brandName
+        ),
+        attachments: [
+          {
+            filename: `preventivo-${quote.number}.pdf`,
+            content: pdf,
+          },
+        ],
+      });
+
+      const updated = await prisma.quote.update({
+        where: { id: quote.id },
+        data: { status: "SENT", sentAt: new Date() },
+      });
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: quote.clientId,
+        action: "SEND_EMAIL",
+        entityType: "quote",
+        entityId: quote.id,
+        details: { to: email },
+      });
+
+      res.json({ success: true, quote: updated });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequest, res, next) => {
   try {

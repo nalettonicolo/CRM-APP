@@ -6,7 +6,8 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { settingsApi, uploadBrandingAsset } from "@/lib/api";
+import Link from "next/link";
+import { authApi, backupApi, settingsApi, uploadBrandingAsset } from "@/lib/api";
 import {
   DEFAULT_APP_NAME,
   mergeSiteHome,
@@ -40,6 +41,18 @@ export default function SettingsPage() {
     phone: "",
     website: "",
   });
+  const [smtp, setSmtp] = useState({
+    host: "",
+    port: "587",
+    user: "",
+    pass: "",
+    from: "",
+  });
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaSetup, setTwoFaSetup] = useState<{
+    secret: string;
+    qrCodeUrl: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!data) return;
@@ -57,7 +70,48 @@ export default function SettingsPage() {
       phone: co.phone || "",
       website: co.website || "",
     });
+    const sm = (data.smtp as Record<string, string>) || {};
+    setSmtp({
+      host: sm.host || "",
+      port: sm.port || "587",
+      user: sm.user || "",
+      pass: sm.pass || "",
+      from: sm.from || "",
+    });
   }, [data]);
+
+  const backupMut = useMutation({
+    mutationFn: backupApi.trigger,
+    onSuccess: () => {
+      setBanner("Backup avviato con successo.");
+      setTimeout(() => setBanner(""), 3000);
+    },
+    onError: () => setBanner("Errore backup."),
+  });
+
+  const setup2faMut = useMutation({
+    mutationFn: authApi.setup2fa,
+    onSuccess: (res) => setTwoFaSetup(res),
+  });
+
+  const enable2faMut = useMutation({
+    mutationFn: () => authApi.enable2fa(twoFaCode),
+    onSuccess: () => {
+      setBanner("2FA attivata.");
+      setTwoFaSetup(null);
+      setTwoFaCode("");
+    },
+    onError: () => setBanner("Codice 2FA non valido."),
+  });
+
+  const disable2faMut = useMutation({
+    mutationFn: () => authApi.disable2fa(twoFaCode),
+    onSuccess: () => {
+      setBanner("2FA disattivata.");
+      setTwoFaCode("");
+    },
+    onError: () => setBanner("Codice 2FA non valido."),
+  });
 
   const saveMut = useMutation({
     mutationFn: ({ key, value }: { key: string; value: unknown }) =>
@@ -382,14 +436,129 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>SMTP email</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Configurazione invio (variabili ambiente sul server). Qui solo
-              promemoria — collega SMTP nel file .env dell&apos;API.
+              Salvato nelle impostazioni come JSON (chiave smtp).
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Input placeholder="smtp.example.com" disabled />
-            <Input placeholder="587" type="number" disabled />
-            <Input placeholder="noreply@azienda.it" disabled />
+            <Input
+              placeholder="Host SMTP"
+              value={smtp.host}
+              onChange={(e) => setSmtp((s) => ({ ...s, host: e.target.value }))}
+            />
+            <Input
+              placeholder="Porta"
+              value={smtp.port}
+              onChange={(e) => setSmtp((s) => ({ ...s, port: e.target.value }))}
+            />
+            <Input
+              placeholder="Utente"
+              value={smtp.user}
+              onChange={(e) => setSmtp((s) => ({ ...s, user: e.target.value }))}
+            />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={smtp.pass}
+              onChange={(e) => setSmtp((s) => ({ ...s, pass: e.target.value }))}
+            />
+            <Input
+              placeholder="Email mittente"
+              value={smtp.from}
+              onChange={(e) => setSmtp((s) => ({ ...s, from: e.target.value }))}
+            />
+            <Button
+              disabled={saveMut.isPending}
+              onClick={() => saveMut.mutate({ key: "smtp", value: smtp })}
+            >
+              Salva SMTP
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Backup database</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Avvia un backup manuale sul server.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <Button
+              variant="outline"
+              disabled={backupMut.isPending}
+              onClick={() => backupMut.mutate()}
+            >
+              {backupMut.isPending ? "Backup in corso…" : "Esegui backup ora"}
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Autenticazione a due fattori</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!twoFaSetup ? (
+              <Button
+                variant="outline"
+                disabled={setup2faMut.isPending}
+                onClick={() => setup2faMut.mutate()}
+              >
+                Configura 2FA
+              </Button>
+            ) : (
+              <div className="space-y-3 rounded-lg border border-border p-3">
+                <p className="text-xs text-muted-foreground break-all">
+                  Secret: {twoFaSetup.secret}
+                </p>
+                {twoFaSetup.qrCodeUrl && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={twoFaSetup.qrCodeUrl}
+                    alt="QR 2FA"
+                    className="mx-auto h-40 w-40"
+                  />
+                )}
+                <Input
+                  placeholder="Codice a 6 cifre"
+                  value={twoFaCode}
+                  onChange={(e) => setTwoFaCode(e.target.value)}
+                />
+                <Button
+                  disabled={enable2faMut.isPending || twoFaCode.length < 6}
+                  onClick={() => enable2faMut.mutate()}
+                >
+                  Attiva 2FA
+                </Button>
+              </div>
+            )}
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-sm text-muted-foreground">Disattiva 2FA</p>
+              <Input
+                placeholder="Codice corrente"
+                value={twoFaCode}
+                onChange={(e) => setTwoFaCode(e.target.value)}
+              />
+              <Button
+                variant="destructive"
+                className="mt-2"
+                disabled={disable2faMut.isPending || !twoFaCode}
+                onClick={() => disable2faMut.mutate()}
+              >
+                Disattiva
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Automazione preventivi</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Link href="/settings/automation">
+              <Button variant="outline">Gestisci regole automazione</Button>
+            </Link>
           </CardContent>
         </Card>
       </div>

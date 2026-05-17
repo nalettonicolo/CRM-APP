@@ -8,6 +8,8 @@ import {
 } from "../middleware/auth.js";
 import { toDecimal } from "../services/quoteCalculator.js";
 import { logActivity } from "../services/activityLog.js";
+import { NotFoundError } from "../utils/errors.js";
+import { paramId } from "../utils/params.js";
 
 const router = Router();
 router.use(authenticate);
@@ -120,6 +122,283 @@ router.get("/services", requirePermission("services", "READ"), async (_req, res,
       orderBy: { name: "asc" },
     });
     res.json(services);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/warehouses", requirePermission("inventory", "READ"), async (_req, res, next) => {
+  try {
+    const warehouses = await prisma.warehouse.findMany({
+      orderBy: { name: "asc" },
+    });
+    res.json(warehouses);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/products", requirePermission("products", "CREATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        name: z.string(),
+        sku: z.string(),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        price: z.number(),
+        cost: z.number().optional(),
+        vatRate: z.number().optional(),
+        supplierId: z.string().optional(),
+        barcode: z.string().optional(),
+        warehouseId: z.string().optional(),
+        initialQty: z.number().optional(),
+      })
+      .parse(req.body);
+
+    const product = await prisma.product.create({
+      data: {
+        name: data.name,
+        sku: data.sku,
+        description: data.description,
+        category: data.category,
+        price: toDecimal(data.price),
+        cost: data.cost != null ? toDecimal(data.cost) : undefined,
+        vatRate: toDecimal(data.vatRate ?? 22),
+        supplierId: data.supplierId,
+        barcode: data.barcode,
+      },
+    });
+
+    if (data.warehouseId) {
+      await prisma.inventory.create({
+        data: {
+          productId: product.id,
+          warehouseId: data.warehouseId,
+          quantity: toDecimal(data.initialQty ?? 0),
+        },
+      });
+    }
+
+    await logActivity({
+      userId: req.user!.userId,
+      action: "CREATE",
+      entityType: "product",
+      entityId: product.id,
+    });
+
+    res.status(201).json(product);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch("/products/:id", requirePermission("products", "UPDATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        price: z.number().optional(),
+        cost: z.number().optional(),
+        vatRate: z.number().optional(),
+        supplierId: z.string().optional(),
+        barcode: z.string().optional(),
+        isActive: z.boolean().optional(),
+      })
+      .parse(req.body);
+
+    const existing = await prisma.product.findUnique({ where: { id: paramId(req) } });
+    if (!existing) throw new NotFoundError();
+
+    const product = await prisma.product.update({
+      where: { id: paramId(req) },
+      data: {
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        price: data.price != null ? toDecimal(data.price) : undefined,
+        cost: data.cost != null ? toDecimal(data.cost) : undefined,
+        vatRate: data.vatRate != null ? toDecimal(data.vatRate) : undefined,
+        supplierId: data.supplierId,
+        barcode: data.barcode,
+        isActive: data.isActive,
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      action: "UPDATE",
+      entityType: "product",
+      entityId: product.id,
+    });
+
+    res.json(product);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/services", requirePermission("services", "CREATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        name: z.string(),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        price: z.number(),
+        vatRate: z.number().optional(),
+        duration: z.number().optional(),
+        operatorCost: z.number().optional(),
+      })
+      .parse(req.body);
+
+    const service = await prisma.service.create({
+      data: {
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        price: toDecimal(data.price),
+        vatRate: toDecimal(data.vatRate ?? 22),
+        duration: data.duration,
+        operatorCost:
+          data.operatorCost != null ? toDecimal(data.operatorCost) : undefined,
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      action: "CREATE",
+      entityType: "service",
+      entityId: service.id,
+    });
+
+    res.status(201).json(service);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch("/services/:id", requirePermission("services", "UPDATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        name: z.string().optional(),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        price: z.number().optional(),
+        vatRate: z.number().optional(),
+        duration: z.number().optional(),
+        operatorCost: z.number().optional(),
+        isActive: z.boolean().optional(),
+      })
+      .parse(req.body);
+
+    const existing = await prisma.service.findUnique({ where: { id: paramId(req) } });
+    if (!existing) throw new NotFoundError();
+
+    const service = await prisma.service.update({
+      where: { id: paramId(req) },
+      data: {
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        price: data.price != null ? toDecimal(data.price) : undefined,
+        vatRate: data.vatRate != null ? toDecimal(data.vatRate) : undefined,
+        duration: data.duration,
+        operatorCost:
+          data.operatorCost != null ? toDecimal(data.operatorCost) : undefined,
+        isActive: data.isActive,
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      action: "UPDATE",
+      entityType: "service",
+      entityId: service.id,
+    });
+
+    res.json(service);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/warehouses", requirePermission("inventory", "CREATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        name: z.string(),
+        address: z.string().optional(),
+        isDefault: z.boolean().optional(),
+      })
+      .parse(req.body);
+
+    if (data.isDefault) {
+      await prisma.warehouse.updateMany({
+        data: { isDefault: false },
+      });
+    }
+
+    const warehouse = await prisma.warehouse.create({
+      data: {
+        name: data.name,
+        address: data.address,
+        isDefault: data.isDefault ?? false,
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      action: "CREATE",
+      entityType: "warehouse",
+      entityId: warehouse.id,
+    });
+
+    res.status(201).json(warehouse);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch("/warehouses/:id", requirePermission("inventory", "UPDATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        name: z.string().optional(),
+        address: z.string().optional(),
+        isDefault: z.boolean().optional(),
+      })
+      .parse(req.body);
+
+    const existing = await prisma.warehouse.findUnique({ where: { id: paramId(req) } });
+    if (!existing) throw new NotFoundError();
+
+    if (data.isDefault) {
+      await prisma.warehouse.updateMany({
+        data: { isDefault: false },
+      });
+    }
+
+    const warehouse = await prisma.warehouse.update({
+      where: { id: paramId(req) },
+      data: {
+        name: data.name,
+        address: data.address,
+        isDefault: data.isDefault,
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      action: "UPDATE",
+      entityType: "warehouse",
+      entityId: warehouse.id,
+    });
+
+    res.json(warehouse);
   } catch (e) {
     next(e);
   }

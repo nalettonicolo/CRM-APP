@@ -1,76 +1,102 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { Calendar as CalendarIcon } from "lucide-react";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { MonthCalendar } from "@/components/calendar/month-calendar";
 import { Header } from "@/components/layout/header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { eventsApi } from "@/lib/api";
-import { formatDate, cn } from "@/lib/utils";
-
-const typeColors: Record<string, string> = {
-  APPOINTMENT: "border-l-blue-500",
-  INTERVENTION: "border-l-purple-500",
-  DEADLINE: "border-l-red-500",
-  REMINDER: "border-l-amber-500",
-  MEETING: "border-l-green-500",
-  OTHER: "border-l-gray-400",
-};
 
 export default function CalendarPage() {
-  const now = new Date();
-  const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+  const [open, setOpen] = useState(false);
+  const [title, setTitle] = useState("");
+  const [type, setType] = useState("APPOINTMENT");
+  const [startAt, setStartAt] = useState("");
+  const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["events", from, to],
-    queryFn: () => eventsApi.list(from, to),
+  const createMut = useMutation({
+    mutationFn: () =>
+      eventsApi.create({
+        title,
+        type,
+        startAt: new Date(startAt).toISOString(),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      setOpen(false);
+      setTitle("");
+      setStartAt("");
+    },
   });
 
   return (
     <>
       <Header title="Calendario" />
       <div className="p-6">
+        <div className="mb-4 flex justify-end">
+          <Button onClick={() => setOpen(true)}>
+            <Plus className="h-4 w-4" /> Nuovo evento
+          </Button>
+        </div>
         <Card>
-          <CardContent className="p-6">
-            {isLoading ? (
-              <p className="text-muted-foreground">Caricamento eventi...</p>
-            ) : data?.length ? (
-              <div className="space-y-3">
-                {data.map((ev, i) => (
-                  <motion.div
-                    key={ev.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                    className={cn(
-                      "rounded-lg border border-border border-l-4 bg-card p-4",
-                      typeColors[ev.type || "OTHER"] || typeColors.OTHER
-                    )}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-medium">{ev.title}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {ev.client?.companyName}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CalendarIcon className="h-4 w-4" />
-                        {formatDate(ev.startAt)}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-muted-foreground py-12">
-                Nessun evento questo mese
-              </p>
-            )}
+          <CardContent className="p-4 sm:p-6">
+            <MonthCalendar />
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuovo evento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Input
+              placeholder="Titolo"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+            />
+            <select
+              className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+            >
+              <option value="APPOINTMENT">Appuntamento</option>
+              <option value="INTERVENTION">Intervento</option>
+              <option value="MEETING">Riunione</option>
+              <option value="DEADLINE">Scadenza</option>
+              <option value="REMINDER">Promemoria</option>
+              <option value="OTHER">Altro</option>
+            </select>
+            <Input
+              type="datetime-local"
+              value={startAt}
+              onChange={(e) => setStartAt(e.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Annulla
+            </Button>
+            <Button
+              disabled={!title || !startAt || createMut.isPending}
+              onClick={() => createMut.mutate()}
+            >
+              Crea
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -6,7 +6,13 @@ import {
   requirePermission,
   type AuthRequest,
 } from "../middleware/auth.js";
-import { NotFoundError } from "../utils/errors.js";
+import { logActivity } from "../services/activityLog.js";
+import { sendEmail, emailTemplate } from "../services/email.js";
+import { generateReportPdf } from "../services/reportPdf.js";
+import { loadCompanySettings } from "../services/quotePdf.js";
+import { toDecimal } from "../services/quoteCalculator.js";
+import { NotFoundError, ValidationError } from "../utils/errors.js";
+import { paramId } from "../utils/params.js";
 
 const router = Router();
 router.use(authenticate);
@@ -19,6 +25,85 @@ async function generateNumber(prefix: string, model: "intervention" | "report") 
       : await prisma.interventionReport.count();
   return `${prefix}-${year}-${String(count + 1).padStart(4, "0")}`;
 }
+
+function reportAccessWhere(req: AuthRequest, id?: string) {
+  const where: Record<string, unknown> = {};
+  if (id) where.id = id;
+  if (req.user!.role === "TECHNICIAN") {
+    where.technicianId = req.user!.userId;
+  }
+  if (req.user!.role === "CLIENT" && req.user!.clientId) {
+    where.clientId = req.user!.clientId;
+  }
+  return where;
+}
+
+async function loadReportForAction(req: AuthRequest, id: string) {
+  const report = await prisma.interventionReport.findFirst({
+    where: reportAccessWhere(req, id),
+    include: {
+      client: true,
+      technician: {
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+          phone: true,
+        },
+      },
+      materials: true,
+    },
+  });
+  if (!report) throw new NotFoundError();
+  return report;
+}
+
+const reportBodySchema = z.object({
+  clientId: z.string(),
+  interventionId: z.string().optional(),
+  description: z.string().optional(),
+  workHours: z.number().optional(),
+  checklist: z.any().optional(),
+  materials: z
+    .array(
+      z.object({
+        productId: z.string().optional(),
+        name: z.string(),
+        quantity: z.number(),
+        unit: z.string().optional(),
+      })
+    )
+    .optional(),
+  technicianSignature: z.string().optional(),
+  clientSignature: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  checkInAt: z.string().datetime().optional(),
+  checkOutAt: z.string().datetime().optional(),
+});
+
+const reportPatchSchema = z.object({
+  description: z.string().optional(),
+  workHours: z.number().optional(),
+  checklist: z.any().optional(),
+  technicianSignature: z.string().optional(),
+  clientSignature: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  checkInAt: z.string().datetime().optional(),
+  checkOutAt: z.string().datetime().optional(),
+  status: z.enum(["DRAFT", "SUBMITTED", "APPROVED", "ARCHIVED"]).optional(),
+  materials: z
+    .array(
+      z.object({
+        productId: z.string().optional(),
+        name: z.string(),
+        quantity: z.number(),
+        unit: z.string().optional(),
+      })
+    )
+    .optional(),
+});
 
 router.get("/", requirePermission("interventions", "READ"), async (req: AuthRequest, res, next) => {
   try {
@@ -46,16 +131,8 @@ router.get("/", requirePermission("interventions", "READ"), async (req: AuthRequ
 
 router.get("/reports", requirePermission("reports", "READ"), async (req: AuthRequest, res, next) => {
   try {
-    const where: Record<string, unknown> = {};
-    if (req.user!.role === "TECHNICIAN") {
-      where.technicianId = req.user!.userId;
-    }
-    if (req.user!.role === "CLIENT" && req.user!.clientId) {
-      where.clientId = req.user!.clientId;
-    }
-
     const reports = await prisma.interventionReport.findMany({
-      where,
+      where: reportAccessWhere(req),
       include: {
         client: { select: { companyName: true, contactName: true } },
         technician: { select: { firstName: true, lastName: true } },
@@ -69,60 +146,233 @@ router.get("/reports", requirePermission("reports", "READ"), async (req: AuthReq
   }
 });
 
-router.post("/", requirePermission("interventions", "CREATE"), async (req: AuthRequest, res, next) => {
-  try {
-    const data = z
-      .object({
-        clientId: z.string(),
-        title: z.string(),
-        description: z.string().optional(),
-        technicianId: z.string().optional(),
-        scheduledAt: z.string().datetime().optional(),
-        location: z.string().optional(),
-      })
-      .parse(req.body);
+router.post(
+  "/reports/draft",
+  requirePermission("reports", "CREATE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const data = reportBodySchema.parse(req.body);
+      const number = await generateNumber("RPT", "report");
 
-    const number = await generateNumber("INT", "intervention");
-    const intervention = await prisma.intervention.create({
-      data: {
-        ...data,
-        number,
-        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
-        technicianId: data.technicianId || req.user!.userId,
+      const report = await prisma.interventionReport.create({
+        data: {
+          number,
+          clientId: data.clientId,
+          interventionId: data.interventionId,
+          technicianId: req.user!.userId,
+          description: data.description,
+          workHours: data.workHours ?? 0,
+          checklist: data.checklist,
+          technicianSignature: data.technicianSignature,
+          clientSignature: data.clientSignature,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          checkInAt: data.checkInAt ? new Date(data.checkInAt) : undefined,
+          checkOutAt: data.checkOutAt ? new Date(data.checkOutAt) : undefined,
+          status: "DRAFT",
+          materials: data.materials
+            ? {
+                create: data.materials.map((m) => ({
+                  productId: m.productId,
+                  name: m.name,
+                  quantity: m.quantity,
+                  unit: m.unit || "pz",
+                })),
+              }
+            : undefined,
+        },
+        include: { materials: true, client: true },
+      });
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: data.clientId,
+        action: "CREATE",
+        entityType: "report",
+        entityId: report.id,
+        details: { status: "DRAFT" },
+      });
+
+      res.status(201).json(report);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.get("/reports/:id", requirePermission("reports", "READ"), async (req: AuthRequest, res, next) => {
+  try {
+    const report = await prisma.interventionReport.findFirst({
+      where: reportAccessWhere(req, paramId(req)),
+      include: {
+        client: true,
+        technician: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        materials: { include: { product: true } },
+        intervention: {
+          include: {
+            client: true,
+            technician: {
+              select: { id: true, firstName: true, lastName: true, email: true },
+            },
+          },
+        },
       },
-      include: { client: true },
     });
-    res.status(201).json(intervention);
+    if (!report) throw new NotFoundError();
+    res.json(report);
   } catch (e) {
     next(e);
   }
 });
 
+router.patch(
+  "/reports/:id",
+  requirePermission("reports", "UPDATE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const data = reportPatchSchema.parse(req.body);
+      const existing = await loadReportForAction(req, paramId(req));
+
+      if (existing.status !== "DRAFT" && data.status === undefined) {
+        const allowed =
+          req.user!.role === "ADMIN" || req.user!.role === "SUPER_ADMIN";
+        if (!allowed) {
+          throw new ValidationError("Solo i report in bozza sono modificabili");
+        }
+      }
+
+      const report = await prisma.$transaction(async (tx) => {
+        if (data.materials) {
+          await tx.reportMaterial.deleteMany({
+            where: { reportId: existing.id },
+          });
+        }
+
+        return tx.interventionReport.update({
+          where: { id: existing.id },
+          data: {
+            description: data.description,
+            workHours:
+              data.workHours != null ? toDecimal(data.workHours) : undefined,
+            checklist: data.checklist,
+            technicianSignature: data.technicianSignature,
+            clientSignature: data.clientSignature,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            checkInAt: data.checkInAt ? new Date(data.checkInAt) : undefined,
+            checkOutAt: data.checkOutAt ? new Date(data.checkOutAt) : undefined,
+            status: data.status,
+            ...(data.status === "SUBMITTED" && { submittedAt: new Date() }),
+            materials: data.materials
+              ? {
+                  create: data.materials.map((m) => ({
+                    productId: m.productId,
+                    name: m.name,
+                    quantity: m.quantity,
+                    unit: m.unit || "pz",
+                  })),
+                }
+              : undefined,
+          },
+          include: { materials: true, client: true },
+        });
+      });
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: report.clientId,
+        action: "UPDATE",
+        entityType: "report",
+        entityId: report.id,
+      });
+
+      res.json(report);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.get(
+  "/reports/:id/pdf",
+  requirePermission("reports", "READ"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const report = await loadReportForAction(req, paramId(req));
+      const company = await loadCompanySettings();
+      const pdf = await generateReportPdf(report, company);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="report-${report.number}.pdf"`
+      );
+      res.send(pdf);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.post(
+  "/reports/:id/send-email",
+  requirePermission("reports", "UPDATE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const report = await loadReportForAction(req, paramId(req));
+      const email = report.client.email;
+      if (!email) {
+        throw new ValidationError("Il cliente non ha un indirizzo email");
+      }
+
+      const company = await loadCompanySettings();
+      const pdf = await generateReportPdf(report, company);
+      const brandName =
+        typeof company.name === "string" ? company.name : "CRM";
+
+      await sendEmail({
+        to: email,
+        subject: `Report intervento ${report.number}`,
+        html: emailTemplate(
+          `Report ${report.number}`,
+          `<p>In allegato trovi il report di intervento <strong>${report.number}</strong>.</p>
+           <p>Ore lavorate: <strong>${Number(report.workHours).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>`,
+          brandName
+        ),
+        attachments: [
+          {
+            filename: `report-${report.number}.pdf`,
+            content: pdf,
+          },
+        ],
+      });
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: report.clientId,
+        action: "SEND_EMAIL",
+        entityType: "report",
+        entityId: report.id,
+        details: { to: email },
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 router.post("/reports", requirePermission("reports", "CREATE"), async (req: AuthRequest, res, next) => {
   try {
-    const data = z
-      .object({
-        clientId: z.string(),
-        interventionId: z.string().optional(),
-        description: z.string().optional(),
-        workHours: z.number().optional(),
-        checklist: z.any().optional(),
-        materials: z
-          .array(
-            z.object({
-              productId: z.string().optional(),
-              name: z.string(),
-              quantity: z.number(),
-              unit: z.string().optional(),
-            })
-          )
-          .optional(),
-        technicianSignature: z.string().optional(),
-        clientSignature: z.string().optional(),
-        latitude: z.number().optional(),
-        longitude: z.number().optional(),
-      })
-      .parse(req.body);
+    const data = reportBodySchema.parse(req.body);
 
     const number = await generateNumber("RPT", "report");
     const report = await prisma.interventionReport.create({
@@ -138,6 +388,8 @@ router.post("/reports", requirePermission("reports", "CREATE"), async (req: Auth
         clientSignature: data.clientSignature,
         latitude: data.latitude,
         longitude: data.longitude,
+        checkInAt: data.checkInAt ? new Date(data.checkInAt) : undefined,
+        checkOutAt: data.checkOutAt ? new Date(data.checkOutAt) : undefined,
         status: "SUBMITTED",
         submittedAt: new Date(),
         materials: data.materials
@@ -180,7 +432,159 @@ router.post("/reports", requirePermission("reports", "CREATE"), async (req: Auth
       }
     }
 
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: data.clientId,
+      action: "CREATE",
+      entityType: "report",
+      entityId: report.id,
+      details: { status: "SUBMITTED" },
+    });
+
     res.status(201).json(report);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/:id", requirePermission("interventions", "READ"), async (req: AuthRequest, res, next) => {
+  try {
+    const where: Record<string, unknown> = { id: paramId(req) };
+    if (req.user!.role === "TECHNICIAN") {
+      where.technicianId = req.user!.userId;
+    }
+    if (req.user!.role === "CLIENT" && req.user!.clientId) {
+      where.clientId = req.user!.clientId;
+    }
+
+    const intervention = await prisma.intervention.findFirst({
+      where,
+      include: {
+        client: true,
+        technician: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+          },
+        },
+        reports: {
+          include: {
+            materials: { include: { product: true } },
+            technician: {
+              select: { id: true, firstName: true, lastName: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+    if (!intervention) throw new NotFoundError();
+    res.json(intervention);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch("/:id", requirePermission("interventions", "UPDATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        title: z.string().optional(),
+        description: z.string().optional(),
+        status: z
+          .enum([
+            "SCHEDULED",
+            "IN_PROGRESS",
+            "COMPLETED",
+            "CANCELLED",
+            "ON_HOLD",
+          ])
+          .optional(),
+        technicianId: z.string().optional(),
+        scheduledAt: z.string().datetime().optional(),
+        location: z.string().optional(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+        startedAt: z.string().datetime().optional(),
+        completedAt: z.string().datetime().optional(),
+      })
+      .parse(req.body);
+
+    const where: Record<string, unknown> = { id: paramId(req) };
+    if (req.user!.role === "TECHNICIAN") {
+      where.technicianId = req.user!.userId;
+    }
+
+    const existing = await prisma.intervention.findFirst({ where });
+    if (!existing) throw new NotFoundError();
+
+    const intervention = await prisma.intervention.update({
+      where: { id: existing.id },
+      data: {
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        technicianId: data.technicianId,
+        location: data.location,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+        startedAt: data.startedAt ? new Date(data.startedAt) : undefined,
+        completedAt: data.completedAt ? new Date(data.completedAt) : undefined,
+      },
+      include: { client: true, technician: true },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: intervention.clientId,
+      action: "UPDATE",
+      entityType: "intervention",
+      entityId: intervention.id,
+    });
+
+    res.json(intervention);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/", requirePermission("interventions", "CREATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = z
+      .object({
+        clientId: z.string(),
+        title: z.string(),
+        description: z.string().optional(),
+        technicianId: z.string().optional(),
+        scheduledAt: z.string().datetime().optional(),
+        location: z.string().optional(),
+      })
+      .parse(req.body);
+
+    const number = await generateNumber("INT", "intervention");
+    const intervention = await prisma.intervention.create({
+      data: {
+        ...data,
+        number,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+        technicianId: data.technicianId || req.user!.userId,
+      },
+      include: { client: true },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: data.clientId,
+      action: "CREATE",
+      entityType: "intervention",
+      entityId: intervention.id,
+    });
+
+    res.status(201).json(intervention);
   } catch (e) {
     next(e);
   }

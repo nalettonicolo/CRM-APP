@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthGuard } from "@/components/auth-guard";
-import { Sidebar } from "@/components/layout/sidebar";
+import { AppShell } from "@/components/layout/app-shell";
 
 export default function AppLayout({
   children,
@@ -10,10 +10,7 @@ export default function AppLayout({
 }) {
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-background">
-        <Sidebar />
-        <main className="pl-64">{children}</main>
-      </div>
+      <AppShell>{children}</AppShell>
     </AuthGuard>
   );
 }

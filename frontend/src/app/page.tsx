@@ -47,12 +47,12 @@ export default function LandingPage() {
             <img
               src={logoSrc}
               alt=""
-              className="h-9 w-9 rounded-lg border border-border/40 bg-card object-contain p-0.5"
+              className="h-14 w-auto min-w-14 max-h-16 rounded-lg border border-border/40 bg-card object-contain p-1"
             />
           ) : (
-            <motion.div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
+            <div className="flex h-12 w-12 min-w-12 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
               {firstLetter}
-            </motion.div>
+            </div>
           )}
           <span className="text-lg font-semibold">{appName}</span>
         </motion.div>
@@ -76,6 +76,18 @@ export default function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt=""
+              className="mx-auto mb-10 h-36 w-auto max-w-md object-contain drop-shadow-lg lg:mb-12 lg:h-52 lg:max-w-lg"
+            />
+          ) : (
+            <motion.div className="mx-auto mb-10 flex h-36 w-36 items-center justify-center rounded-2xl bg-primary text-4xl font-bold text-white shadow-xl lg:mb-12 lg:h-52 lg:w-52 lg:text-6xl">
+              {firstLetter}
+            </motion.div>
+          )}
           <span className="mb-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-sm text-primary">
             {site.badge}
           </span>
@@ -119,7 +131,7 @@ export default function LandingPage() {
                   <div className="mb-2 h-2 w-16 rounded bg-primary/30" />
                   <div className="space-y-2">
                     <div className="h-2 w-full rounded bg-muted" />
-                    <motion.div className="h-2 w-3/4 rounded bg-muted" />
+                    <div className="h-2 w-3/4 rounded bg-muted" />
                   </div>
                   <p className="mt-4 text-xs font-medium">{card.label}</p>
                   <p className="text-[10px] text-muted-foreground">{card.hint}</p>

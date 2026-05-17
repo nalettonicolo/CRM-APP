@@ -1,6 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -20,7 +21,8 @@ import {
 } from "recharts";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { dashboardApi } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { dashboardApi, type DashboardLayout } from "@/lib/api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 const statCards = [
@@ -30,10 +32,53 @@ const statCards = [
   { key: "techniciansAvailable", label: "Tecnici attivi", icon: Users, color: "text-purple-500" },
 ] as const;
 
+const DEFAULT_WIDGETS: Record<string, boolean> = {
+  stats: true,
+  chart: true,
+  lowStock: true,
+  events: true,
+  activity: true,
+};
+
+const WIDGET_LABELS: Record<string, string> = {
+  stats: "Statistiche rapide",
+  chart: "Grafico KPI",
+  lowStock: "Alert magazzino",
+  events: "Prossimi eventi",
+  activity: "Ultime attività",
+};
+
 export default function DashboardPage() {
+  const [widgets, setWidgets] = useState(DEFAULT_WIDGETS);
+  const [layoutOpen, setLayoutOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("dashboard-layout");
+      if (raw) {
+        const parsed = JSON.parse(raw) as DashboardLayout;
+        if (parsed.widgets) setWidgets({ ...DEFAULT_WIDGETS, ...parsed.widgets });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: dashboardApi.stats,
+  });
+
+  const saveLayout = useMutation({
+    mutationFn: () => dashboardApi.saveLayout({ widgets }),
+    onSuccess: () => {
+      localStorage.setItem("dashboard-layout", JSON.stringify({ widgets }));
+      setLayoutOpen(false);
+    },
+    onError: () => {
+      localStorage.setItem("dashboard-layout", JSON.stringify({ widgets }));
+      setLayoutOpen(false);
+    },
   });
 
   const chartData = [
@@ -46,6 +91,40 @@ export default function DashboardPage() {
     <>
       <Header title="Dashboard" />
       <div className="p-6">
+        <div className="mb-4 flex justify-end">
+          <Button variant="outline" size="sm" onClick={() => setLayoutOpen((o) => !o)}>
+            Personalizza layout
+          </Button>
+        </div>
+        {layoutOpen && (
+          <div className="mb-6 rounded-xl border border-border bg-card p-4">
+            <p className="mb-3 text-sm font-medium">Widget visibili</p>
+            <ul className="space-y-2">
+              {Object.keys(DEFAULT_WIDGETS).map((key) => (
+                <li key={key} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={widgets[key] !== false}
+                    onChange={(e) =>
+                      setWidgets((w) => ({ ...w, [key]: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded"
+                  />
+                  {WIDGET_LABELS[key]}
+                </li>
+              ))}
+            </ul>
+            <Button
+              className="mt-4"
+              size="sm"
+              disabled={saveLayout.isPending}
+              onClick={() => saveLayout.mutate()}
+            >
+              {saveLayout.isPending ? "Salvataggio…" : "Salva layout"}
+            </Button>
+          </div>
+        )}
+        {widgets.stats !== false && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {statCards.map((stat, i) => (
             <motion.div
@@ -72,8 +151,10 @@ export default function DashboardPage() {
             </motion.div>
           ))}
         </div>
+        )}
 
-        <motion.div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          {widgets.chart !== false && (
           <Card>
             <CardHeader>
               <CardTitle>KPI Operativi</CardTitle>
@@ -97,7 +178,9 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
+          )}
 
+          {widgets.lowStock !== false && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -130,9 +213,11 @@ export default function DashboardPage() {
               )}
             </CardContent>
           </Card>
-        </motion.div>
+          )}
+        </div>
 
-        <motion.div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          {widgets.events !== false && (
           <Card>
             <CardHeader>
               <CardTitle>Prossimi eventi</CardTitle>
@@ -155,7 +240,9 @@ export default function DashboardPage() {
               </ul>
             </CardContent>
           </Card>
+          )}
 
+          {widgets.activity !== false && (
           <Card>
             <CardHeader>
               <CardTitle>Ultime attività</CardTitle>
@@ -178,7 +265,8 @@ export default function DashboardPage() {
               </ul>
             </CardContent>
           </Card>
-        </motion.div>
+          )}
+        </div>
       </div>
     </>
   );

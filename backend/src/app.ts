@@ -20,6 +20,13 @@ import portalRoutes from "./routes/portal.js";
 import dashboardRoutes from "./routes/dashboard.js";
 import notificationRoutes from "./routes/notifications.js";
 import uploadRoutes from "./routes/uploads.js";
+import attachmentRoutes from "./routes/attachments.js";
+import activityLogRoutes from "./routes/activityLogs.js";
+import leadRoutes from "./routes/leads.js";
+import invoiceRoutes from "./routes/invoices.js";
+import automationRoutes from "./routes/automation.js";
+import searchRoutes from "./routes/search.js";
+import backupRoutes from "./routes/backup.js";
 
 const app = express();
 
@@ -87,6 +94,13 @@ app.use("/api/public", publicRoutes);
 app.use("/api/portal", portalRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/attachments", attachmentRoutes);
+app.use("/api/activity-logs", activityLogRoutes);
+app.use("/api/leads", leadRoutes);
+app.use("/api/invoices", invoiceRoutes);
+app.use("/api/automation", automationRoutes);
+app.use("/api/search", searchRoutes);
+app.use("/api/backup", backupRoutes);
 
 app.use(errorHandler);
 

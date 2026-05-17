@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticate, staffOnly, type AuthRequest } from "../middleware/auth.js";
 
@@ -76,6 +77,20 @@ router.get("/stats", async (req: AuthRequest, res, next) => {
         }),
       },
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch("/layout", async (req: AuthRequest, res, next) => {
+  try {
+    const { layout } = z.object({ layout: z.any() }).parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: req.user!.userId },
+      data: { dashboardLayout: layout },
+      select: { id: true, dashboardLayout: true },
+    });
+    res.json(user);
   } catch (e) {
     next(e);
   }

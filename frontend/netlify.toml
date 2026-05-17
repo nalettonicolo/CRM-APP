@@ -12,6 +12,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
   # Opzionale: meno verbosità npm
   NPM_CONFIG_PROGRESS = "false"
