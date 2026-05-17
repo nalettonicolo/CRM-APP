@@ -26,6 +26,9 @@ async function getTransporter(): Promise<{
     port: smtp.port,
     secure: smtp.secure,
     auth: { user: smtp.user, pass: smtp.pass },
+    ...(smtp.port === 587 && !smtp.secure
+      ? { requireTLS: true }
+      : {}),
   });
 
   cached = { smtp, transporter };
@@ -39,27 +42,59 @@ export function clearSmtpCache() {
   cachedAt = 0;
 }
 
+export type SendEmailResult =
+  | { success: true; mock: true }
+  | { success: true; mock: false };
+
 export async function sendEmail(options: {
   to: string;
   subject: string;
   html: string;
   attachments?: { filename: string; path?: string; content?: Buffer }[];
-}) {
+}): Promise<SendEmailResult> {
   const { transporter, smtp } = await getTransporter();
 
   if (!transporter) {
-    console.log("[Email mock]", options.to, options.subject);
-    return { success: true, mock: true as const };
+    console.warn(
+      "[Email] SMTP non configurato — messaggio non inviato:",
+      options.to,
+      options.subject
+    );
+    return { success: true, mock: true };
   }
 
-  await transporter.sendMail({
-    from: `"${smtp.fromName}" <${smtp.from}>`,
-    to: options.to,
-    subject: options.subject,
-    html: options.html,
-    attachments: options.attachments,
-  });
-  return { success: true, mock: false as const };
+  try {
+    await transporter.sendMail({
+      from: `"${smtp.fromName}" <${smtp.from}>`,
+      to: options.to,
+      subject: options.subject,
+      html: options.html,
+      attachments: options.attachments,
+    });
+    return { success: true, mock: false };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[Email] Invio fallito:", msg);
+    throw new Error(
+      `Invio email fallito: ${msg}. Verifica SMTP (Gmail: password per le app, porta 587, secure disattivato).`
+    );
+  }
+}
+
+/** Verifica credenziali SMTP (usato dal test in impostazioni). */
+export async function verifySmtpConnection(): Promise<void> {
+  const { transporter, smtp } = await getTransporter();
+  if (!transporter) {
+    throw new Error(
+      "SMTP non configurato. Imposta host, utente, password app e mittente nel .env o in Impostazioni."
+    );
+  }
+  try {
+    await transporter.verify();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Connessione SMTP fallita (${smtp.host}:${smtp.port}): ${msg}`);
+  }
 }
 
 export function emailTemplate(title: string, body: string, brandName = "CRM") {

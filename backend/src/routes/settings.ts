@@ -3,7 +3,12 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticate, adminOnly } from "../middleware/auth.js";
 import { paramId } from "../utils/params.js";
-import { sendEmail, emailTemplate, clearSmtpCache } from "../services/email.js";
+import {
+  sendEmail,
+  emailTemplate,
+  clearSmtpCache,
+  verifySmtpConnection,
+} from "../services/email.js";
 import { getSmtpConfig, isSmtpConfigured } from "../services/smtpConfig.js";
 import { ValidationError } from "../utils/errors.js";
 
@@ -53,6 +58,8 @@ router.post("/smtp/test", async (req, res, next) => {
         "SMTP non configurato. Compila host, utente, password app e mittente."
       );
     }
+
+    await verifySmtpConnection();
 
     const result = await sendEmail({
       to,

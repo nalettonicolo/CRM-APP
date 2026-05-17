@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 
 const UNIT_CUSTOM = "__custom__";
+const ADD_CATEGORY = "__add_category__";
 
 const empty = {
   name: "",
@@ -54,19 +55,37 @@ export default function ServicesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
   const [form, setForm] = useState(empty);
+  const [addingCategory, setAddingCategory] = useState(false);
 
   const { data: services = [], isLoading } = useQuery({
     queryKey: ["services", "all"],
     queryFn: () => inventoryApi.services({ all: true }),
   });
 
+  const existingCategories = useMemo(() => {
+    const set = new Set<string>();
+    for (const s of services) {
+      const c = s.category?.trim();
+      if (c) set.add(c);
+    }
+    return set;
+  }, [services]);
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set(existingCategories);
+    const current = form.category.trim();
+    if (current) set.add(current);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "it"));
+  }, [existingCategories, form.category]);
+
   useEffect(() => {
     if (open) {
       if (editing) {
         const u = unitToForm(editing.unit);
+        const cat = editing.category?.trim() || "";
         setForm({
           name: editing.name,
-          category: editing.category || "",
+          category: cat,
           description: editing.description || "",
           price: String(Number(editing.price)),
           unit: u.unit,
@@ -78,11 +97,17 @@ export default function ServicesPage() {
           duration:
             editing.duration != null ? String(editing.duration) : "",
         });
+        setAddingCategory(Boolean(cat) && !existingCategories.has(cat));
       } else {
         setForm(empty);
+        setAddingCategory(false);
       }
     }
-  }, [open, editing]);
+  }, [open, editing, existingCategories]);
+
+  useEffect(() => {
+    if (!open) setAddingCategory(false);
+  }, [open]);
 
   const saveMut = useMutation({
     mutationFn: () => {
@@ -111,6 +136,11 @@ export default function ServicesPage() {
   const toggleMut = useMutation({
     mutationFn: (s: Service) =>
       inventoryApi.updateService(s.id, { isActive: !s.isActive }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => inventoryApi.deleteService(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
   });
 
@@ -152,7 +182,7 @@ export default function ServicesPage() {
               </p>
             ) : services.length === 0 ? (
               <p className="px-4 py-8 text-center text-muted-foreground">
-                Nessun servizio. Aggiungi il primo o esegui il seed sul server.
+                Nessun servizio. Aggiungi il primo dal pulsante sopra.
               </p>
             ) : (
               Object.keys(grouped)
@@ -222,10 +252,28 @@ export default function ServicesPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="text-xs"
+                                className="hidden text-xs sm:inline-flex"
                                 onClick={() => toggleMut.mutate(s)}
                               >
                                 {s.isActive === false ? "Attiva" : "Disattiva"}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive hover:text-destructive"
+                                title="Elimina"
+                                onClick={() => {
+                                  if (
+                                    !window.confirm(
+                                      `Eliminare il servizio "${s.name}"? Le righe preventivo collegate resteranno senza riferimento al catalogo.`
+                                    )
+                                  ) {
+                                    return;
+                                  }
+                                  deleteMut.mutate(s.id);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </td>
                           </tr>
@@ -252,13 +300,50 @@ export default function ServicesPage() {
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
-            <Input
-              placeholder="Categoria (es. Manodopera, Trasferte)"
-              value={form.category}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, category: e.target.value }))
-              }
-            />
+            <div>
+              <label className="mb-1 block text-sm font-medium">
+                Categoria servizio
+              </label>
+              <select
+                className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                value={
+                  addingCategory
+                    ? ADD_CATEGORY
+                    : form.category || ""
+                }
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === ADD_CATEGORY) {
+                    setAddingCategory(true);
+                    setForm((f) => ({ ...f, category: "" }));
+                    return;
+                  }
+                  setAddingCategory(false);
+                  setForm((f) => ({ ...f, category: v }));
+                }}
+              >
+                <option value="">— Seleziona categoria —</option>
+                {categoryOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+                <option value={ADD_CATEGORY} className="font-medium text-primary">
+                  + Aggiungi Categoria Servizio
+                </option>
+              </select>
+              {addingCategory && (
+                <Input
+                  className="mt-2"
+                  placeholder="Nome nuova categoria (es. Manodopera, Trasferte)"
+                  value={form.category}
+                  autoFocus
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, category: e.target.value }))
+                  }
+                />
+              )}
+            </div>
             <Input
               placeholder="Descrizione (opzionale, in preventivo)"
               value={form.description}

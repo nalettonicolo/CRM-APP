@@ -28,6 +28,8 @@ import automationRoutes from "./routes/automation.js";
 import searchRoutes from "./routes/search.js";
 import backupRoutes from "./routes/backup.js";
 import paymentTermTemplatesRoutes from "./routes/paymentTermTemplates.js";
+import paymentsRoutes from "./routes/payments.js";
+import eventGalleryRoutes from "./routes/eventGallery.js";
 
 const app = express();
 
@@ -106,6 +108,8 @@ app.use("/api/automation", automationRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/backup", backupRoutes);
 app.use("/api/payment-term-templates", paymentTermTemplatesRoutes);
+app.use("/api/payments", paymentsRoutes);
+app.use("/api/event-gallery", eventGalleryRoutes);
 
 app.use(errorHandler);
 

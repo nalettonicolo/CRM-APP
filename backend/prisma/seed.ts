@@ -149,6 +149,49 @@ async function main() {
     });
   }
 
+  await prisma.paymentTermTemplate.upsert({
+    where: { id: "tpl-pagamento-standard" },
+    create: {
+      id: "tpl-pagamento-standard",
+      name: "Standard (accettazione + evento + saldo)",
+      isDefault: true,
+      items: {
+        create: [
+          {
+            label: "Acconto all'accettazione",
+            note: "Alla conferma del preventivo",
+            percent: 30,
+            sortOrder: 0,
+          },
+          {
+            label: "Acconto prima dell'evento",
+            note: "Entro 7 giorni dalla data evento",
+            percent: 40,
+            sortOrder: 1,
+          },
+          {
+            label: "Saldo a fine lavori",
+            note: "A conclusione del servizio",
+            isBalance: true,
+            sortOrder: 2,
+          },
+        ],
+      },
+    },
+    update: { isDefault: true },
+  });
+
+  const seedDemo = process.env.SEED_DEMO_DATA === "true";
+  if (!seedDemo) {
+    console.log("✅ Seed completato (solo configurazione base).");
+    console.log("   Per clienti, servizi e prodotti di esempio: SEED_DEMO_DATA=true");
+    console.log("");
+    console.log(`  Admin: ${adminEmail} / (password = ADMIN_PASSWORD nel .env)`);
+    return;
+  }
+
+  console.log("📦 Caricamento dati demo (SEED_DEMO_DATA=true)...");
+
   const client = await prisma.client.upsert({
     where: { id: "demo-client-1" },
     create: {
@@ -235,38 +278,6 @@ async function main() {
       })
     );
   }
-
-  await prisma.paymentTermTemplate.upsert({
-    where: { id: "tpl-pagamento-standard" },
-    create: {
-      id: "tpl-pagamento-standard",
-      name: "Standard (accettazione + evento + saldo)",
-      isDefault: true,
-      items: {
-        create: [
-          {
-            label: "Acconto all'accettazione",
-            note: "Alla conferma del preventivo",
-            percent: 30,
-            sortOrder: 0,
-          },
-          {
-            label: "Acconto prima dell'evento",
-            note: "Entro 7 giorni dalla data evento",
-            percent: 40,
-            sortOrder: 1,
-          },
-          {
-            label: "Saldo a fine lavori",
-            note: "A conclusione del servizio",
-            isBalance: true,
-            sortOrder: 2,
-          },
-        ],
-      },
-    },
-    update: { isDefault: true },
-  });
 
   const products = [
     { name: "Mixer digitale 16 canali", sku: "AUD-MIX-16", category: "Audio", price: 45, minStock: 2 },

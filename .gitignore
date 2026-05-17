@@ -6,6 +6,8 @@ out/
 .env.local
 .env.*.local
 .env.mint-RIPRISTINO.txt
+.env*caricato*
+*caricato su mint*
 CREDENZIALI-ACCESSO.txt
 backend/CREDENZIALI-ACCESSO.txt
 uploads/
@@ -15,6 +17,14 @@ Thumbs.db
 coverage/
 .turbo/
 *.tsbuildinfo
+backend/prisma/seed.js
+backend/prisma/seed.js.map
+backend/prisma/seed.d.ts
+backend/prisma/seed.d.ts.map
+backend/scripts/backup.js
+backend/scripts/backup.js.map
+backend/scripts/backup.d.ts
+backend/scripts/backup.d.ts.map
 backups/*.sql
 !backups/.gitkeep
 

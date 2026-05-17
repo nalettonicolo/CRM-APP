@@ -383,6 +383,74 @@ router.post("/warehouses", requirePermission("inventory", "CREATE"), async (req:
   }
 });
 
+router.delete(
+  "/products/:id",
+  requirePermission("products", "DELETE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const id = paramId(req);
+      const existing = await prisma.product.findUnique({ where: { id } });
+      if (!existing) throw new NotFoundError();
+
+      await prisma.$transaction([
+        prisma.quoteItem.updateMany({
+          where: { productId: id },
+          data: { productId: null },
+        }),
+        prisma.reportMaterial.updateMany({
+          where: { productId: id },
+          data: { productId: null },
+        }),
+        prisma.product.delete({ where: { id } }),
+      ]);
+
+      await logActivity({
+        userId: req.user!.userId,
+        action: "DELETE",
+        entityType: "product",
+        entityId: id,
+        details: { name: existing.name, sku: existing.sku },
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.delete(
+  "/services/:id",
+  requirePermission("services", "DELETE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const id = paramId(req);
+      const existing = await prisma.service.findUnique({ where: { id } });
+      if (!existing) throw new NotFoundError();
+
+      await prisma.$transaction([
+        prisma.quoteItem.updateMany({
+          where: { serviceId: id },
+          data: { serviceId: null },
+        }),
+        prisma.service.delete({ where: { id } }),
+      ]);
+
+      await logActivity({
+        userId: req.user!.userId,
+        action: "DELETE",
+        entityType: "service",
+        entityId: id,
+        details: { name: existing.name },
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 router.patch("/warehouses/:id", requirePermission("inventory", "UPDATE"), async (req: AuthRequest, res, next) => {
   try {
     const data = z

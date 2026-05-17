@@ -401,6 +401,10 @@ export const inventoryApi = {
     api<{ success: boolean }>(`/inventory/products/${id}`, {
       method: "DELETE",
     }),
+  deleteService: (id: string) =>
+    api<{ success: boolean }>(`/inventory/services/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 export interface InventoryItem {
@@ -699,6 +703,123 @@ export const backupApi = {
     }),
 };
 
+export interface ClientPayment {
+  id: string;
+  clientId: string;
+  quoteId?: string | null;
+  quotePaymentTermId?: string | null;
+  label: string;
+  amount: number | string;
+  paidAt: string;
+  method: string;
+  reference?: string | null;
+  notes?: string | null;
+  client?: {
+    id: string;
+    companyName?: string | null;
+    contactName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+  };
+  quote?: {
+    id: string;
+    number: string;
+    title?: string | null;
+    total?: number | string;
+  } | null;
+  createdBy?: { firstName: string; lastName: string };
+}
+
+export type ClientPaymentInput = {
+  clientId: string;
+  quoteId?: string | null;
+  quotePaymentTermId?: string | null;
+  label: string;
+  amount: number;
+  paidAt?: string;
+  method?: string;
+  reference?: string;
+  notes?: string;
+};
+
+export const paymentsApi = {
+  list: (params?: { clientId?: string; quoteId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.clientId) q.set("clientId", params.clientId);
+    if (params?.quoteId) q.set("quoteId", params.quoteId);
+    const qs = q.toString();
+    return api<ClientPayment[]>(`/payments${qs ? `?${qs}` : ""}`);
+  },
+  summary: (params?: { from?: string; to?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.from) q.set("from", params.from);
+    if (params?.to) q.set("to", params.to);
+    const qs = q.toString();
+    return api<{ count: number; totalReceived: number }>(
+      `/payments/summary${qs ? `?${qs}` : ""}`
+    );
+  },
+  create: (data: ClientPaymentInput) =>
+    api<ClientPayment>("/payments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<ClientPaymentInput>) =>
+    api<ClientPayment>(`/payments/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/payments/${id}`, { method: "DELETE" }),
+};
+
+export interface EventGalleryItem {
+  id: string;
+  title?: string | null;
+  caption?: string | null;
+  eventDate?: string | null;
+  imagePath: string;
+  isPublished: boolean;
+  sortOrder: number;
+}
+
+export const eventGalleryApi = {
+  public: () =>
+    fetch(`${API_URL}/api/event-gallery/public`).then((r) => {
+      if (!r.ok) throw new Error("Galleria non disponibile");
+      return r.json() as Promise<EventGalleryItem[]>;
+    }),
+  list: () => api<EventGalleryItem[]>("/event-gallery"),
+  create: (data: Partial<EventGalleryItem> & { imagePath: string }) =>
+    api<EventGalleryItem>("/event-gallery", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<EventGalleryItem>) =>
+    api<EventGalleryItem>(`/event-gallery/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/event-gallery/${id}`, { method: "DELETE" }),
+};
+
+export async function uploadGalleryImage(file: File) {
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${API_URL}/api/uploads/gallery`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+    credentials: "include",
+  });
+  const data = (await res.json().catch(() => ({}))) as { error?: string };
+  if (!res.ok) throw new ApiError(res.status, data.error || "Upload fallito");
+  return data as { relativeUrl: string; url: string };
+}
+
 export const settingsApi = {
   public: () => api<Record<string, unknown>>("/settings/public"),
   get: () => api<Record<string, unknown>>("/settings"),
@@ -881,5 +1002,16 @@ export const publicApi = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    }).then((r) => r.json()),
+    }).then(async (r) => {
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        throw new ApiError(r.status, data.error || "Errore invio");
+      }
+      return data as {
+        success: boolean;
+        id: string;
+        emailSent?: boolean;
+        emailWarning?: string;
+      };
+    }),
 };

@@ -16,6 +16,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "attachments:*",
     "interventions:*",
     "invoices:*",
+    "payments:*",
     "automation:*",
     "backup:*",
     "search:*",
@@ -34,6 +35,9 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "products:read",
     "invoices:read",
     "invoices:create",
+    "payments:read",
+    "payments:create",
+    "payments:update",
     "search:read",
   ],
   TECHNICIAN: [

@@ -31,7 +31,7 @@ nano ~/CRM-APP/backend/.env
 ```
 
 - Cancella tutto: tieni premuto `Ctrl+K` più volte, oppure `Ctrl+A` poi `Ctrl+K`
-- Incolla il blocco dalla sezione **B** di questa guida (o da `docs/mint-env-template.env` dopo aver compilato i campi `[ ... ]`)
+- Incolla il blocco dalla sezione **B** di questa guida (o copia `backend/.env.example` → `.env` sul Mint)
 - Salva: `Ctrl+O` → Invio
 - Esci: `Ctrl+X`
 
@@ -45,7 +45,7 @@ ls -la ~/CRM-APP/backend/.env
 
 ## B. Contenuto `.env` per Mint (da incollare in nano)
 
-Vedi file `docs/mint-env-template.env` nel repository.
+Vedi `backend/.env.example` (sezione Produzione) nel repository.
 
 Differenze importanti rispetto al PC Windows:
 

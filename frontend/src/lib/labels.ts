@@ -22,6 +22,14 @@ export const paymentStatusLabels: Record<string, string> = {
   OVERDUE: "Scaduto",
 };
 
+export const paymentMethodLabels: Record<string, string> = {
+  BANK_TRANSFER: "Bonifico",
+  CASH: "Contanti",
+  CARD: "Carta",
+  PAYPAL: "PayPal",
+  OTHER: "Altro",
+};
+
 export const userRoleLabels: Record<string, string> = {
   SUPER_ADMIN: "Admin",
   ADMIN: "Admin",

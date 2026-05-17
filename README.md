@@ -207,8 +207,8 @@ Guida Netlify **completa** (monorepo, UI Package directory, variabili, troublesh
 
 Template variabili:
 
-- `backend/.env.production.example` — API produzione  
-- `frontend/.env.production.example` — riferimento variabili Netlify  
+- `backend/.env.example` — variabili API (sviluppo e produzione, vedi commenti nel file)
+- `frontend/.env.example` — variabili Netlify / locale
 
 ### Frontend — Netlify
 

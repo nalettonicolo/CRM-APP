@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           className={cn(
             "min-h-screen w-full min-w-0 transition-[padding] duration-200",
-            "lg:pl-64"
+            "lg:pl-[15.5rem]"
           )}
         >
           {children}

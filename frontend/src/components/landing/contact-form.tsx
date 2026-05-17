@@ -12,6 +12,7 @@ export function ContactForm() {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [emailWarning, setEmailWarning] = useState("");
   const [services, setServices] = useState<string[]>([]);
 
   function toggleService(label: string) {
@@ -24,9 +25,10 @@ export function ContactForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setEmailWarning("");
     const fd = new FormData(e.currentTarget);
     try {
-      await publicApi.contact({
+      const res = await publicApi.contact({
         name: fd.get("name") as string,
         email: fd.get("email") as string,
         phone: (fd.get("phone") as string) || undefined,
@@ -35,6 +37,7 @@ export function ContactForm() {
         services: services.length > 0 ? services : undefined,
       });
       setDone(true);
+      if (res.emailWarning) setEmailWarning(res.emailWarning);
       setServices([]);
       e.currentTarget.reset();
     } catch {
@@ -54,6 +57,11 @@ export function ContactForm() {
         <p className="font-medium text-green-700 dark:text-green-400">
           Richiesta inviata con successo!
         </p>
+        {emailWarning && (
+          <p className="mt-3 text-sm text-amber-700 dark:text-amber-400">
+            {emailWarning}
+          </p>
+        )}
       </motion.div>
     );
   }

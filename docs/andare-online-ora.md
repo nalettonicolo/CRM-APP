@@ -43,7 +43,7 @@ npm run db:generate --workspace=backend
 npm run build --workspace=backend
 ```
 
-Crea `backend/.env` di **produzione** (modello: `backend/.env.production.example`):
+Crea `backend/.env` di **produzione** (modello: `backend/.env.example`, sezione Produzione):
 
 ```env
 NODE_ENV=production

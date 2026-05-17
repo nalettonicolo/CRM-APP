@@ -45,7 +45,7 @@ Regole:
 
 ## 3. Server API — `.env` produzione
 
-Copia da `backend/.env.production.example` sul VPS e personalizza:
+Copia da `backend/.env.example` sul VPS (sezione Produzione in fondo) e personalizza:
 
 ```env
 NODE_ENV=production

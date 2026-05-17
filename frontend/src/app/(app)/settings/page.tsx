@@ -94,7 +94,12 @@ export default function SettingsPage() {
       setBanner(res.message || "Email di test inviata.");
       setTimeout(() => setBanner(""), 4000);
     },
-    onError: () => setBanner("Invio test fallito. Controlla password app Gmail."),
+    onError: (err) =>
+      setBanner(
+        err instanceof Error
+          ? err.message
+          : "Invio test fallito. Controlla password app Gmail."
+      ),
   });
 
   const backupMut = useMutation({
@@ -348,9 +353,16 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Logo e favicon</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Caricamento su server; consigliati PNG/SVG per il logo e ICO o PNG per
-              la favicon.
+              Carica il logo aziendale (PNG o SVG, sfondo trasparente consigliato):
+              apparirà in home, login e PDF. Dopo il caricamento verifica la
+              anteprima qui sotto.
             </p>
+            <Link
+              href="/settings/event-gallery"
+              className="text-sm text-primary hover:underline"
+            >
+              Galleria foto eventi →
+            </Link>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-wrap items-end gap-4">
@@ -408,7 +420,8 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Contatti in home (footer)</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Compariranno sotto il copyright sulla pagina pubblica, se compilati.
+              Compariranno sotto il copyright sulla pagina pubblica. L&apos;email
+              aziendale riceve anche le notifiche del form contatti del sito.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -469,7 +482,8 @@ export default function SettingsPage() {
               >
                 password per le app
               </a>{" "}
-              (16 caratteri), non la password normale di Gmail.
+              (16 caratteri, senza spazi), non la password normale di Gmail. Su
+              Mint puoi usare anche le variabili SMTP nel file .env del backend.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">

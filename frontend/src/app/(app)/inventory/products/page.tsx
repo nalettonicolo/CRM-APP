@@ -136,8 +136,17 @@ export default function ProductsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive"
-                          onClick={() => deleteMut.mutate(p.id)}
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                `Eliminare il prodotto "${p.name}"? Le righe preventivo collegate resteranno senza riferimento al catalogo.`
+                              )
+                            ) {
+                              return;
+                            }
+                            deleteMut.mutate(p.id);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

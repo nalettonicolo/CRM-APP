@@ -7,11 +7,9 @@ import { ArrowRight, Lightbulb, Mic2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContactForm } from "@/components/landing/contact-form";
 import { settingsApi } from "@/lib/api";
-import {
-  DEFAULT_APP_NAME,
-  mergeSiteHome,
-  publicAssetUrl,
-} from "@/lib/branding";
+import { BrandLogo } from "@/components/branding/brand-logo";
+import { EventGallerySection } from "@/components/landing/event-gallery-section";
+import { DEFAULT_APP_NAME, mergeSiteHome } from "@/lib/branding";
 
 const featureIcons = [Mic2, Lightbulb, Wrench];
 
@@ -27,8 +25,6 @@ export default function LandingPage() {
     ((data?.app_name as { name?: string })?.name || DEFAULT_APP_NAME).trim() ||
     DEFAULT_APP_NAME;
   const logoRel = (data?.logo as { url?: string })?.url;
-  const logoSrc = publicAssetUrl(logoRel);
-  const firstLetter = appName.charAt(0).toUpperCase() || "N";
   const company = (data?.company as Record<string, string>) || {};
   const contactParts = [
     company.name,
@@ -41,20 +37,9 @@ export default function LandingPage() {
   return (
     <motion.div className="min-h-screen gradient-mesh" initial={false}>
       <nav className="flex items-center justify-between px-6 py-4 lg:px-12">
-        <motion.div className="flex items-center gap-2">
-          {logoSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoSrc}
-              alt=""
-              className="h-14 w-auto min-w-14 max-h-16 rounded-lg border border-border/40 bg-card object-contain p-1"
-            />
-          ) : (
-            <div className="flex h-12 w-12 min-w-12 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
-              {firstLetter}
-            </div>
-          )}
-          <span className="text-lg font-semibold">{appName}</span>
+        <motion.div className="flex items-center gap-3">
+          <BrandLogo logoUrl={logoRel} appName={appName} variant="nav" />
+          <span className="hidden text-lg font-semibold sm:inline">{appName}</span>
         </motion.div>
         <div className="flex items-center gap-3">
           <Link href="/login">
@@ -76,18 +61,9 @@ export default function LandingPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
-          {logoSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoSrc}
-              alt=""
-              className="mx-auto mb-10 h-36 w-auto max-w-md object-contain drop-shadow-lg lg:mb-12 lg:h-52 lg:max-w-lg"
-            />
-          ) : (
-            <motion.div className="mx-auto mb-10 flex h-36 w-36 items-center justify-center rounded-2xl bg-primary text-4xl font-bold text-white shadow-xl lg:mb-12 lg:h-52 lg:w-52 lg:text-6xl">
-              {firstLetter}
-            </motion.div>
-          )}
+          <div className="mb-10 lg:mb-12">
+            <BrandLogo logoUrl={logoRel} appName={appName} variant="hero" />
+          </div>
           <span className="mb-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-sm text-primary">
             {site.badge}
           </span>
@@ -141,6 +117,8 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
       </section>
+
+      <EventGallerySection />
 
       <section id="servizi" className="mx-auto max-w-6xl px-6 py-20">
         <h2 className="mb-2 text-center text-2xl font-bold">Servizi</h2>

@@ -98,7 +98,7 @@ PostgreSQL (es. Mint 192.168.x.x) — solo raggiungibile dal VPS API
 1. **GitHub:** push su `main` aggiorna Netlify (auto deploy se abilitato).
 2. **Netlify:** variabile `NEXT_PUBLIC_API_URL` punta all’API reale e pubblicamente raggiungibile.
 3. **VPS API:** processo Node/Docker in ascolto (es. porta 443 tramite reverse proxy Nginx/Caddy).
-4. **VPS `.env` produzione** (vedi `backend/.env.production.example`):
+4. **VPS `.env` produzione** (vedi `backend/.env.example`):
 
    ```env
    NODE_ENV=production
@@ -130,7 +130,7 @@ Se il login fallisce solo online ma in locale funziona: controlla **`FRONTEND_UR
 Non è parte di Netlify, ma è obbligatorio perché il sito funzioni:
 
 1. Clona il repo sul VPS (o deploy artefatto Docker).
-2. Copia `backend/.env.production.example` → `backend/.env` e compila tutti i valori.
+2. Copia `backend/.env.example` → `backend/.env` e compila tutti i valori (sezione Produzione).
 3. `npm ci`, `npm run db:migrate:prod --workspace=backend` (o `db:push` solo se accetti sync senza migrazioni versionate).
 4. Avvio: `npm run start --workspace=backend` o Docker.
 5. Reverse proxy (Nginx/Caddy) con TLS verso `localhost:4000`.
@@ -159,7 +159,7 @@ Non è parte di Netlify, ma è obbligatorio perché il sito funzioni:
 
 ## Documentazione correlata
 
-- Variabili template API: `backend/.env.production.example`
-- Variabili template Netlify (copia-incolla): `frontend/.env.production.example`
+- Variabili template API: `backend/.env.example`
+- Variabili template Netlify: `frontend/.env.example`
 - Panoramica deploy: [`deploy-production.md`](deploy-production.md)
 - CI GitHub: `.github/workflows/ci.yml`

@@ -1,0 +1,51 @@
+# Deploy API su Mint dopo push su main.
+# Configura in GitHub → Settings → Secrets and variables → Actions:
+#   MINT_HOST, MINT_USER, MINT_SSH_KEY
+# Se i secret non ci sono, il job termina senza errore (solo Netlify si aggiorna).
+
+name: Deploy Mint
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verifica secret SSH
+        id: mint
+        env:
+          MINT_SSH_KEY: ${{ secrets.MINT_SSH_KEY }}
+          MINT_HOST: ${{ secrets.MINT_HOST }}
+          MINT_USER: ${{ secrets.MINT_USER }}
+        run: |
+          if [ -n "$MINT_SSH_KEY" ] && [ -n "$MINT_HOST" ] && [ -n "$MINT_USER" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Secret Mint non configurati: deploy solo Netlify (frontend)."
+          fi
+
+      - name: Deploy su Mint
+        if: steps.mint.outputs.configured == 'true'
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.MINT_HOST }}
+          username: ${{ secrets.MINT_USER }}
+          key: ${{ secrets.MINT_SSH_KEY }}
+          script_stop: true
+          script: |
+            set -e
+            cd ~/CRM-APP
+            git pull origin main
+            cd backend
+            npx prisma db push
+            npm ci
+            npm run build
+            pm2 restart crm-api --update-env
+            pm2 restart crm-tunnel --update-env 2>/dev/null || true
+            pm2 save
+            curl -sf http://127.0.0.1:4100/api/health || curl -sf http://127.0.0.1:4000/api/health
+            echo "Deploy Mint completato."

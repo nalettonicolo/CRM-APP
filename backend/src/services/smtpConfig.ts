@@ -11,6 +11,12 @@ export type SmtpConfig = {
   fromName: string;
 };
 
+/** Password app Gmail: rimuove spazi accidentalmente copiati. */
+export function normalizeSmtpSecret(value: string | undefined): string {
+  if (!value) return "";
+  return value.trim().replace(/\s+/g, "");
+}
+
 function fromRecord(raw: Record<string, unknown> | null): Partial<SmtpConfig> {
   if (!raw) return {};
   return {
@@ -39,14 +45,17 @@ export async function getSmtpConfig(): Promise<SmtpConfig> {
     /* DB non pronto */
   }
 
+  const pass = normalizeSmtpSecret(db.pass || config.smtp.pass);
+  const user = (db.user || config.smtp.user || "").trim();
+
   return {
-    host: db.host || config.smtp.host,
+    host: (db.host || config.smtp.host || "").trim(),
     port: db.port ?? config.smtp.port,
     secure: db.secure ?? config.smtp.secure,
-    user: db.user || config.smtp.user,
-    pass: db.pass || config.smtp.pass,
-    from: db.from || config.smtp.from,
-    fromName: db.fromName || config.smtp.fromName,
+    user,
+    pass,
+    from: (db.from || config.smtp.from || "").trim(),
+    fromName: (db.fromName || config.smtp.fromName || "CRM Gestionale").trim(),
   };
 }
 

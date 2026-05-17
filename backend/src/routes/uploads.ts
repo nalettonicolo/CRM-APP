@@ -9,6 +9,7 @@ import { authenticate, adminOnly } from "../middleware/auth.js";
 import { ValidationError } from "../utils/errors.js";
 
 const brandingDir = path.join(config.upload.dir, "branding");
+const galleryDir = path.join(config.upload.dir, "gallery");
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => {
@@ -56,6 +57,46 @@ router.post(
       if (!req.file) throw new ValidationError("File mancante");
 
       const relative = `/uploads/branding/${req.file.filename}`;
+      res.json({
+        relativeUrl: relative,
+        url: `${config.apiUrl.replace(/\/$/, "")}${relative}`,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+const galleryStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    fs.mkdirSync(galleryDir, { recursive: true });
+    cb(null, galleryDir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
+    cb(null, `${randomUUID()}${ext}`);
+  },
+});
+
+const galleryUpload = multer({
+  storage: galleryStorage,
+  limits: { fileSize: config.upload.maxSize },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const okExt = [".png", ".jpg", ".jpeg", ".webp", ".gif"].includes(ext);
+    cb(null, okExt || /^image\//.test(file.mimetype));
+  },
+});
+
+router.post(
+  "/gallery",
+  authenticate,
+  adminOnly,
+  galleryUpload.single("file"),
+  async (req, res, next) => {
+    try {
+      if (!req.file) throw new ValidationError("File mancante");
+      const relative = `/uploads/gallery/${req.file.filename}`;
       res.json({
         relativeUrl: relative,
         url: `${config.apiUrl.replace(/\/$/, "")}${relative}`,

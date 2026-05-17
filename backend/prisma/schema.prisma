@@ -64,6 +64,14 @@ enum PaymentStatus {
   OVERDUE
 }
 
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CARD
+  PAYPAL
+  OTHER
+}
+
 enum InterventionStatus {
   SCHEDULED
   IN_PROGRESS
@@ -146,6 +154,7 @@ model User {
   interventions Intervention[] @relation("TechnicianInterventions")
   reports       InterventionReport[] @relation("TechnicianReports")
   quotes        Quote[] @relation("QuoteCreator")
+  paymentsRecorded ClientPayment[] @relation("PaymentRecorder")
   events        Event[] @relation("EventAssignee")
   activityLogs  ActivityLog[]
   notifications Notification[]
@@ -259,6 +268,7 @@ model Client {
   reports         InterventionReport[]
   events          Event[]
   invoicePreviews InvoicePreview[]
+  payments        ClientPayment[]
   attachments     Attachment[] @relation("ClientAttachments")
   activities      ActivityLog[]
   createdAt       DateTime     @default(now())
@@ -393,12 +403,36 @@ model Quote {
   paymentTerms    QuotePaymentTerm[]
   attachments     Attachment[]  @relation("QuoteAttachments")
   invoicePreviews InvoicePreview[]
+  payments        ClientPayment[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   @@index([clientId])
   @@index([status])
   @@index([number])
+}
+
+model ClientPayment {
+  id                 String        @id @default(cuid())
+  clientId           String
+  client             Client        @relation(fields: [clientId], references: [id])
+  quoteId            String?
+  quote              Quote?        @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  quotePaymentTermId String?
+  label              String
+  amount             Decimal       @db.Decimal(12, 2)
+  paidAt             DateTime      @default(now())
+  method             PaymentMethod @default(BANK_TRANSFER)
+  reference          String?
+  notes              String?       @db.Text
+  createdById        String
+  createdBy          User          @relation("PaymentRecorder", fields: [createdById], references: [id])
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([quoteId])
+  @@index([paidAt])
 }
 
 model QuotePaymentTerm {
@@ -694,6 +728,20 @@ model Notification {
   createdAt DateTime         @default(now())
 
   @@index([userId, isRead])
+}
+
+model EventGalleryItem {
+  id          String    @id @default(cuid())
+  title       String?
+  caption     String?   @db.Text
+  eventDate   DateTime?
+  imagePath   String
+  isPublished Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([isPublished, sortOrder])
 }
 
 model Setting {
