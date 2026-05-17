@@ -1,5 +1,10 @@
 import PDFDocument from "pdfkit";
-import type { Client, Quote, QuoteItem } from "@prisma/client";
+import type {
+  Client,
+  Quote,
+  QuoteItem,
+  QuotePaymentTerm,
+} from "@prisma/client";
 import {
   drawPdfLetterhead,
   drawPdfSignatureBlock,
@@ -20,6 +25,7 @@ function money(n: number | { toString(): string }) {
 export async function generateQuotePdf(
   quote: Quote & {
     items: QuoteItem[];
+    paymentTerms?: QuotePaymentTerm[];
     client: Client;
     clientSignature?: string | null;
   },
@@ -125,15 +131,7 @@ export async function generateQuotePdf(
     addTotalLine("IVA", `€ ${money(quote.vatAmount)}`);
     addTotalLine("Totale", `€ ${money(quote.total)}`, true);
 
-    const paymentTerms = quote.paymentTerms as
-      | {
-          label: string;
-          note?: string | null;
-          percent?: unknown;
-          amount: unknown;
-          isBalance: boolean;
-        }[]
-      | undefined;
+    const paymentTerms = quote.paymentTerms;
 
     if (paymentTerms && paymentTerms.length > 0) {
       doc.moveDown(0.3);
@@ -148,7 +146,7 @@ export async function generateQuotePdf(
         const note = term.note?.trim() ? ` — ${term.note.trim()}` : "";
         addTotalLine(
           `${term.label}${pct}${note}`,
-          `€ ${money(term.amount)}`
+          `€ ${money(Number(term.amount))}`
         );
       }
       if (Number(quote.balanceDue) >= 0) {
