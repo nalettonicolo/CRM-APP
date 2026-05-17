@@ -17,7 +17,7 @@ export default function InventoryPage() {
   return (
     <>
       <Header title="Magazzino" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

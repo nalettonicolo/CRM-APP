@@ -73,7 +73,7 @@ export default function ProductsPage() {
   return (
     <>
       <Header title="Prodotti" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <Link href="/inventory" className="text-sm text-primary hover:underline">
           ← Magazzino
         </Link>

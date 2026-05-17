@@ -1,15 +1,43 @@
 import nodemailer from "nodemailer";
-import { config } from "../config/index.js";
+import type { Transporter } from "nodemailer";
+import { getSmtpConfig, isSmtpConfigured, type SmtpConfig } from "./smtpConfig.js";
 
-const transporter =
-  config.smtp.host && config.smtp.user
-    ? nodemailer.createTransport({
-        host: config.smtp.host,
-        port: config.smtp.port,
-        secure: config.smtp.secure,
-        auth: { user: config.smtp.user, pass: config.smtp.pass },
-      })
-    : null;
+let cached: { smtp: SmtpConfig; transporter: Transporter } | null = null;
+let cachedAt = 0;
+const CACHE_MS = 30_000;
+
+async function getTransporter(): Promise<{
+  transporter: Transporter | null;
+  smtp: SmtpConfig;
+}> {
+  const now = Date.now();
+  if (cached && now - cachedAt < CACHE_MS) {
+    return { transporter: cached.transporter, smtp: cached.smtp };
+  }
+
+  const smtp = await getSmtpConfig();
+  if (!isSmtpConfigured(smtp)) {
+    cached = null;
+    return { transporter: null, smtp };
+  }
+
+  const transporter = nodemailer.createTransport({
+    host: smtp.host,
+    port: smtp.port,
+    secure: smtp.secure,
+    auth: { user: smtp.user, pass: smtp.pass },
+  });
+
+  cached = { smtp, transporter };
+  cachedAt = now;
+  return { transporter, smtp };
+}
+
+/** Dopo salvataggio SMTP da impostazioni, forza ricarica. */
+export function clearSmtpCache() {
+  cached = null;
+  cachedAt = 0;
+}
 
 export async function sendEmail(options: {
   to: string;
@@ -17,19 +45,21 @@ export async function sendEmail(options: {
   html: string;
   attachments?: { filename: string; path?: string; content?: Buffer }[];
 }) {
+  const { transporter, smtp } = await getTransporter();
+
   if (!transporter) {
     console.log("[Email mock]", options.to, options.subject);
-    return { success: true, mock: true };
+    return { success: true, mock: true as const };
   }
 
   await transporter.sendMail({
-    from: `"${config.smtp.fromName}" <${config.smtp.from}>`,
+    from: `"${smtp.fromName}" <${smtp.from}>`,
     to: options.to,
     subject: options.subject,
     html: options.html,
     attachments: options.attachments,
   });
-  return { success: true };
+  return { success: true, mock: false as const };
 }
 
 export function emailTemplate(title: string, body: string, brandName = "CRM") {

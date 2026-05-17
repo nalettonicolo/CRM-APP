@@ -30,6 +30,9 @@ import backupRoutes from "./routes/backup.js";
 
 const app = express();
 
+// Cloudflare tunnel / reverse proxy: rate limit e IP client corretti
+app.set("trust proxy", 1);
+
 const netlifyOrigin =
   /^https:\/\/[a-z0-9][a-z0-9-]*\.netlify\.app$/i;
 

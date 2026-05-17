@@ -53,7 +53,7 @@ export default function PortalQuotesPage() {
   return (
     <>
       <Header title="I tuoi preventivi" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento...</p>
         ) : quotes.length === 0 ? (

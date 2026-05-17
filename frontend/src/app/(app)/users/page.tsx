@@ -97,7 +97,7 @@ export default function UsersPage() {
   return (
     <>
       <Header title="Utenti" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-6 flex justify-end">
           <Button onClick={() => { setError(""); setCreateOpen(true); }}>
             <Plus className="h-4 w-4" /> Nuovo utente

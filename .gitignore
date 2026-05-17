@@ -5,6 +5,7 @@ out/
 .env
 .env.local
 .env.*.local
+.env.mint-RIPRISTINO.txt
 CREDENZIALI-ACCESSO.txt
 backend/CREDENZIALI-ACCESSO.txt
 uploads/

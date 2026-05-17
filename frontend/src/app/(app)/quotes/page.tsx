@@ -31,7 +31,7 @@ export default function QuotesPage() {
   return (
     <>
       <Header title="Preventivi" />
-      <motion.div className="p-6">
+      <motion.div className="p-3 sm:p-4 md:p-6">
         <div className="mb-6 flex justify-end">
           <Button asChild>
             <Link href="/quotes/new">

@@ -22,7 +22,12 @@ router.post("/trigger", async (req: AuthRequest, res, next) => {
       details: { file: result.file },
     });
 
-    res.json({ success: true, file: result.file });
+    res.json({
+      success: true,
+      file: result.file,
+      removed: result.removed,
+      drive: result.drive,
+    });
   } catch (e) {
     next(e);
   }

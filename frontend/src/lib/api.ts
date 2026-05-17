@@ -589,7 +589,11 @@ export const searchApi = {
 
 export const backupApi = {
   trigger: () =>
-    api<{ success: boolean; file?: string }>("/backup/trigger", {
+    api<{
+      success: boolean;
+      file?: string;
+      drive?: { uploaded: boolean; message: string };
+    }>("/backup/trigger", {
       method: "POST",
     }),
 };
@@ -602,6 +606,11 @@ export const settingsApi = {
       method: "PUT",
       body: JSON.stringify({ value }),
     }),
+  testSmtp: (to: string) =>
+    api<{ success: boolean; mock?: boolean; message?: string }>(
+      "/settings/smtp/test",
+      { method: "POST", body: JSON.stringify({ to }) }
+    ),
 };
 
 export async function uploadBrandingAsset(file: File, kind: "logo" | "favicon") {

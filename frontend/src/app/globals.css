@@ -53,3 +53,15 @@ body {
     radial-gradient(at 20% 30%, oklch(0.7 0.15 270 / 0.15) 0, transparent 50%),
     radial-gradient(at 80% 70%, oklch(0.6 0.2 300 / 0.1) 0, transparent 50%);
 }
+
+@media (max-width: 1023px) {
+  main .p-6 {
+    padding: 0.75rem;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  main .p-6 {
+    padding: 1rem;
+  }
+}

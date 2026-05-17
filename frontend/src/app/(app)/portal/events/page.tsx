@@ -26,7 +26,7 @@ export default function PortalEventsPage() {
   return (
     <>
       <Header title="Appuntamenti" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <Link href="/portal" className="text-sm text-primary hover:underline">
           ← Area cliente
         </Link>

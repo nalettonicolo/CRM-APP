@@ -29,7 +29,7 @@ export default function ReportsPage() {
   return (
     <>
       <Header title="Report interventi" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-4 flex justify-end">
           <Button asChild>
             <Link href="/reports/new">

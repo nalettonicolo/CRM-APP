@@ -42,12 +42,15 @@ export default function SettingsPage() {
     website: "",
   });
   const [smtp, setSmtp] = useState({
-    host: "",
+    host: "smtp.gmail.com",
     port: "587",
     user: "",
     pass: "",
     from: "",
+    fromName: "Nicolò Service",
+    secure: false,
   });
+  const [testEmailTo, setTestEmailTo] = useState("");
   const [twoFaCode, setTwoFaCode] = useState("");
   const [twoFaSetup, setTwoFaSetup] = useState<{
     secret: string;
@@ -72,19 +75,40 @@ export default function SettingsPage() {
     });
     const sm = (data.smtp as Record<string, string>) || {};
     setSmtp({
-      host: sm.host || "",
+      host: sm.host || "smtp.gmail.com",
       port: sm.port || "587",
       user: sm.user || "",
       pass: sm.pass || "",
-      from: sm.from || "",
+      from: sm.from || sm.user || "",
+      fromName: (sm.fromName as string) || "Nicolò Service",
+      secure: String(sm.secure) === "true",
     });
+    if (!testEmailTo && (sm.user || co.email)) {
+      setTestEmailTo((sm.user as string) || co.email || "");
+    }
   }, [data]);
+
+  const testSmtpMut = useMutation({
+    mutationFn: () => settingsApi.testSmtp(testEmailTo),
+    onSuccess: (res) => {
+      setBanner(res.message || "Email di test inviata.");
+      setTimeout(() => setBanner(""), 4000);
+    },
+    onError: () => setBanner("Invio test fallito. Controlla password app Gmail."),
+  });
 
   const backupMut = useMutation({
     mutationFn: backupApi.trigger,
-    onSuccess: () => {
-      setBanner("Backup avviato con successo.");
-      setTimeout(() => setBanner(""), 3000);
+    onSuccess: (res) => {
+      const drive = res.drive;
+      if (drive?.uploaded) {
+        setBanner(`Backup OK. ${drive.message}`);
+      } else if (drive) {
+        setBanner(`Backup locale OK. Google Drive: ${drive.message}`);
+      } else {
+        setBanner("Backup completato (solo locale).");
+      }
+      setTimeout(() => setBanner(""), 6000);
     },
     onError: () => setBanner("Errore backup."),
   });
@@ -434,30 +458,45 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>SMTP email</CardTitle>
+            <CardTitle>Email Gmail (SMTP)</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Salvato nelle impostazioni come JSON (chiave smtp).
+              Usa una{" "}
+              <a
+                href="https://myaccount.google.com/apppasswords"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary underline"
+              >
+                password per le app
+              </a>{" "}
+              (16 caratteri), non la password normale di Gmail.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
-              placeholder="Host SMTP"
+              placeholder="Host (smtp.gmail.com)"
               value={smtp.host}
               onChange={(e) => setSmtp((s) => ({ ...s, host: e.target.value }))}
             />
             <Input
-              placeholder="Porta"
+              placeholder="Porta (587)"
               value={smtp.port}
               onChange={(e) => setSmtp((s) => ({ ...s, port: e.target.value }))}
             />
             <Input
-              placeholder="Utente"
+              placeholder="Email Gmail"
               value={smtp.user}
-              onChange={(e) => setSmtp((s) => ({ ...s, user: e.target.value }))}
+              onChange={(e) =>
+                setSmtp((s) => ({
+                  ...s,
+                  user: e.target.value,
+                  from: s.from || e.target.value,
+                }))
+              }
             />
             <Input
               type="password"
-              placeholder="Password"
+              placeholder="Password per le app Gmail"
               value={smtp.pass}
               onChange={(e) => setSmtp((s) => ({ ...s, pass: e.target.value }))}
             />
@@ -466,12 +505,38 @@ export default function SettingsPage() {
               value={smtp.from}
               onChange={(e) => setSmtp((s) => ({ ...s, from: e.target.value }))}
             />
-            <Button
-              disabled={saveMut.isPending}
-              onClick={() => saveMut.mutate({ key: "smtp", value: smtp })}
-            >
-              Salva SMTP
-            </Button>
+            <Input
+              placeholder="Nome mittente"
+              value={smtp.fromName}
+              onChange={(e) => setSmtp((s) => ({ ...s, fromName: e.target.value }))}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                disabled={saveMut.isPending}
+                onClick={() => saveMut.mutate({ key: "smtp", value: smtp })}
+              >
+                Salva SMTP
+              </Button>
+            </div>
+            <div className="border-t border-border pt-4">
+              <p className="mb-2 text-sm font-medium">Prova invio</p>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  type="email"
+                  placeholder="Email destinazione test"
+                  className="max-w-xs flex-1"
+                  value={testEmailTo}
+                  onChange={(e) => setTestEmailTo(e.target.value)}
+                />
+                <Button
+                  variant="outline"
+                  disabled={testSmtpMut.isPending || !testEmailTo}
+                  onClick={() => testSmtpMut.mutate()}
+                >
+                  {testSmtpMut.isPending ? "Invio…" : "Invia email di test"}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -479,7 +544,8 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Backup database</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Avvia un backup manuale sul server.
+              Manuale da qui; automatico ogni 5 giorni su Mint + Google Drive (vedi
+              docs/gmail-e-backup-automatico.md).
             </p>
           </CardHeader>
           <CardContent>

@@ -22,7 +22,7 @@ export default function InvoicesPage() {
   return (
     <>
       <Header title="Fatture" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <p className="mb-4 text-sm text-muted-foreground">
           Bozze fattura generate da preventivi. Non valide ai fini fiscali.
         </p>

@@ -26,7 +26,7 @@ export default function PortalPage() {
   return (
     <>
       <Header title="Area Cliente" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}

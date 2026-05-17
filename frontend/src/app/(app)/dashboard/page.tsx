@@ -90,7 +90,7 @@ export default function DashboardPage() {
   return (
     <>
       <Header title="Dashboard" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-4 flex justify-end">
           <Button variant="outline" size="sm" onClick={() => setLayoutOpen((o) => !o)}>
             Personalizza layout

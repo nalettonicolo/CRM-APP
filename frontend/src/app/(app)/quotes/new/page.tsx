@@ -16,10 +16,10 @@ export default function NewQuotePage() {
   return (
     <>
       <Header title="Nuovo preventivo" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <DetailBack href="/quotes" label="Torna ai preventivi" />
         <Card className="max-w-4xl">
-          <CardContent className="p-6">
+          <CardContent className="p-3 sm:p-4 md:p-6">
             {error && (
               <p className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">
                 {error}

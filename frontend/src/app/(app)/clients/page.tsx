@@ -54,7 +54,7 @@ export default function ClientsPage() {
   return (
     <>
       <Header title="Clienti" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-1 flex-wrap gap-3">
             <div className="relative min-w-[200px] flex-1 max-w-md">

@@ -42,7 +42,7 @@ export default function CalendarPage() {
   return (
     <>
       <Header title="Calendario" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-4 flex justify-end">
           <Button onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" /> Nuovo evento

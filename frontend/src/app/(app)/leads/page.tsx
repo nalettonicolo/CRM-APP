@@ -23,7 +23,7 @@ export default function LeadsPage() {
   return (
     <>
       <Header title="Richieste contatto" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">

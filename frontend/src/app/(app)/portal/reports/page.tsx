@@ -26,7 +26,7 @@ export default function PortalReportsPage() {
   return (
     <>
       <Header title="I tuoi report" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento...</p>
         ) : reports.length === 0 ? (

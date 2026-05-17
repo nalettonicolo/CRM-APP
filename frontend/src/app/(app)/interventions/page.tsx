@@ -26,7 +26,7 @@ export default function InterventionsPage() {
   return (
     <>
       <Header title="Interventi" />
-      <div className="p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
