@@ -39,6 +39,8 @@ export function EventGallerySection() {
     queryKey: ["event-gallery", "public"],
     queryFn: eventGalleryApi.public,
     staleTime: 120_000,
+    retry: 1,
+    throwOnError: false,
   });
 
   if (items.length === 0) {

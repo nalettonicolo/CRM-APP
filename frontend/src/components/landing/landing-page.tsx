@@ -53,6 +53,8 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
     staleTime: 60 * 1000,
     initialData: initialSettings ?? undefined,
     refetchOnMount: true,
+    retry: 1,
+    throwOnError: false,
   });
 
   const settings = data ?? initialSettings;
@@ -63,7 +65,7 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
   const cardsMotion = useFadeUp(0.12, 20);
 
   return (
-    <motion.div className="public-page min-h-screen" initial={false}>
+    <motion.div className="public-page min-h-screen">
       <PublicHeader appName={appName} logoSrc={logoSrc} />
 
       <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:px-8">

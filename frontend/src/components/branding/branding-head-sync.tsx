@@ -15,6 +15,7 @@ export function BrandingHeadSync() {
     queryFn: settingsApi.public,
     staleTime: 5 * 60 * 1000,
     retry: 1,
+    throwOnError: false,
   });
 
   useEffect(() => {
