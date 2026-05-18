@@ -128,7 +128,21 @@ export async function generateReportPdf(
 
     if (report.checklist) {
       doc.fontSize(11).text("Checklist", { underline: true });
-      doc.fontSize(9).text(JSON.stringify(report.checklist, null, 2));
+      doc.moveDown(0.2);
+      const items = Array.isArray(report.checklist)
+        ? (report.checklist as { label?: string; checked?: boolean }[])
+        : [];
+      if (items.length === 0) {
+        doc.fontSize(9).font("Helvetica").text("—");
+      } else {
+        for (const item of items) {
+          const label =
+            typeof item.label === "string" ? item.label : "Voce";
+          const mark = item.checked ? "[x]" : "[ ]";
+          doc.fontSize(9).font("Helvetica").text(`${mark} ${label}`);
+          doc.moveDown(0.2);
+        }
+      }
       doc.moveDown();
     }
 

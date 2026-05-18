@@ -130,6 +130,23 @@ export async function generateQuotePdf(
     }
     addTotalLine("IVA", `€ ${money(quote.vatAmount)}`);
     addTotalLine("Totale", `€ ${money(quote.total)}`, true);
+    if (Number(quote.withholdingTaxAmount) > 0) {
+      const pct = Number(quote.withholdingTaxPercent);
+      const label =
+        pct > 0
+          ? `Ritenuta d'acconto (${money(pct)}%)`
+          : "Ritenuta d'acconto";
+      addTotalLine(label, `- € ${money(quote.withholdingTaxAmount)}`);
+    }
+    if (Number(quote.stampDutyAmount) > 0) {
+      addTotalLine("Marca da bollo", `€ ${money(quote.stampDutyAmount)}`);
+    }
+    if (
+      Number(quote.netPayable) > 0 &&
+      Number(quote.netPayable) !== Number(quote.total)
+    ) {
+      addTotalLine("Netto a pagare", `€ ${money(quote.netPayable)}`, true);
+    }
 
     const paymentTerms = quote.paymentTerms;
 

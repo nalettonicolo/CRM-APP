@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticate, type AuthRequest } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
+import { syncQuoteCalendarEvent } from "../services/quoteCalendar.js";
 import {
   ForbiddenError,
   NotFoundError,
@@ -93,6 +94,84 @@ router.post("/quotes/:id/sign", async (req: AuthRequest, res, next) => {
       action: "SIGN",
       entityType: "quote",
       entityId: quote.id,
+    });
+
+    await syncQuoteCalendarEvent(updated.id);
+
+    res.json(updated);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/quotes/:id/accept", async (req: AuthRequest, res, next) => {
+  try {
+    const clientId = requireClient(req);
+    const quote = await prisma.quote.findFirst({
+      where: { id: paramId(req), clientId },
+    });
+    if (!quote) throw new NotFoundError();
+    if (!["SENT", "DRAFT"].includes(quote.status)) {
+      throw new ValidationError(
+        "Il preventivo non può essere confermato in questo stato"
+      );
+    }
+
+    const updated = await prisma.quote.update({
+      where: { id: quote.id },
+      data: {
+        status: "ACCEPTED",
+        acceptedAt: new Date(),
+        signedByClient: true,
+        signedAt: new Date(),
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId,
+      action: "UPDATE",
+      entityType: "quote",
+      entityId: quote.id,
+      details: { accepted: true },
+    });
+
+    await syncQuoteCalendarEvent(updated.id);
+
+    res.json(updated);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post("/quotes/:id/reject", async (req: AuthRequest, res, next) => {
+  try {
+    const clientId = requireClient(req);
+    const quote = await prisma.quote.findFirst({
+      where: { id: paramId(req), clientId },
+    });
+    if (!quote) throw new NotFoundError();
+    if (!["SENT", "DRAFT"].includes(quote.status)) {
+      throw new ValidationError(
+        "Il preventivo non può essere rifiutato in questo stato"
+      );
+    }
+
+    const updated = await prisma.quote.update({
+      where: { id: quote.id },
+      data: {
+        status: "REJECTED",
+        rejectedAt: new Date(),
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId,
+      action: "UPDATE",
+      entityType: "quote",
+      entityId: quote.id,
+      details: { rejected: true },
     });
 
     res.json(updated);

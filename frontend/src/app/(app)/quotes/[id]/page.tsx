@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { FileText, User, Pencil, Download, Mail, Receipt } from "lucide-react";
+import { FileText, User, Pencil, Download, Mail, Receipt, Check, X } from "lucide-react";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/header";
@@ -42,6 +42,14 @@ export default function QuoteDetailPage() {
   const sendEmail = useMutation({
     mutationFn: () => quotesApi.sendEmail(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["quote", id] }),
+  });
+
+  const setStatus = useMutation({
+    mutationFn: (status: string) => quotesApi.update(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quote", id] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
   });
 
   const { data: quote, isLoading, isError } = useQuery({
@@ -136,6 +144,30 @@ export default function QuoteDetailPage() {
                       {fromQuote.isPending ? "…" : "Genera fattura"}
                     </Button>
                   )}
+                  {(quote.status === "SENT" || quote.status === "DRAFT") && (
+                    <>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        disabled={setStatus.isPending}
+                        onClick={() => setStatus.mutate("ACCEPTED")}
+                      >
+                        <Check className="h-4 w-4" /> Conferma
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={setStatus.isPending}
+                        onClick={() => {
+                          if (confirm("Segnare il preventivo come rifiutato?")) {
+                            setStatus.mutate("REJECTED");
+                          }
+                        }}
+                      >
+                        <X className="h-4 w-4" /> Rifiuta
+                      </Button>
+                    </>
+                  )}
                 </div>
                 <span
                   className={cn(
@@ -159,6 +191,21 @@ export default function QuoteDetailPage() {
                 { label: "Imponibile", value: quote.subtotal },
                 { label: "IVA", value: quote.vatAmount },
                 { label: "Totale", value: quote.total, highlight: true },
+                ...(Number(quote.withholdingTaxAmount) > 0
+                  ? [
+                      {
+                        label: "Ritenuta d'acconto",
+                        value: quote.withholdingTaxAmount,
+                      },
+                    ]
+                  : []),
+                ...(Number(quote.stampDutyAmount) > 0
+                  ? [{ label: "Marca da bollo", value: quote.stampDutyAmount }]
+                  : []),
+                ...(Number(quote.netPayable) > 0 &&
+                Number(quote.netPayable) !== Number(quote.total)
+                  ? [{ label: "Netto a pagare", value: quote.netPayable, highlight: true }]
+                  : []),
                 ...(Number(quote.depositAmount) > 0
                   ? [
                       { label: "Acconto", value: quote.depositAmount },
@@ -245,7 +292,33 @@ export default function QuoteDetailPage() {
 
             <DetailSection title="Voci preventivo">
               {quote.items && quote.items.length > 0 ? (
-                <div className="overflow-x-auto">
+                <>
+                <div className="space-y-3 md:hidden">
+                  {quote.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-lg border border-border bg-muted/20 p-3 text-sm"
+                    >
+                      <p className="text-xs uppercase text-muted-foreground">{item.type}</p>
+                      <p className="font-medium">{item.description}</p>
+                      <dl className="mt-2 grid grid-cols-2 gap-1 text-xs">
+                        <dt className="text-muted-foreground">Q.tà</dt>
+                        <dd className="text-right tabular-nums">{Number(item.quantity)}</dd>
+                        <dt className="text-muted-foreground">Prezzo</dt>
+                        <dd className="text-right tabular-nums">
+                          {formatCurrency(Number(item.unitPrice))}
+                        </dd>
+                        <dt className="text-muted-foreground">IVA</dt>
+                        <dd className="text-right tabular-nums">{Number(item.vatRate)}%</dd>
+                        <dt className="text-muted-foreground">Totale</dt>
+                        <dd className="text-right font-medium tabular-nums">
+                          {formatCurrency(Number(item.total))}
+                        </dd>
+                      </dl>
+                    </div>
+                  ))}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border text-left text-muted-foreground">
@@ -282,6 +355,7 @@ export default function QuoteDetailPage() {
                     </tbody>
                   </table>
                 </div>
+                </>
               ) : (
                 <p className="text-sm text-muted-foreground">Nessuna voce.</p>
               )}

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PriceInput } from "@/components/ui/price-input";
 import {
   clientsApi,
   inventoryApi,
@@ -35,8 +36,12 @@ export type QuoteFormPayload = {
   title: string;
   notes?: string;
   validUntil?: string;
+  eventAt?: string;
   depositPercent?: number;
   depositAmount?: number;
+  withholdingTaxPercent?: number;
+  withholdingTaxAmount?: number;
+  stampDutyAmount?: number;
   paymentTerms?: PaymentTermDraft[];
   items: QuoteItemDraft[];
 };
@@ -82,7 +87,11 @@ export function QuoteForm({
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
   const [validUntil, setValidUntil] = useState("");
+  const [eventAt, setEventAt] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermDraft[]>([]);
+  const [withholdingTaxPercent, setWithholdingTaxPercent] = useState("");
+  const [withholdingTaxAmount, setWithholdingTaxAmount] = useState("");
+  const [stampDutyAmount, setStampDutyAmount] = useState("");
   const [items, setItems] = useState<QuoteItemDraft[]>([emptyItem()]);
 
   useEffect(() => {
@@ -129,6 +138,18 @@ export function QuoteForm({
       }
       if (initial.validUntil) {
         setValidUntil(initial.validUntil.slice(0, 10));
+      }
+      if (initial.eventAt) {
+        setEventAt(initial.eventAt.slice(0, 10));
+      }
+      if (Number(initial.withholdingTaxPercent) > 0) {
+        setWithholdingTaxPercent(String(Number(initial.withholdingTaxPercent)));
+      }
+      if (Number(initial.withholdingTaxAmount) > 0) {
+        setWithholdingTaxAmount(String(Number(initial.withholdingTaxAmount)));
+      }
+      if (Number(initial.stampDutyAmount) > 0) {
+        setStampDutyAmount(String(Number(initial.stampDutyAmount)));
       }
       if (initial.items?.length) {
         setItems(
@@ -211,6 +232,9 @@ export function QuoteForm({
       validUntil: validUntil
         ? new Date(`${validUntil}T12:00:00`).toISOString()
         : undefined,
+      eventAt: eventAt
+        ? new Date(`${eventAt}T10:00:00`).toISOString()
+        : undefined,
       paymentTerms: paymentTerms
         .filter((t) => t.label.trim())
         .map((t) => ({
@@ -220,14 +244,21 @@ export function QuoteForm({
           amount: t.isBalance ? undefined : t.amount,
           isBalance: t.isBalance === true,
         })),
+      withholdingTaxPercent: withholdingTaxPercent
+        ? Number(withholdingTaxPercent)
+        : undefined,
+      withholdingTaxAmount: withholdingTaxAmount
+        ? Number(withholdingTaxAmount)
+        : undefined,
+      stampDutyAmount: stampDutyAmount ? Number(stampDutyAmount) : undefined,
       items: items.filter((i) => i.description.trim()),
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="sm:col-span-2 lg:col-span-1">
           <label className="mb-1 block text-sm font-medium">Cliente *</label>
           <select
             required
@@ -258,6 +289,17 @@ export function QuoteForm({
             onChange={(e) => setValidUntil(e.target.value)}
           />
         </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Data evento</label>
+          <Input
+            type="date"
+            value={eventAt}
+            onChange={(e) => setEventAt(e.target.value)}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Alla conferma del preventivo viene creato un evento in calendario (ore 10:00).
+          </p>
+        </div>
       </div>
 
       <PaymentScheduleEditor
@@ -265,6 +307,44 @@ export function QuoteForm({
         onChange={setPaymentTerms}
         grandTotal={grandTotal}
       />
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Ritenuta d&apos;acconto %
+          </label>
+          <Input
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={withholdingTaxPercent}
+            onChange={(e) => setWithholdingTaxPercent(e.target.value)}
+            placeholder="es. 20"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Ritenuta importo (€)</label>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={withholdingTaxAmount}
+            onChange={(e) => setWithholdingTaxAmount(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Marca da bollo (€)</label>
+          <Input
+            type="number"
+            min="0"
+            step="0.01"
+            value={stampDutyAmount}
+            onChange={(e) => setStampDutyAmount(e.target.value)}
+            placeholder="es. 2"
+          />
+        </div>
+      </div>
 
       <div>
         <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -409,15 +489,9 @@ export function QuoteForm({
                     </select>
                   </td>
                   <td className="px-3 py-2">
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      className="text-right"
+                    <PriceInput
                       value={item.unitPrice}
-                      onChange={(e) =>
-                        updateItem(index, { unitPrice: Number(e.target.value) })
-                      }
+                      onValueChange={(v) => updateItem(index, { unitPrice: v })}
                     />
                   </td>
                   <td className="px-3 py-2">

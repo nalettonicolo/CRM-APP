@@ -20,8 +20,14 @@ router.get("/", requirePermission("events", "READ"), async (req, res, next) => {
     const events = await prisma.event.findMany({
       where,
       include: {
-        client: { select: { companyName: true, contactName: true } },
+        client: { select: { id: true, companyName: true, contactName: true } },
         assignee: { select: { firstName: true, lastName: true } },
+        intervention: {
+          select: { id: true, number: true, title: true, status: true },
+        },
+        quote: {
+          select: { id: true, number: true, title: true, status: true, total: true },
+        },
       },
       orderBy: { startAt: "asc" },
     });
@@ -50,6 +56,8 @@ router.post("/", requirePermission("events", "CREATE"), async (req, res, next) =
         allDay: z.boolean().optional(),
         clientId: z.string().optional(),
         assigneeId: z.string().optional(),
+        interventionId: z.string().optional(),
+        quoteId: z.string().optional(),
         color: z.string().optional(),
       })
       .parse(req.body);
@@ -59,6 +67,11 @@ router.post("/", requirePermission("events", "CREATE"), async (req, res, next) =
         ...data,
         startAt: new Date(data.startAt),
         endAt: data.endAt ? new Date(data.endAt) : undefined,
+      },
+      include: {
+        client: { select: { id: true, companyName: true, contactName: true } },
+        intervention: { select: { id: true, number: true, title: true, status: true } },
+        quote: { select: { id: true, number: true, title: true, status: true, total: true } },
       },
     });
     res.status(201).json(event);

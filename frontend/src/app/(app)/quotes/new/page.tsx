@@ -37,6 +37,10 @@ export default function NewQuotePage() {
                     title: data.title,
                     notes: data.notes,
                     validUntil: data.validUntil,
+                    eventAt: data.eventAt,
+                    withholdingTaxPercent: data.withholdingTaxPercent,
+                    withholdingTaxAmount: data.withholdingTaxAmount,
+                    stampDutyAmount: data.stampDutyAmount,
                     paymentTerms: data.paymentTerms,
                     items: data.items.map((i) => ({
                       type: i.type,

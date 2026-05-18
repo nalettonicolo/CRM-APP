@@ -17,6 +17,7 @@ import { sendEmail, emailTemplate } from "../services/email.js";
 import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import { syncQuoteCalendarEvent } from "../services/quoteCalendar.js";
 
 const quoteItemInputSchema = z.object({
   type: z.enum(["service", "product", "custom"]).default("custom"),
@@ -44,6 +45,62 @@ function paymentTermsForCalc(
     amount: t.amount,
     isBalance: t.isBalance,
   }));
+}
+
+const taxFieldsSchema = z.object({
+  withholdingTaxPercent: z.number().min(0).max(100).optional(),
+  withholdingTaxAmount: z.number().min(0).optional(),
+  stampDutyAmount: z.number().min(0).optional(),
+});
+
+function calcOptions(
+  body: z.infer<typeof taxFieldsSchema> & {
+    discountPercent?: number;
+    discountAmount?: number;
+    depositPercent?: number;
+    depositAmount?: number;
+    paymentTerms?: z.infer<typeof paymentTermInputSchema>[];
+  },
+  existing?: {
+    discountPercent: unknown;
+    discountAmount: unknown;
+    depositPercent: unknown;
+    withholdingTaxPercent: unknown;
+    withholdingTaxAmount: unknown;
+    stampDutyAmount: unknown;
+    paymentTerms: { label: string; note: string | null; percent: unknown; amount: unknown; isBalance: boolean }[];
+  }
+) {
+  return {
+    discountPercent:
+      body.discountPercent ??
+      (existing ? Number(existing.discountPercent) : 0),
+    discountAmount:
+      body.discountAmount ?? (existing ? Number(existing.discountAmount) : 0),
+    depositPercent: body.depositPercent,
+    depositAmount: body.depositAmount,
+    paymentTerms: paymentTermsForCalc(body.paymentTerms),
+    withholdingTaxPercent:
+      body.withholdingTaxPercent ??
+      (existing ? Number(existing.withholdingTaxPercent) : 0),
+    withholdingTaxAmount: body.withholdingTaxAmount,
+    stampDutyAmount:
+      body.stampDutyAmount ??
+      (existing ? Number(existing.stampDutyAmount) : 0),
+  };
+}
+
+function decimalTaxFields(totals: ReturnType<typeof calculateQuoteTotals>) {
+  return {
+    subtotal: toDecimal(totals.subtotal),
+    vatAmount: toDecimal(totals.vatAmount),
+    total: toDecimal(totals.total),
+    depositAmount: toDecimal(totals.depositAmount),
+    balanceDue: toDecimal(totals.balanceDue),
+    withholdingTaxAmount: toDecimal(totals.withholdingTaxAmount),
+    stampDutyAmount: toDecimal(totals.stampDutyAmount),
+    netPayable: toDecimal(totals.netPayable),
+  };
 }
 
 function buildPaymentTermsCreate(
@@ -135,6 +192,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         title: z.string().optional(),
         category: z.string().optional(),
         validUntil: z.string().datetime().optional(),
+        eventAt: z.string().datetime().optional(),
         notes: z.string().optional(),
         discountPercent: z.number().optional(),
         discountAmount: z.number().optional(),
@@ -143,6 +201,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         paymentTerms: z.array(paymentTermInputSchema).optional(),
         items: z.array(quoteItemInputSchema).optional(),
       })
+      .merge(taxFieldsSchema)
       .parse(req.body);
 
     let items = body.items || [];
@@ -162,13 +221,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         vatRate: i.vatRate,
         discount: i.discount,
       })),
-      {
-        discountPercent: body.discountPercent,
-        discountAmount: body.discountAmount,
-        depositPercent: body.depositPercent,
-        depositAmount: body.depositAmount,
-        paymentTerms: paymentTermsForCalc(body.paymentTerms),
-      }
+      calcOptions(body)
     );
 
     const number = await generateQuoteNumber();
@@ -184,6 +237,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         title: body.title,
         category: body.category,
         validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
+        eventAt: body.eventAt ? new Date(body.eventAt) : undefined,
         notes: body.notes,
         discountPercent: toDecimal(body.discountPercent || 0),
         discountAmount: toDecimal(body.discountAmount || 0),
@@ -191,10 +245,8 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
           ? (totals.depositAmount / totals.total) * 100
           : body.depositPercent || 0),
         depositAmount: toDecimal(totals.depositAmount),
-        subtotal: toDecimal(totals.subtotal),
-        vatAmount: toDecimal(totals.vatAmount),
-        total: toDecimal(totals.total),
-        balanceDue: toDecimal(totals.balanceDue),
+        withholdingTaxPercent: toDecimal(body.withholdingTaxPercent || 0),
+        ...decimalTaxFields(totals),
         items: {
           create: items.map((item, idx) => ({
             type: item.type,
@@ -277,9 +329,15 @@ router.post(
   async (req: AuthRequest, res, next) => {
     try {
       const quote = await loadQuoteForPdf(paramId(req), req.user);
-      const email = quote.client.email;
+      const email = quote.client.email?.trim();
       if (!email) {
         throw new ValidationError("Il cliente non ha un indirizzo email");
+      }
+      const parsedEmail = z.string().email().safeParse(email);
+      if (!parsedEmail.success) {
+        throw new ValidationError(
+          "Email cliente non valida — aggiorna la scheda cliente"
+        );
       }
 
       const company = await loadCompanySettings();
@@ -334,6 +392,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
         title: z.string().optional().nullable(),
         category: z.string().optional().nullable(),
         validUntil: z.string().datetime().optional().nullable(),
+        eventAt: z.string().datetime().optional().nullable(),
         notes: z.string().optional().nullable(),
         internalNotes: z.string().optional().nullable(),
         discountPercent: z.number().optional(),
@@ -347,6 +406,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           .optional(),
         signedByClient: z.boolean().optional(),
       })
+      .merge(taxFieldsSchema)
       .parse(req.body);
 
     const existing = await prisma.quote.findUnique({
@@ -385,12 +445,20 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
             }))
           : undefined;
 
+    const calcOpts = calcOptions(
+      {
+        discountPercent: body.discountPercent,
+        discountAmount: body.discountAmount,
+        depositPercent: body.depositPercent,
+        depositAmount: body.depositAmount,
+        withholdingTaxPercent: body.withholdingTaxPercent,
+        withholdingTaxAmount: body.withholdingTaxAmount,
+        stampDutyAmount: body.stampDutyAmount,
+      },
+      existing
+    );
     const totals = calculateQuoteTotals(itemsForCalc, {
-      discountPercent:
-        body.discountPercent ?? Number(existing.discountPercent),
-      discountAmount: body.discountAmount ?? Number(existing.discountAmount),
-      depositPercent: body.depositPercent ?? Number(existing.depositPercent),
-      depositAmount: body.depositAmount,
+      ...calcOpts,
       paymentTerms: paymentTermsInput,
     });
 
@@ -420,6 +488,9 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           ...(body.validUntil !== undefined && {
             validUntil: body.validUntil ? new Date(body.validUntil) : null,
           }),
+          ...(body.eventAt !== undefined && {
+            eventAt: body.eventAt ? new Date(body.eventAt) : null,
+          }),
           ...(body.status !== undefined && { status: body.status }),
           ...(body.discountPercent !== undefined && {
             discountPercent: toDecimal(body.discountPercent),
@@ -433,10 +504,10 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
               : 0
           ),
           depositAmount: toDecimal(totals.depositAmount),
-          subtotal: toDecimal(totals.subtotal),
-          vatAmount: toDecimal(totals.vatAmount),
-          total: toDecimal(totals.total),
-          balanceDue: toDecimal(totals.balanceDue),
+          ...(body.withholdingTaxPercent !== undefined && {
+            withholdingTaxPercent: toDecimal(body.withholdingTaxPercent),
+          }),
+          ...decimalTaxFields(totals),
           ...(body.items && {
             items: {
               create: body.items.map((item, idx) => ({
@@ -464,6 +535,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
             acceptedAt: new Date(),
             signedByClient: true,
           }),
+          ...(body.status === "REJECTED" && { rejectedAt: new Date() }),
           ...(body.signedByClient && { signedAt: new Date(), signedByClient: true }),
         },
         include: {
@@ -481,6 +553,10 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
       entityType: "quote",
       entityId: quote.id,
     });
+
+    if (body.status === "ACCEPTED" || quote.status === "ACCEPTED") {
+      await syncQuoteCalendarEvent(quote.id);
+    }
 
     res.json(quote);
   } catch (e) {

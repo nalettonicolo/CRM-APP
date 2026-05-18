@@ -229,7 +229,13 @@ export interface Quote {
   depositPercent?: number | string;
   depositAmount?: number | string;
   balanceDue: number | string;
+  withholdingTaxPercent?: number | string;
+  withholdingTaxAmount?: number | string;
+  stampDutyAmount?: number | string;
+  netPayable?: number | string;
+  rejectedAt?: string;
   validUntil?: string;
+  eventAt?: string;
   notes?: string;
   internalNotes?: string;
   category?: string;
@@ -356,8 +362,18 @@ export interface EventItem {
   endAt?: string;
   allDay?: boolean;
   clientId?: string;
+  interventionId?: string;
+  quoteId?: string;
   color?: string;
-  client?: { companyName?: string; contactName?: string };
+  client?: { id?: string; companyName?: string; contactName?: string };
+  intervention?: { id: string; number: string; title: string; status?: string };
+  quote?: {
+    id: string;
+    number: string;
+    title?: string | null;
+    status?: string;
+    total?: number | string;
+  };
 }
 
 export interface ActivityItem {
@@ -486,6 +502,7 @@ export interface Intervention {
 }
 
 export interface InterventionDetail extends Intervention {
+  clientId?: string;
   description?: string;
   location?: string;
   startedAt?: string;
@@ -986,10 +1003,14 @@ export const portalApi = {
   documents: () =>
     api<{ invoices: Invoice[]; quotes: Quote[] }>("/portal/documents"),
   signQuote: (id: string, signature: string) =>
-    api<{ success: boolean }>(`/portal/quotes/${id}/sign`, {
+    api<Quote>(`/portal/quotes/${id}/sign`, {
       method: "POST",
       body: JSON.stringify({ signature }),
     }),
+  acceptQuote: (id: string) =>
+    api<Quote>(`/portal/quotes/${id}/accept`, { method: "POST" }),
+  rejectQuote: (id: string) =>
+    api<Quote>(`/portal/quotes/${id}/reject`, { method: "POST" }),
   confirmEvent: (id: string) =>
     api<{ success: boolean }>(`/portal/events/${id}/confirm`, {
       method: "POST",

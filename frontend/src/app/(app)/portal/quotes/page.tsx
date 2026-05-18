@@ -44,8 +44,22 @@ export default function PortalQuotesPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portal-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
       setSignId(null);
     },
+  });
+
+  const acceptMut = useMutation({
+    mutationFn: (id: string) => portalApi.acceptQuote(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["portal-dashboard"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: (id: string) => portalApi.rejectQuote(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["portal-dashboard"] }),
   });
 
   const quotes = data?.quotes ?? [];
@@ -106,9 +120,35 @@ export default function PortalQuotesPage() {
                         <Download className="h-4 w-4" /> PDF
                       </Button>
                       {q.status === "SENT" && (
-                        <Button size="sm" onClick={() => setSignId(q.id)}>
-                          <PenLine className="h-4 w-4" /> Firma
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            disabled={acceptMut.isPending}
+                            onClick={() => acceptMut.mutate(q.id)}
+                          >
+                            Conferma
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={rejectMut.isPending}
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  "Rifiutare questo preventivo? L'operazione non è reversibile."
+                                )
+                              ) {
+                                rejectMut.mutate(q.id);
+                              }
+                            }}
+                          >
+                            Rifiuta
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => setSignId(q.id)}>
+                            <PenLine className="h-4 w-4" /> Firma
+                          </Button>
+                        </>
                       )}
                     </div>
                   </div>

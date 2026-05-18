@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   clientsApi,
+  interventionsApi,
   reportsApi,
   type ReportDetail,
   type ReportPayload,
@@ -22,9 +23,11 @@ type MaterialRow = { name: string; quantity: string; unit: string };
 export function ReportCompileForm({
   reportId,
   initial,
+  interventionId: interventionIdProp,
 }: {
   reportId?: string;
   initial?: ReportDetail;
+  interventionId?: string;
 }) {
   const router = useRouter();
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -54,6 +57,29 @@ export function ReportCompileForm({
       : null
   );
   const [error, setError] = useState("");
+  const [interventionId, setInterventionId] = useState(
+    initial?.intervention?.id || interventionIdProp || ""
+  );
+
+  const { data: interventionPrefill } = useQuery({
+    queryKey: ["intervention", interventionIdProp],
+    queryFn: () => interventionsApi.get(interventionIdProp!),
+    enabled: !!interventionIdProp && !initial,
+  });
+
+  useEffect(() => {
+    if (!interventionPrefill || initial) return;
+    setInterventionId(interventionPrefill.id);
+    setClientId(interventionPrefill.client?.id || "");
+    if (interventionPrefill.description && !description) {
+      setDescription(
+        `Intervento ${interventionPrefill.number}: ${interventionPrefill.title}\n\n${interventionPrefill.description}`
+      );
+    } else if (interventionPrefill.title) {
+      setDescription(`Intervento ${interventionPrefill.number}: ${interventionPrefill.title}`);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- prefill once when intervention loads
+  }, [interventionPrefill, initial]);
 
   const { data: clientsData } = useQuery({
     queryKey: ["clients-select"],
@@ -130,6 +156,7 @@ export function ReportCompileForm({
   function buildPayload(status?: string): ReportPayload {
     return {
       clientId,
+      interventionId: interventionId || undefined,
       description,
       workHours: workHours ? Number(workHours) : 0,
       checklist,

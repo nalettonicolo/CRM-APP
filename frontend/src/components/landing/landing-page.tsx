@@ -11,7 +11,6 @@ import { BrandLogo } from "@/components/branding/brand-logo";
 import { EventGallerySection } from "@/components/landing/event-gallery-section";
 import {
   getAppName,
-  getCompany,
   getLogoPath,
   getSiteHome,
   type PublicSettings,
@@ -29,20 +28,13 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
     queryFn: settingsApi.public,
     staleTime: 60 * 1000,
     initialData: initialSettings ?? undefined,
+    refetchOnMount: true,
   });
 
   const settings = data ?? initialSettings;
   const site = getSiteHome(settings);
   const appName = getAppName(settings);
   const logoSrc = getLogoPath(settings);
-  const company = getCompany(settings);
-  const contactParts = [
-    company.name,
-    company.email,
-    company.phone,
-    company.address,
-    company.website,
-  ].filter((x) => x && String(x).trim());
 
   return (
     <motion.div className="min-h-screen gradient-mesh" initial={false}>
@@ -169,11 +161,6 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
         <p>
           © {new Date().getFullYear()} {site.footerLine}
         </p>
-        {contactParts.length > 0 && (
-          <p className="mx-auto mt-3 max-w-lg break-words">
-            {contactParts.join(" · ")}
-          </p>
-        )}
       </footer>
     </motion.div>
   );

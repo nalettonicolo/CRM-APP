@@ -51,6 +51,10 @@ export default function EditQuotePage() {
                         title: data.title,
                         notes: data.notes,
                         validUntil: data.validUntil ?? null,
+                        eventAt: data.eventAt ?? null,
+                        withholdingTaxPercent: data.withholdingTaxPercent,
+                        withholdingTaxAmount: data.withholdingTaxAmount,
+                        stampDutyAmount: data.stampDutyAmount,
                         paymentTerms: data.paymentTerms,
                         items: data.items.map((i) => ({
                           type: i.type,

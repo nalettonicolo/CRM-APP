@@ -390,6 +390,11 @@ model Quote {
   depositPercent  Decimal       @default(0) @db.Decimal(5, 2)
   depositAmount   Decimal       @default(0) @db.Decimal(12, 2)
   balanceDue      Decimal       @default(0) @db.Decimal(12, 2)
+  withholdingTaxPercent Decimal @default(0) @db.Decimal(5, 2)
+  withholdingTaxAmount  Decimal @default(0) @db.Decimal(12, 2)
+  stampDutyAmount       Decimal @default(0) @db.Decimal(12, 2)
+  netPayable            Decimal @default(0) @db.Decimal(12, 2)
+  rejectedAt      DateTime?
   validUntil      DateTime?
   notes           String?       @db.Text
   internalNotes   String?       @db.Text
@@ -399,7 +404,9 @@ model Quote {
   clientSignature String?       @db.Text
   sentAt          DateTime?
   acceptedAt      DateTime?
+  eventAt         DateTime?
   items           QuoteItem[]
+  calendarEvents  Event[]
   paymentTerms    QuotePaymentTerm[]
   attachments     Attachment[]  @relation("QuoteAttachments")
   invoicePreviews InvoicePreview[]
@@ -639,6 +646,8 @@ model Event {
   assignee     User?     @relation("EventAssignee", fields: [assigneeId], references: [id])
   interventionId String?
   intervention Intervention? @relation(fields: [interventionId], references: [id])
+  quoteId        String?
+  quote          Quote?        @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   reminderAt   DateTime?
   color        String?
   createdAt    DateTime  @default(now())
@@ -647,6 +656,7 @@ model Event {
   @@index([startAt])
   @@index([clientId])
   @@index([assigneeId])
+  @@index([quoteId])
 }
 
 model InvoicePreview {

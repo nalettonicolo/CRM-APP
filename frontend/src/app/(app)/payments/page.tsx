@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import { Header } from "@/components/layout/header";
@@ -54,6 +55,7 @@ function clientLabel(p: ClientPayment) {
 }
 
 export default function PaymentsPage() {
+  const searchParams = useSearchParams();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ClientPayment | null>(null);
@@ -85,6 +87,13 @@ export default function PaymentsPage() {
   });
 
   const clientQuotes = quotesRes?.data ?? [];
+
+  useEffect(() => {
+    const quoteId = searchParams.get("quoteId");
+    if (!quoteId) return;
+    setForm((f) => ({ ...f, quoteId }));
+    setOpen(true);
+  }, [searchParams]);
 
   const openCreate = () => {
     setEditing(null);

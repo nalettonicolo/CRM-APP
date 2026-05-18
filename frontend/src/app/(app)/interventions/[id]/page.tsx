@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Wrench } from "lucide-react";
+import { FilePlus, Wrench } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/header";
 import {
   DetailBack,
@@ -104,8 +105,13 @@ export default function InterventionDetailPage() {
               </DetailSection>
             )}
 
-            {data.reports && data.reports.length > 0 && (
-              <DetailSection title="Report collegati">
+            <DetailSection title="Report">
+              <Button asChild size="sm" className="mb-4">
+                <Link href={`/reports/new?interventionId=${id}`}>
+                  <FilePlus className="h-4 w-4" /> Crea report da intervento
+                </Link>
+              </Button>
+              {data.reports && data.reports.length > 0 ? (
                 <ul className="divide-y divide-border">
                   {data.reports.map((r) => (
                     <li key={r.id}>
@@ -121,8 +127,12 @@ export default function InterventionDetailPage() {
                     </li>
                   ))}
                 </ul>
-              </DetailSection>
-            )}
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nessun report ancora collegato a questo intervento.
+                </p>
+              )}
+            </DetailSection>
           </div>
         )}
       </div>
