@@ -6,6 +6,7 @@ import { FileText, ClipboardList, Wrench, Receipt } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { portalApi } from "@/lib/api";
+import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function PortalPage() {
@@ -100,12 +101,12 @@ export default function PortalPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Receipt className="h-4 w-4" /> Bozze fattura
+                <Receipt className="h-4 w-4" /> {DOCUMENT_COPY.portal.invoiceSection}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground mb-3">
-                Documenti non validi ai fini fiscali. Non sostituiscono fattura elettronica.
+                {DOCUMENT_COPY.portal.invoiceDisclaimerShort}
               </p>
               {data?.invoices?.length ? (
                 <ul className="space-y-2 text-sm">
@@ -114,7 +115,9 @@ export default function PortalPage() {
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">Nessuna bozza disponibile</p>
+                <p className="text-sm text-muted-foreground">
+                  {DOCUMENT_COPY.portal.invoiceEmpty}
+                </p>
               )}
             </CardContent>
           </Card>

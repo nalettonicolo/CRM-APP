@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
+import { DOCUMENT_COPY } from "../constants/documentCopy.js";
 import { prisma } from "../lib/prisma.js";
 
 type PdfDoc = InstanceType<typeof PDFDocument>;
@@ -103,7 +104,12 @@ export function drawPdfSignatureBlock(
 
   doc.moveDown(1.5);
   doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
-  doc.text(options.label || "Accettazione preventivo", 50, doc.y, { underline: true });
+  doc.text(
+    options.label || DOCUMENT_COPY.quote.acceptanceHeading,
+    50,
+    doc.y,
+    { underline: true }
+  );
   doc.moveDown(0.5);
   doc.font("Helvetica").fontSize(9).fillColor("#52525b");
 
@@ -121,12 +127,11 @@ export function drawPdfSignatureBlock(
           50
         );
       }
-      doc.text(
-        "Documento accettato e restituito con firma elettronica tramite portale cliente.",
-        50,
-        doc.y,
-        { width: 480 }
-      );
+      doc.text(DOCUMENT_COPY.quote.acceptanceDigital, 50, doc.y, { width: 480 });
+      doc.moveDown(0.3);
+      doc.text(DOCUMENT_COPY.quote.acceptanceDigitalChannel, 50, doc.y, {
+        width: 480,
+      });
     } catch {
       drawEmptySignatureLines(doc);
     }
@@ -139,13 +144,11 @@ export function drawPdfSignatureBlock(
 
 function drawEmptySignatureLines(doc: PdfDoc): void {
   doc.moveDown(0.5);
-  doc.text("Il sottoscritto cliente dichiara di accettare le condizioni del presente documento.", 50, doc.y, {
-    width: 480,
-  });
+  doc.text(DOCUMENT_COPY.quote.acceptancePaper, 50, doc.y, { width: 480 });
   doc.moveDown(1);
-  doc.text("Data: _________________________", 50);
+  doc.text(DOCUMENT_COPY.quote.paperDateLine, 50);
   doc.moveDown(0.8);
-  doc.text("Firma del cliente: _________________________________________________", 50);
+  doc.text(DOCUMENT_COPY.quote.paperSignLine, 50);
   doc.moveDown(0.5);
-  doc.fontSize(8).text("(In caso di restituzione cartacea: allegare copia firmata e timbrata)", 50);
+  doc.fontSize(8).text(DOCUMENT_COPY.quote.paperNote, 50, doc.y, { width: 480 });
 }

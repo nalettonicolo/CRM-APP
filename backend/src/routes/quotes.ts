@@ -244,7 +244,6 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         depositPercent: toDecimal(totals.depositAmount > 0 && totals.total > 0
           ? (totals.depositAmount / totals.total) * 100
           : body.depositPercent || 0),
-        depositAmount: toDecimal(totals.depositAmount),
         withholdingTaxPercent: toDecimal(body.withholdingTaxPercent || 0),
         ...decimalTaxFields(totals),
         items: {
@@ -302,6 +301,59 @@ async function loadQuoteForPdf(id: string, user: AuthRequest["user"]) {
   }
   return quote;
 }
+
+router.post(
+  "/:id/sign",
+  requirePermission("quotes", "UPDATE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { signature } = z
+        .object({ signature: z.string().min(20) })
+        .parse(req.body);
+
+      const existing = await prisma.quote.findUnique({
+        where: { id: paramId(req) },
+      });
+      if (!existing) throw new NotFoundError();
+      if (["REJECTED", "CANCELLED", "EXPIRED"].includes(existing.status)) {
+        throw new ValidationError(
+          "Il preventivo non può essere firmato in questo stato"
+        );
+      }
+
+      const updated = await prisma.quote.update({
+        where: { id: existing.id },
+        data: {
+          clientSignature: signature,
+          signedByClient: true,
+          signedAt: new Date(),
+          status: "ACCEPTED",
+          acceptedAt: existing.acceptedAt ?? new Date(),
+        },
+        include: {
+          client: true,
+          items: { orderBy: { sortOrder: "asc" } },
+          paymentTerms: { orderBy: { sortOrder: "asc" } },
+        },
+      });
+
+      await syncQuoteCalendarEvent(updated.id);
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: updated.clientId,
+        action: "SIGN",
+        entityType: "quote",
+        entityId: updated.id,
+        details: { staffRecorded: true },
+      });
+
+      res.json(updated);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.get(
   "/:id/pdf",
@@ -503,7 +555,6 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
               ? (totals.depositAmount / totals.total) * 100
               : 0
           ),
-          depositAmount: toDecimal(totals.depositAmount),
           ...(body.withholdingTaxPercent !== undefined && {
             withholdingTaxPercent: toDecimal(body.withholdingTaxPercent),
           }),

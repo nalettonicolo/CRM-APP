@@ -14,6 +14,7 @@ import {
 } from "@/components/detail/detail-shell";
 import { downloadReportPdf, reportsApi } from "@/lib/api";
 import { reportStatusLabels } from "@/lib/labels";
+import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { cn, formatDate } from "@/lib/utils";
 
 const statusColors: Record<string, string> = {
@@ -41,14 +42,14 @@ export default function ReportDetailPage() {
 
   return (
     <>
-      <Header title="Dettaglio report" />
+      <Header title={DOCUMENT_COPY.report.detailTitle} />
       <div className="p-6">
-        <DetailBack href="/reports" label="Torna ai report" />
+        <DetailBack href="/reports" label={DOCUMENT_COPY.report.detailBack} />
 
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento...</p>
         ) : isError || !data ? (
-          <p className="text-destructive">Report non trovato.</p>
+          <p className="text-destructive">{DOCUMENT_COPY.report.notFound}</p>
         ) : (
           <div className="space-y-6">
             <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
@@ -58,7 +59,9 @@ export default function ReportDetailPage() {
                 </div>
                 <div>
                   <p className="font-mono text-sm text-muted-foreground">{data.number}</p>
-                  <h1 className="text-2xl font-bold tracking-tight">Report intervento</h1>
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    {DOCUMENT_COPY.report.detailTitle}
+                  </h1>
                   {data.client && (
                     <Link
                       href={`/clients/${data.client.id}`}

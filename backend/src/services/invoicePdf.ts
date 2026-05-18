@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
 import type { Client, InvoicePreview, Quote } from "@prisma/client";
+import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "../constants/documentCopy.js";
 import {
   drawPdfLetterhead,
   loadCompanySettings,
@@ -46,7 +47,7 @@ export async function generateInvoicePdf(
     }
 
     drawPdfLetterhead(doc, companyInfo, logoPath, {
-      titleRight: `Fattura proforma ${invoice.number}`,
+      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
       subtitleRight,
     });
 
@@ -82,7 +83,9 @@ export async function generateInvoicePdf(
     doc
       .fontSize(8)
       .fillColor("#71717a")
-      .text(invoice.disclaimer, { width: 500 });
+      .text(invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER, {
+        width: 500,
+      });
 
     if (invoice.notes) {
       doc.moveDown();

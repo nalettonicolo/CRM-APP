@@ -197,6 +197,11 @@ export const quotesApi = {
     }),
   sendEmail: (id: string) =>
     api<{ success: boolean }>(`/quotes/${id}/send-email`, { method: "POST" }),
+  sign: (id: string, signature: string) =>
+    api<Quote>(`/quotes/${id}/sign`, {
+      method: "POST",
+      body: JSON.stringify({ signature }),
+    }),
 };
 
 export async function downloadQuotePdf(id: string, filename: string) {

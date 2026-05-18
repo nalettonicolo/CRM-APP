@@ -7,6 +7,7 @@ import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { invoicesApi } from "@/lib/api";
+import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { paymentStatusLabels } from "@/lib/labels";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
@@ -21,10 +22,10 @@ export default function InvoicesPage() {
 
   return (
     <>
-      <Header title="Fatture" />
+      <Header title={DOCUMENT_COPY.invoice.pageTitle} />
       <div className="p-3 sm:p-4 md:p-6">
         <p className="mb-4 text-sm text-muted-foreground">
-          Bozze fattura generate da preventivi. Non valide ai fini fiscali.
+          {DOCUMENT_COPY.invoice.pageIntro}
         </p>
         <Card>
           <CardContent className="p-0">

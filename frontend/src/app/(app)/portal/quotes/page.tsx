@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { downloadQuotePdf, portalApi } from "@/lib/api";
+import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { quoteStatusLabels } from "@/lib/labels";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 
@@ -162,7 +163,7 @@ export default function PortalQuotesPage() {
       <Dialog open={!!signId} onOpenChange={(o) => !o && setSignId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Firma preventivo</DialogTitle>
+            <DialogTitle>{DOCUMENT_COPY.portal.quoteSignTitle}</DialogTitle>
           </DialogHeader>
           <canvas
             ref={canvasRef}
@@ -177,7 +178,7 @@ export default function PortalQuotesPage() {
               Annulla
             </Button>
             <Button disabled={signMut.isPending} onClick={() => signMut.mutate()}>
-              Conferma firma
+              {DOCUMENT_COPY.portal.quoteSignConfirm}
             </Button>
           </DialogFooter>
         </DialogContent>

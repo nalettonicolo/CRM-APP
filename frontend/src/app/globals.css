@@ -62,6 +62,68 @@ body {
     radial-gradient(at 80% 70%, oklch(0.6 0.2 300 / 0.1) 0, transparent 50%);
 }
 
+/* Pagine pubbliche: home, login, recupero password */
+.public-page {
+  color: oklch(0.95 0.01 270);
+  background-color: oklch(0.14 0.025 265);
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% -15%, oklch(0.38 0.14 270 / 0.45), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 0% 80%, oklch(0.28 0.1 285 / 0.25), transparent 50%),
+    radial-gradient(ellipse 45% 35% at 100% 60%, oklch(0.25 0.08 250 / 0.2), transparent 45%),
+    linear-gradient(180deg, oklch(0.16 0.03 265) 0%, oklch(0.11 0.02 270) 100%);
+}
+
+.public-page .public-section-alt {
+  background: oklch(0.12 0.02 270 / 0.65);
+  border-block: 1px solid oklch(0.35 0.04 270 / 0.25);
+}
+
+.public-page .public-card {
+  border-radius: 1rem;
+  border: 1px solid oklch(0.4 0.04 270 / 0.35);
+  background: oklch(0.18 0.025 265 / 0.75);
+  box-shadow: 0 25px 50px -12px oklch(0 0 0 / 0.45);
+  backdrop-filter: blur(12px);
+}
+
+.public-page .public-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: oklch(0.88 0.02 270);
+}
+
+.public-page .public-input {
+  display: flex;
+  width: 100%;
+  min-height: 3rem;
+  border-radius: 0.75rem;
+  border: 1px solid oklch(0.45 0.04 270 / 0.45);
+  background: oklch(0.2 0.03 265 / 0.9);
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: oklch(0.98 0 0);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.public-page .public-input::placeholder {
+  color: oklch(0.55 0.02 270);
+}
+
+.public-page .public-input:focus-visible {
+  outline: none;
+  border-color: oklch(0.6 0.18 270 / 0.7);
+  box-shadow: 0 0 0 3px oklch(0.55 0.2 270 / 0.25);
+}
+
+.public-page .public-chip {
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+}
+
 @media (max-width: 1023px) {
   main .p-6 {
     padding: 0.75rem;

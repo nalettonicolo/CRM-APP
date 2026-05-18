@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { FileText, User, Pencil, Download, Mail, Receipt, Check, X } from "lucide-react";
@@ -16,6 +16,8 @@ import {
   paymentStatusLabels,
   clientStatusLabels,
 } from "@/lib/labels";
+import { SignaturePad } from "@/components/signature/signature-pad";
+import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 const statusStyle: Record<string, string> = {
@@ -33,6 +35,7 @@ export default function QuoteDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [pdfBusy, setPdfBusy] = useState(false);
+  const getSignatureRef = useRef<() => string | undefined>(() => undefined);
 
   const fromQuote = useMutation({
     mutationFn: () => invoicesApi.fromQuote(id),
@@ -46,6 +49,14 @@ export default function QuoteDetailPage() {
 
   const setStatus = useMutation({
     mutationFn: (status: string) => quotesApi.update(id, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quote", id] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+    },
+  });
+
+  const signQuote = useMutation({
+    mutationFn: (signature: string) => quotesApi.sign(id, signature),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quote", id] });
       qc.invalidateQueries({ queryKey: ["events"] });
@@ -141,7 +152,7 @@ export default function QuoteDetailPage() {
                       onClick={() => fromQuote.mutate()}
                     >
                       <Receipt className="h-4 w-4" />
-                      {fromQuote.isPending ? "…" : "Genera fattura"}
+                      {fromQuote.isPending ? "…" : DOCUMENT_COPY.invoice.generateFromQuote}
                     </Button>
                   )}
                   {(quote.status === "SENT" || quote.status === "DRAFT") && (
@@ -159,7 +170,7 @@ export default function QuoteDetailPage() {
                         size="sm"
                         disabled={setStatus.isPending}
                         onClick={() => {
-                          if (confirm("Segnare il preventivo come rifiutato?")) {
+                          if (confirm(DOCUMENT_COPY.quote.rejectConfirm)) {
                             setStatus.mutate("REJECTED");
                           }
                         }}
@@ -369,30 +380,60 @@ export default function QuoteDetailPage() {
               </DetailSection>
             )}
 
-            <DetailSection title="Firma e accettazione">
+            <DetailSection title={DOCUMENT_COPY.quote.signatureSectionTitle}>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {DOCUMENT_COPY.quote.staffConfirmHint}
+              </p>
               {quote.signedByClient && quote.clientSignature ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-green-700">
-                    Firmato e accettato
-                    {quote.signedAt
-                      ? ` il ${formatDate(quote.signedAt)}`
-                      : ""}
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-green-700">
+                    {DOCUMENT_COPY.quote.signedSuccess}{" "}
+                    {quote.signedAt && (
+                      <>
+                        ({DOCUMENT_COPY.quote.signedAtPrefix}{" "}
+                        {formatDate(quote.signedAt)})
+                      </>
+                    )}
                   </p>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={quote.clientSignature}
                     alt="Firma cliente"
-                    className="max-h-24 rounded-lg border border-border bg-white p-2"
+                    className="max-h-28 rounded-lg border border-border bg-white p-2"
                   />
                   <p className="text-xs text-muted-foreground">
-                    La firma compare anche nel PDF del preventivo.
+                    {DOCUMENT_COPY.quote.pdfNote}
                   </p>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">
-                  In attesa di firma dal portale cliente (stato Inviato). Nel PDF
-                  sono presenti le righe per firma e restituzione cartacea.
-                </p>
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    {DOCUMENT_COPY.quote.awaitingSignature}
+                  </p>
+                  <SignaturePad
+                    label={DOCUMENT_COPY.quote.signaturePadLabel}
+                    clearLabel={DOCUMENT_COPY.quote.signatureClear}
+                    onReady={(fn) => {
+                      getSignatureRef.current = fn;
+                    }}
+                  />
+                  <Button
+                    className="w-full sm:w-auto"
+                    disabled={signQuote.isPending}
+                    onClick={() => {
+                      const sig = getSignatureRef.current?.();
+                      if (!sig || sig.length < 30) {
+                        alert("Disegna la firma del cliente nel riquadro.");
+                        return;
+                      }
+                      signQuote.mutate(sig);
+                    }}
+                  >
+                    {signQuote.isPending
+                      ? "Salvataggio..."
+                      : DOCUMENT_COPY.quote.signatureSaveButton}
+                  </Button>
+                </div>
               )}
             </DetailSection>
 

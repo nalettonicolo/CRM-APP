@@ -14,20 +14,24 @@ export function EventGallerySection() {
 
   if (items.length === 0) {
     return (
-      <section id="eventi" className="mx-auto max-w-6xl px-6 py-16">
-        <h2 className="mb-2 text-center text-2xl font-bold">I nostri eventi</h2>
-        <p className="mx-auto max-w-xl text-center text-muted-foreground">
-          Presto pubblicheremo foto e momenti dai concerti, matrimoni e
-          manifestazioni che seguiamo — uno storico visivo per i nostri clienti.
+      <section id="eventi" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+        <h2 className="mb-2 text-center text-2xl font-bold text-white sm:text-3xl">
+          I nostri eventi
+        </h2>
+        <p className="mx-auto max-w-xl text-center text-slate-400">
+          Presto pubblicheremo foto e momenti dai concerti, matrimoni e manifestazioni che
+          seguiamo.
         </p>
       </section>
     );
   }
 
   return (
-    <section id="eventi" className="mx-auto max-w-6xl px-6 py-20">
-      <h2 className="mb-2 text-center text-2xl font-bold">I nostri eventi</h2>
-      <p className="mb-10 text-center text-muted-foreground">
+    <section id="eventi" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+      <h2 className="mb-2 text-center text-2xl font-bold text-white sm:text-3xl">
+        I nostri eventi
+      </h2>
+      <p className="mb-10 text-center text-slate-400">
         Alcuni momenti dai live che abbiamo seguito in sala.
       </p>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -38,7 +42,7 @@ export function EventGallerySection() {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.05 }}
             viewport={{ once: true }}
-            className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"
+            className="public-card overflow-hidden"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -48,11 +52,9 @@ export function EventGallerySection() {
             />
             {(item.title || item.caption) && (
               <figcaption className="p-4 text-sm">
-                {item.title && (
-                  <p className="font-medium">{item.title}</p>
-                )}
+                {item.title && <p className="font-medium text-white">{item.title}</p>}
                 {item.caption && (
-                  <p className="mt-1 text-muted-foreground">{item.caption}</p>
+                  <p className="mt-1 text-slate-400">{item.caption}</p>
                 )}
               </figcaption>
             )}

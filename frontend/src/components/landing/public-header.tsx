@@ -30,7 +30,6 @@ export function PublicHeader({
           </span>
         </Link>
 
-        <motionless-desktop />
         <div className="hidden items-center gap-2 md:flex">
           <Link href="/login">
             <Button
@@ -46,7 +45,7 @@ export function PublicHeader({
               Richiedi preventivo <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
-        </motionless-desktop>
+        </div>
 
         <button
           type="button"
@@ -59,32 +58,40 @@ export function PublicHeader({
         </button>
       </nav>
 
-      <div
-        className={cn(
-          "border-t border-white/10 bg-slate-950/95 px-4 py-4 md:hidden",
-          open ? "block" : "hidden"
-        )}
-      >
-        <div className="flex flex-col gap-3">
-          <Link href="/login" onClick={() => setOpen(false)}>
-            <Button
-              variant="outline"
-              className="h-12 w-full border-white/20 bg-transparent text-white"
-            >
-              Area riservata
-            </Button>
-          </Link>
-          <Link href="#contatto" onClick={() => setOpen(false)}>
-            <Button className="h-12 w-full">
-              Richiedi preventivo <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </motionless-desktop>
-      </motionless-desktop>
+      <MobileMenu open={open} setOpen={setOpen} />
     </header>
   );
 }
 
-function motionless-desktop() {
-  return null;
+function MobileMenu({
+  open,
+  setOpen,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "border-t border-white/10 bg-slate-950/95 px-4 py-4 md:hidden",
+        open ? "block" : "hidden"
+      )}
+    >
+      <div className="flex flex-col gap-3">
+        <Link href="/login" onClick={() => setOpen(false)}>
+          <Button
+            variant="outline"
+            className="h-12 w-full border-white/20 bg-transparent text-white"
+          >
+            Area riservata
+          </Button>
+        </Link>
+        <Link href="#contatto" onClick={() => setOpen(false)}>
+          <Button className="h-12 w-full">
+            Richiedi preventivo <ArrowRight className="h-4 w-4" />
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
 }

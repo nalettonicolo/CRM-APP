@@ -41,7 +41,7 @@ const staffGroups: NavGroup[] = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/clients", label: "Clienti", icon: Users },
       { href: "/quotes", label: "Preventivi", icon: FileText },
-      { href: "/invoices", label: "Fatture", icon: Receipt },
+      { href: "/invoices", label: "Doc. cortesia", icon: Receipt },
       { href: "/payments", label: "Pagamenti", icon: Wallet },
     ],
   },
@@ -49,7 +49,7 @@ const staffGroups: NavGroup[] = [
     title: "Operatività",
     items: [
       { href: "/interventions", label: "Interventi", icon: Wrench },
-      { href: "/reports", label: "Report", icon: ClipboardList },
+      { href: "/reports", label: "Verbali", icon: ClipboardList },
       { href: "/calendar", label: "Calendario", icon: Calendar },
     ],
   },

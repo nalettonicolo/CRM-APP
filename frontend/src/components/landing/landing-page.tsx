@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -6,8 +6,8 @@ import { motion } from "framer-motion";
 import { ArrowRight, Lightbulb, Mic2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ContactForm } from "@/components/landing/contact-form";
+import { PublicHeader } from "@/components/landing/public-header";
 import { settingsApi } from "@/lib/api";
-import { BrandLogo } from "@/components/branding/brand-logo";
 import { EventGallerySection } from "@/components/landing/event-gallery-section";
 import {
   getAppName,
@@ -37,127 +37,119 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
   const logoSrc = getLogoPath(settings);
 
   return (
-    <motion.div className="min-h-screen gradient-mesh" initial={false}>
-      <nav className="flex items-center justify-between px-6 py-4 lg:px-12">
-        <motion.div className="flex items-center gap-3">
-          <BrandLogo logoUrl={logoSrc || undefined} appName={appName} variant="nav" />
-          <span className="text-lg font-semibold">{appName}</span>
-        </motion.div>
-        <motion.div className="flex items-center gap-3">
-          <Link href="/login">
-            <Button variant="ghost" size="sm">
-              Area riservata
-            </Button>
-          </Link>
-          <Link href="#contatto">
-            <Button size="sm">
-              Richiedi preventivo <ArrowRight className="h-4 w-4" />
-            </Button>
-          </Link>
-        </motion.div>
-      </nav>
+    <motion.div className="public-page min-h-screen" initial={false}>
+      <PublicHeader appName={appName} logoSrc={logoSrc} />
 
-      <section className="mx-auto max-w-6xl px-6 py-20 text-center lg:py-28">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-        >
-          {logoSrc ? (
-            <motion.div className="mb-10 lg:mb-12">
-              <BrandLogo logoUrl={logoSrc} appName={appName} variant="hero" />
-            </motion.div>
-          ) : null}
-          <span className="mb-4 inline-block rounded-full border border-primary/30 bg-primary/10 px-4 py-1 text-sm text-primary">
-            {site.badge}
-          </span>
-          <h1 className="mx-auto max-w-4xl text-4xl font-bold tracking-tight lg:text-6xl">
-            {site.headline}
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            {site.subheadline}
-          </p>
-          <motion.div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link href="#contatto">
-              <Button size="lg">
-                Richiedi preventivo <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="#servizi">
-              <Button size="lg" variant="outline">
-                I nostri servizi
-              </Button>
-            </Link>
-          </motion.div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.6 }}
-          className="mx-auto mt-16 max-w-5xl overflow-hidden rounded-2xl border border-border glass shadow-2xl"
-        >
-          <motion.div className="aspect-video bg-gradient-to-br from-primary/20 via-transparent to-purple-500/10 p-8">
-            <motion.div className="grid h-full grid-cols-3 gap-4">
-              {[
-                { label: "Audio live", hint: "FOH · monitor · RF" },
-                { label: "Luci evento", hint: "DMX · atmosphere" },
-                { label: "Produzione", hint: "Montaggio · rider" },
-              ].map((card) => (
-                <div
-                  key={card.label}
-                  className="rounded-xl bg-card/80 p-4 text-left shadow-lg backdrop-blur"
+      <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:px-8">
+        <motion.div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,oklch(0.45_0.15_270/0.2),transparent_50%)]" />
+        <motion.div className="relative mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mx-auto max-w-3xl text-center"
+          >
+            <span className="mb-5 inline-block rounded-full border border-violet-400/40 bg-violet-500/15 px-4 py-1.5 text-sm font-medium text-violet-200">
+              {site.badge}
+            </span>
+            <h1 className="text-3xl font-bold leading-tight tracking-tight text-white sm:text-4xl lg:text-5xl lg:leading-[1.15]">
+              {site.headline}
+            </h1>
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-slate-300 sm:text-lg">
+              {site.subheadline}
+            </p>
+            <motion.div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center sm:gap-4">
+              <Link href="#contatto" className="w-full sm:w-auto">
+                <Button size="lg" className="h-12 w-full px-8 text-base sm:w-auto">
+                  Richiedi preventivo <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Link href="#servizi" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="h-12 w-full border-white/25 bg-white/5 px-8 text-base text-white hover:bg-white/10 sm:w-auto"
                 >
-                  <div className="mb-2 h-2 w-16 rounded bg-primary/30" />
-                  <div className="space-y-2">
-                    <div className="h-2 w-full rounded bg-muted" />
-                    <div className="h-2 w-3/4 rounded bg-muted" />
-                  </div>
-                  <p className="mt-4 text-xs font-medium">{card.label}</p>
-                  <p className="text-[10px] text-muted-foreground">{card.hint}</p>
-                </div>
-              ))}
+                  I nostri servizi
+                </Button>
+              </Link>
             </motion.div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.5 }}
+            className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-3 sm:gap-4"
+          >
+            {[
+              { label: "Audio live", hint: "FOH · monitor · RF" },
+              { label: "Luci evento", hint: "DMX · atmosphere" },
+              { label: "Produzione", hint: "Montaggio · rider" },
+            ].map((card) => (
+              <motion.div
+                key={card.label}
+                className="public-card rounded-xl p-4 text-left sm:p-5"
+              >
+                <p className="text-sm font-semibold text-white">{card.label}</p>
+                <p className="mt-1 text-xs text-slate-400">{card.hint}</p>
+              </motion.div>
+            ))}
           </motion.div>
         </motion.div>
       </section>
 
-      <EventGallerySection />
+      <motion.div className="public-section-alt">
+        <EventGallerySection />
+      </motion.div>
 
-      <section id="servizi" className="mx-auto max-w-6xl px-6 py-20">
-        <h2 className="mb-2 text-center text-2xl font-bold">Servizi</h2>
-        <p className="mb-12 text-center text-muted-foreground">
-          Soluzioni tecniche per eventi dal vivo — su misura per venue, artisti e
-          organizzatori.
-        </p>
-        <div className="grid gap-8 md:grid-cols-3">
+      <section id="servizi" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+        <motion.div className="mb-10 text-center">
+          <h2 className="text-2xl font-bold text-white sm:text-3xl">Servizi</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-slate-400">
+            Soluzioni tecniche per eventi dal vivo — su misura per venue, artisti e
+            organizzatori.
+          </p>
+        </motion.div>
+        <motion.div className="grid gap-6 md:grid-cols-3">
           {site.features.map((f, i) => {
             const Icon = featureIcons[i] ?? Mic2;
             return (
               <motion.div
                 key={`${f.title}-${i}`}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
+                transition={{ delay: i * 0.08 }}
                 viewport={{ once: true }}
-                className="rounded-2xl border border-border bg-card p-6 shadow-sm"
+                className="public-card p-6"
               >
-                <Icon className="mb-4 h-8 w-8 text-primary" />
-                <h3 className="font-semibold">{f.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{f.description}</p>
+                <motion.div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/20 text-primary">
+                  <Icon className="h-6 w-6" />
+                </motion.div>
+                <h3 className="text-lg font-semibold text-white">{f.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                  {f.description}
+                </p>
               </motion.div>
             );
           })}
-        </div>
+        </motion.div>
       </section>
 
-      <section id="contatto" className="mx-auto max-w-xl px-6 py-20">
-        <h2 className="mb-2 text-center text-2xl font-bold">Contatti e preventivi</h2>
-        <p className="mb-8 text-center text-muted-foreground">{site.accessIntro}</p>
-        <ContactForm />
+      <section
+        id="contatto"
+        className="public-section-alt px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
+      >
+        <motion.div className="mx-auto max-w-lg">
+          <h2 className="text-center text-2xl font-bold text-white sm:text-3xl">
+            Contatti e preventivi
+          </h2>
+          <p className="mb-8 mt-3 text-center text-slate-400">{site.accessIntro}</p>
+          <ContactForm />
+        </motion.div>
       </section>
 
-      <footer className="border-t border-border px-6 py-8 text-center text-sm text-muted-foreground">
+      <footer className="border-t border-white/10 px-4 py-8 text-center text-sm text-slate-500">
         <p>
           © {new Date().getFullYear()} {site.footerLine}
         </p>

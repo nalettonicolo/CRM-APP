@@ -5,6 +5,7 @@ import type {
   ReportMaterial,
   User,
 } from "@prisma/client";
+import { DOCUMENT_COPY } from "../constants/documentCopy.js";
 import {
   drawPdfLetterhead,
   loadCompanySettings,
@@ -45,7 +46,11 @@ function drawSignatureImage(
       doc.font("Helvetica").fontSize(9).text("Firma non disponibile", 50);
     }
   } else {
-    doc.font("Helvetica").fontSize(9).fillColor("#52525b").text("Non presente", 50);
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor("#52525b")
+      .text(DOCUMENT_COPY.report.signatureMissing, 50);
   }
   doc.moveDown(0.5);
 }
@@ -75,7 +80,7 @@ export async function generateReportPdf(
     }
 
     drawPdfLetterhead(doc, companyInfo, logoPath, {
-      titleRight: `Report ${report.number}`,
+      titleRight: `${DOCUMENT_COPY.report.pdfTitlePrefix} ${report.number}`,
       subtitleRight,
     });
 
@@ -127,7 +132,9 @@ export async function generateReportPdf(
     }
 
     if (report.checklist) {
-      doc.fontSize(11).text("Checklist", { underline: true });
+      doc
+        .fontSize(11)
+        .text(DOCUMENT_COPY.report.checklistHeading, { underline: true });
       doc.moveDown(0.2);
       const items = Array.isArray(report.checklist)
         ? (report.checklist as { label?: string; checked?: boolean }[])
@@ -165,10 +172,26 @@ export async function generateReportPdf(
     }
 
     if (doc.y > 580) doc.addPage();
-    doc.fontSize(11).text("Firme", { underline: true });
+    doc
+      .fontSize(11)
+      .text(DOCUMENT_COPY.report.signaturesHeading, { underline: true });
     doc.moveDown(0.5);
-    drawSignatureImage(doc, "Firma tecnico", report.technicianSignature);
-    drawSignatureImage(doc, "Firma cliente", report.clientSignature);
+    drawSignatureImage(
+      doc,
+      DOCUMENT_COPY.report.technicianSignLabel,
+      report.technicianSignature
+    );
+    drawSignatureImage(
+      doc,
+      DOCUMENT_COPY.report.clientSignLabel,
+      report.clientSignature
+    );
+
+    doc.moveDown();
+    doc
+      .fontSize(8)
+      .fillColor("#71717a")
+      .text(DOCUMENT_COPY.report.footerNote, 50, doc.y, { width: 480 });
 
     doc.end();
   });

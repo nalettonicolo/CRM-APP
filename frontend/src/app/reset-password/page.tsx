@@ -112,7 +112,7 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center gradient-mesh p-6">
+    <div className="flex min-h-screen items-center justify-center public-page p-6">
       <Suspense
         fallback={
           <p className="text-muted-foreground">Caricamento...</p>

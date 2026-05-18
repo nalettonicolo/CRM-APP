@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/header";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
 import { invoicesApi } from "@/lib/api";
 import { paymentStatusLabels } from "@/lib/labels";
+import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "@/lib/document-copy";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function InvoiceDetailPage() {
@@ -20,14 +21,14 @@ export default function InvoiceDetailPage() {
 
   return (
     <>
-      <Header title="Dettaglio fattura" />
+      <Header title={DOCUMENT_COPY.invoice.detailTitle} />
       <div className="p-6">
-        <DetailBack href="/invoices" label="Torna alle fatture" />
+        <DetailBack href="/invoices" label={DOCUMENT_COPY.invoice.detailBack} />
 
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento...</p>
         ) : isError || !data ? (
-          <p className="text-destructive">Fattura non trovata.</p>
+          <p className="text-destructive">{DOCUMENT_COPY.invoice.notFound}</p>
         ) : (
           <div className="space-y-6">
             <div className="flex flex-wrap items-start gap-4 rounded-xl border border-border bg-card p-6">
@@ -50,15 +51,14 @@ export default function InvoiceDetailPage() {
                     href={`/quotes/${data.quoteId}`}
                     className="mt-1 block text-xs text-muted-foreground hover:text-primary"
                   >
-                    Da preventivo {data.quote.number}
+                    {DOCUMENT_COPY.invoice.fromQuotePrefix} {data.quote.number}
                   </Link>
                 )}
               </div>
             </div>
 
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
-              {data.disclaimer ||
-                "Documento non valido ai fini fiscali. Non sostituisce fattura elettronica."}
+              {data.disclaimer || INVOICE_COURTESY_DISCLAIMER}
             </p>
 
             <DetailSection title="Importi">

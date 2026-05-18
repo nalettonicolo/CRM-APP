@@ -6,6 +6,7 @@ import {
   requirePermission,
   type AuthRequest,
 } from "../middleware/auth.js";
+import { INVOICE_COURTESY_DISCLAIMER } from "../constants/documentCopy.js";
 import { logActivity } from "../services/activityLog.js";
 import { generateInvoicePdf } from "../services/invoicePdf.js";
 import { loadCompanySettings } from "../services/quotePdf.js";
@@ -85,6 +86,7 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
         depositAmount: quote.depositAmount,
         balanceDue: quote.balanceDue,
         paymentStatus: quote.paymentStatus,
+        disclaimer: INVOICE_COURTESY_DISCLAIMER,
       },
       include: { client: true, quote: true },
     });

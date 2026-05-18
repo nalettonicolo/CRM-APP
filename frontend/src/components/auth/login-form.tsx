@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { authApi, settingsApi } from "@/lib/api";
 import { useAuthStore } from "@/store/auth";
 import {
@@ -79,7 +78,7 @@ export function LoginForm({
   }
 
   return (
-    <motion.div className="flex min-h-screen gradient-mesh" initial={false}>
+    <motion.div className="public-page flex min-h-screen" initial={false}>
       <div className="hidden flex-1 flex-col justify-center p-12 lg:flex">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           {logoSrc ? (
@@ -94,21 +93,21 @@ export function LoginForm({
               {brandInitial}
             </div>
           )}
-          <h1 className="text-3xl font-bold">{appName}</h1>
+          <h1 className="text-3xl font-bold text-white">{appName}</h1>
           {tagline && (
-            <p className="mt-1 text-sm text-muted-foreground">{tagline}</p>
+            <p className="mt-1 text-sm text-slate-400">{tagline}</p>
           )}
-          <p className="mt-4 max-w-md text-muted-foreground">
+          <p className="mt-4 max-w-md text-slate-400">
             Area riservata al personale e agli amministratori.
           </p>
         </motion.div>
       </div>
 
-      <div className="flex flex-1 items-center justify-center p-6">
+      <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-xl glass"
+          className="public-card w-full max-w-md p-6 sm:p-8"
         >
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -118,49 +117,57 @@ export function LoginForm({
               className="mx-auto mb-4 h-12 w-auto max-w-[160px] object-contain lg:hidden"
             />
           ) : null}
-          <h2 className="text-2xl font-semibold">Accedi</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <h2 className="text-2xl font-semibold text-white">Accedi</h2>
+          <p className="mt-1 text-sm text-slate-400">
             Usa l&apos;email e la password del tuo account.
           </p>
 
-          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Email</label>
-              <Input
+          <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+            <motion.div>
+              <label htmlFor="login-email" className="public-label">
+                Email
+              </label>
+              <input
+                id="login-email"
                 name="email"
                 type="email"
                 required
                 placeholder="nome@esempio.it"
                 autoComplete="email"
+                className="public-input"
               />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Password</label>
-              <Input
+            </motion.div>
+            <motion.div>
+              <label htmlFor="login-password" className="public-label">
+                Password
+              </label>
+              <input
+                id="login-password"
                 name="password"
                 type="password"
                 required
                 placeholder="••••••••"
                 autoComplete="current-password"
+                className="public-input"
               />
-            </div>
+            </motion.div>
             {error && (
-              <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">
+              <p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-300">
                 {error}
               </p>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="h-12 w-full text-base" disabled={loading}>
               {loading ? "Accesso..." : "Accedi"}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm">
-            <Link href="/forgot-password" className="text-primary hover:underline">
+            <Link href="/forgot-password" className="text-violet-300 hover:underline">
               Password dimenticata?
             </Link>
           </div>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            <Link href="/" className="hover:underline">
+          <div className="mt-4 text-center text-sm text-slate-500">
+            <Link href="/" className="hover:text-slate-300 hover:underline">
               ← Torna alla home
             </Link>
           </div>
