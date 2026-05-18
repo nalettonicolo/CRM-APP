@@ -1,5 +1,7 @@
 # Deploy produzione — Netlify + API su VPS + GitHub
 
+**API stabile senza dominio (Netlify + Mint):** **[`guida-api-stabile-senza-dominio.md`](guida-api-stabile-senza-dominio.md)**.
+
 **Deploy autonomo (Mint + dominio, senza Netlify):** **[`guida-deploy-autonomo-mint-dominio.md`](guida-deploy-autonomo-mint-dominio.md)**.
 
 Guida Netlify (opzionale): **[`netlify-guida-completa.md`](netlify-guida-completa.md)**.

@@ -40,7 +40,13 @@ grep '^API_URL=' "$ENV_FILE"
 pm2 restart crm-api --update-env 2>/dev/null || true
 
 echo ""
-echo "Su Netlify imposta NEXT_PUBLIC_API_URL=$URL"
-echo "Poi: Clear cache and deploy"
+if grep -qE '^NETLIFY_AUTH_TOKEN=' "$ENV_FILE" 2>/dev/null; then
+  echo "==> Sync automatico Netlify"
+  bash "$(dirname "$0")/sync-netlify-api-url.sh" "$BACKEND" || true
+else
+  echo "Su Netlify imposta NEXT_PUBLIC_API_URL=$URL"
+  echo "  Oppure aggiungi NETLIFY_AUTH_TOKEN in .env e riesegui: ./scripts/sync-netlify-api-url.sh"
+  echo "  Da Windows: .\\scripts\\netlify-aggiorna-api-url.ps1 \"$URL\""
+fi
 echo ""
 curl -sf "${URL}/api/health" && echo "" || echo "Health esterno non ancora OK — attendi 10s e riprova"

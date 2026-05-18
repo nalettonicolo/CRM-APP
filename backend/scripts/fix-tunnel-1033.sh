@@ -43,6 +43,10 @@ else
 fi
 
 echo ""
-echo "Su Netlify (obbligatorio):"
-echo "  NEXT_PUBLIC_API_URL=$API_URL"
-echo "  Clear cache and deploy"
+if grep -qE '^NETLIFY_AUTH_TOKEN=' "$ENV_FILE" 2>/dev/null; then
+  bash "$BACKEND/scripts/sync-netlify-api-url.sh" "$BACKEND" || true
+else
+  echo "Su Netlify (obbligatorio se non usi sync automatico):"
+  echo "  NEXT_PUBLIC_API_URL=$API_URL"
+  echo "  Vedi docs/guida-api-stabile-senza-dominio.md (NETLIFY_AUTH_TOKEN)"
+fi
