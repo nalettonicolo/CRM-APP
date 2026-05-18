@@ -39,9 +39,19 @@ else
 fi
 
 PORT=$(grep -E '^PORT=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2 | tr -d '\r' || echo "4100")
+USE_TS=$(grep -E '^USE_TAILSCALE_FUNNEL=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2 | tr -d '\r' || true)
+[[ "${USE_TAILSCALE_FUNNEL:-0}" == "1" ]] && USE_TS=true
 
+if [[ "$USE_TS" == "true" ]] || [[ "${USE_TAILSCALE_FUNNEL:-}" == "true" ]]; then
+  echo "==> Esposizione API: Tailscale Funnel (nessun Cloudflare tunnel)"
+  if ! tailscale funnel status 2>/dev/null | grep -qE '\.ts\.net'; then
+    echo "    Funnel non attivo. Esegui: ./backend/scripts/setup-tailscale-funnel.sh"
+  else
+    TS_URL=$(grep -E '^TAILSCALE_FUNNEL_URL=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2- | tr -d '\r' || true)
+    echo "    URL: ${TS_URL:-vedi: tailscale funnel status}"
+  fi
+elif [[ -f "$CONFIG" ]]; then
 echo "==> Tunnel Cloudflare"
-if [[ -f "$CONFIG" ]]; then
   if pm2 describe crm-tunnel >/dev/null 2>&1; then
     pm2 restart crm-tunnel --update-env
     echo "    Tunnel permanente riavviato"

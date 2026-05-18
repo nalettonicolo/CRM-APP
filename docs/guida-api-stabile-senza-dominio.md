@@ -36,41 +36,17 @@ pm2 save
 4. Per l’esposizione pubblica **senza dominio proprio**, usa il tunnel **veloce solo come origine** oppure passa alla **B (Tailscale)**.  
    Se in futuro aggiungi un dominio qualsiasi su Cloudflare (anche gratuito terze parti), potrai fissare `api.xxx` in un colpo solo.
 
-### B — Tailscale Funnel (URL HTTPS stabile, gratis)
+### B — Tailscale Funnel (URL HTTPS stabile, gratis) — **guida completa**
 
-Nessun dominio, nessun Netlify da aggiornare per l’API.
+Vedi **[`guida-tailscale-funnel.md`](./guida-tailscale-funnel.md)**.
 
-1. Su [tailscale.com](https://tailscale.com) crea account (piano free).
-2. Sul Mint:
-
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-# Autorizza il device dal link che compare
-```
-
-3. Abilita Funnel sulla porta API (es. 4100):
+Sul Mint, dopo `git pull`:
 
 ```bash
-tailscale funnel --bg 4100
-tailscale funnel status
+./backend/scripts/setup-tailscale-funnel.sh https://nicoloservice.netlify.app
 ```
 
-Annota l’URL tipo `https://mint-casa.tailxxxxx.ts.net`.
-
-4. `backend/.env`:
-
-```env
-API_URL=https://mint-casa.tailxxxxx.ts.net
-FRONTEND_URL=https://nicoloservice.netlify.app
-TRUST_CROSS_SITE_COOKIES=true
-```
-
-5. Netlify → `NEXT_PUBLIC_API_URL` = **stesso URL** Tailscale (una volta).
-
-6. `pm2 restart crm-api`
-
-**Pro:** URL non scade come trycloudflare. **Contro:** serve Tailscale attivo sul Mint; il funnel free ha limiti Tailscale (consulta i loro limiti attuali).
+Lo script configura Funnel, `.env`, riavvia l’API e (opzionale) Netlify.
 
 ### C — Automazione: Mint aggiorna Netlify quando cambia l’URL (consigliato con trycloudflare)
 
