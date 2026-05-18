@@ -10,6 +10,7 @@ out/
 *caricato su mint*
 CREDENZIALI-ACCESSO.txt
 backend/CREDENZIALI-ACCESSO.txt
+RIFERIMENTI-PRODUZIONE.local.md
 uploads/
 *.log
 .DS_Store
