@@ -4,6 +4,35 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { eventGalleryApi } from "@/lib/api";
 import { publicAssetUrl } from "@/lib/branding";
+import { useFadeUp } from "@/lib/motion-presets";
+
+type GalleryItemData = {
+  id: string;
+  imagePath: string;
+  title?: string | null;
+  caption?: string | null;
+};
+
+function GalleryItem({ item, index }: { item: GalleryItemData; index: number }) {
+  const fadeUp = useFadeUp(index * 0.05);
+  return (
+    <motion.figure {...fadeUp} className="public-card overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={publicAssetUrl(item.imagePath)}
+        alt={item.title || "Evento"}
+        className="aspect-[4/3] w-full object-cover"
+        loading="lazy"
+      />
+      {(item.title || item.caption) && (
+        <figcaption className="p-4 text-sm">
+          {item.title && <p className="font-medium text-white">{item.title}</p>}
+          {item.caption && <p className="mt-1 text-slate-400">{item.caption}</p>}
+        </figcaption>
+      )}
+    </motion.figure>
+  );
+}
 
 export function EventGallerySection() {
   const { data: items = [] } = useQuery({
@@ -34,33 +63,11 @@ export function EventGallerySection() {
       <p className="mb-10 text-center text-slate-400">
         Alcuni momenti dai live che abbiamo seguito in sala.
       </p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item, i) => (
-          <motion.figure
-            key={item.id}
-            initial={{ opacity: 0, y: 16 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            viewport={{ once: true }}
-            className="public-card overflow-hidden"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={publicAssetUrl(item.imagePath)}
-              alt={item.title || "Evento"}
-              className="aspect-[4/3] w-full object-cover"
-            />
-            {(item.title || item.caption) && (
-              <figcaption className="p-4 text-sm">
-                {item.title && <p className="font-medium text-white">{item.title}</p>}
-                {item.caption && (
-                  <p className="mt-1 text-slate-400">{item.caption}</p>
-                )}
-              </figcaption>
-            )}
-          </motion.figure>
+          <GalleryItem key={item.id} item={item} index={i} />
         ))}
-      </div>
+      </motion.div>
     </section>
   );
 }

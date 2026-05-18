@@ -5,9 +5,11 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { ArrowRight, Lightbulb, Mic2, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandLogo } from "@/components/branding/brand-logo";
 import { ContactForm } from "@/components/landing/contact-form";
 import { PublicHeader } from "@/components/landing/public-header";
 import { settingsApi } from "@/lib/api";
+import { useFadeUp } from "@/lib/motion-presets";
 import { EventGallerySection } from "@/components/landing/event-gallery-section";
 import {
   getAppName,
@@ -17,6 +19,28 @@ import {
 } from "@/lib/public-settings";
 
 const featureIcons = [Mic2, Lightbulb, Wrench];
+
+function ServiceFeatureCard({
+  title,
+  description,
+  index,
+}: {
+  title: string;
+  description: string;
+  index: number;
+}) {
+  const Icon = featureIcons[index] ?? Mic2;
+  const fadeUp = useFadeUp(index * 0.08);
+  return (
+    <motion.div {...fadeUp} className="public-card p-6">
+      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/20 text-primary">
+        <Icon className="h-6 w-6" />
+      </div>
+      <h3 className="text-lg font-semibold text-white">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-slate-400">{description}</p>
+    </motion.div>
+  );
+}
 
 type LandingPageProps = {
   initialSettings?: PublicSettings | null;
@@ -35,6 +59,8 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
   const site = getSiteHome(settings);
   const appName = getAppName(settings);
   const logoSrc = getLogoPath(settings);
+  const heroMotion = useFadeUp(0, 12);
+  const cardsMotion = useFadeUp(0.12, 20);
 
   return (
     <motion.div className="public-page min-h-screen" initial={false}>
@@ -43,12 +69,13 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
       <section className="relative overflow-hidden px-4 pb-16 pt-10 sm:px-6 sm:pb-20 sm:pt-14 lg:px-8">
         <motion.div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,oklch(0.45_0.15_270/0.2),transparent_50%)]" />
         <motion.div className="relative mx-auto max-w-6xl">
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5 }}
-            className="mx-auto max-w-3xl text-center"
-          >
+          <motion.div {...heroMotion} className="mx-auto max-w-3xl text-center">
+            <BrandLogo
+              logoUrl={logoSrc || undefined}
+              appName={appName}
+              variant="hero"
+              className="mb-6 sm:mb-8"
+            />
             <span className="mb-5 inline-block rounded-full border border-violet-400/40 bg-violet-500/15 px-4 py-1.5 text-sm font-medium text-violet-200">
               {site.badge}
             </span>
@@ -77,9 +104,7 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.5 }}
+            {...cardsMotion}
             className="mx-auto mt-12 grid max-w-4xl gap-3 sm:grid-cols-3 sm:gap-4"
           >
             {[
@@ -111,29 +136,16 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
             organizzatori.
           </p>
         </motion.div>
-        <motion.div className="grid gap-6 md:grid-cols-3">
-          {site.features.map((f, i) => {
-            const Icon = featureIcons[i] ?? Mic2;
-            return (
-              <motion.div
-                key={`${f.title}-${i}`}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                viewport={{ once: true }}
-                className="public-card p-6"
-              >
-                <motion.div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/20 text-primary">
-                  <Icon className="h-6 w-6" />
-                </motion.div>
-                <h3 className="text-lg font-semibold text-white">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-400">
-                  {f.description}
-                </p>
-              </motion.div>
-            );
-          })}
-        </motion.div>
+        <div className="grid gap-6 md:grid-cols-3">
+          {site.features.map((f, i) => (
+            <ServiceFeatureCard
+              key={`${f.title}-${i}`}
+              title={f.title}
+              description={f.description}
+              index={i}
+            />
+          ))}
+        </div>
       </section>
 
       <section

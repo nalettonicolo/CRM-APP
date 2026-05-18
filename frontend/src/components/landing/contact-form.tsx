@@ -5,9 +5,11 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { publicApi } from "@/lib/api";
 import { CONTACT_SERVICE_OPTIONS } from "@/lib/labels";
+import { useFadeUp } from "@/lib/motion-presets";
 import { cn } from "@/lib/utils";
 
 export function ContactForm() {
+  const formMotion = useFadeUp(0, 10);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
@@ -63,8 +65,7 @@ export function ContactForm() {
 
   return (
     <motion.form
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      {...formMotion}
       onSubmit={handleSubmit}
       className="public-card space-y-5 rounded-2xl p-5 sm:p-6"
     >

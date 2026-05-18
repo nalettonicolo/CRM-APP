@@ -33,7 +33,7 @@ export function BrandLogo({
           "object-contain",
           variant === "nav" && "h-11 w-auto max-w-[180px]",
           variant === "hero" &&
-            "mx-auto h-auto w-full max-w-sm object-contain drop-shadow-md sm:max-w-md lg:max-w-lg",
+            "mx-auto h-auto w-[min(88vw,14rem)] max-w-none object-contain drop-shadow-md sm:w-full sm:max-w-md lg:max-w-xl",
           className
         )}
       />
