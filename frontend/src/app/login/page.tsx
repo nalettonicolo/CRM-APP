@@ -52,8 +52,11 @@ export default function LoginPage() {
       if (msg === "Failed to fetch" || msg.includes("NetworkError")) {
         const api =
           process.env.NEXT_PUBLIC_API_URL || "(NEXT_PUBLIC_API_URL non impostata)";
+        const tunnelHint = api.includes("trycloudflare.com")
+          ? " L'URL trycloudflare è scaduto: sul Mint esegui ./backend/scripts/fix-tunnel-1033.sh, poi allinea API_URL e NEXT_PUBLIC_API_URL al nuovo URL."
+          : "";
         setError(
-          `Impossibile contattare l'API (${api}). Da ovunque serve un backend in HTTPS: imposta la stessa URL su Netlify (variabili d'ambiente) e sul server, poi rifai il deploy.`
+          `Impossibile contattare l'API (${api}). Verifica che crm-api e crm-tunnel siano online sul server (pm2 list) e che Netlify usi lo stesso URL HTTPS.${tunnelHint}`
         );
       } else {
         setError(msg);
