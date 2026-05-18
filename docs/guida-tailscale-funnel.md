@@ -60,11 +60,22 @@ tailscale status
 
 ### 2.3 Abilita Funnel (prima volta)
 
+Sul Mint:
+
 ```bash
-tailscale funnel --yes 4100
+sudo tailscale set --operator=$USER
+sudo tailscale funnel --bg --yes 4100
 ```
 
-Se chiede approvazione nel browser, conferma. Poi `Ctrl+C` — useremo lo script con `--bg`.
+Se compare un link `https://login.tailscale.com/f/funnel?node=...`, **aprilo nel browser** (stesso account Tailscale) e approva, poi ripeti il comando.
+
+Verifica:
+
+```bash
+sudo tailscale funnel status
+```
+
+Deve mostrare `Available on the internet:` e un URL `https://....ts.net` (non `No serve config`).
 
 ---
 

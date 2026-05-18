@@ -54,22 +54,38 @@ if command -v pm2 >/dev/null 2>&1; then
   pm2 save 2>/dev/null || true
 fi
 
+echo "==> Permessi Funnel per utente $(whoami) (una tantum)"
+sudo tailscale set --operator="$(whoami)" 2>/dev/null || true
+
 echo "==> Avvio Tailscale Funnel (--bg → localhost:${PORT})"
-tailscale funnel reset 2>/dev/null || true
-if ! tailscale funnel --bg --yes "http://127.0.0.1:${PORT}" 2>/dev/null; then
-  echo "Primo avvio: potrebbe servire approvazione Funnel nel browser."
-  tailscale funnel --bg --yes "${PORT}" || tailscale funnel --bg "${PORT}"
+echo "    Se Funnel non è abilitato sul tailnet, apri il link che compare e riprova."
+sudo tailscale funnel reset 2>/dev/null || true
+FUNNEL_LOG=$(mktemp)
+if ! sudo tailscale funnel --bg --yes "${PORT}" 2>"$FUNNEL_LOG"; then
+  if grep -q 'login.tailscale.com/f/funnel' "$FUNNEL_LOG" 2>/dev/null; then
+    echo ""
+    echo "Apri nel browser (account nalettonicolo@github) e approva Funnel:"
+    grep -oE 'https://login\.tailscale\.com/f/funnel[^[:space:]]*' "$FUNNEL_LOG" | head -1
+    echo ""
+    echo "Poi riesegui: $0 $FRONTEND_URL"
+    rm -f "$FUNNEL_LOG"
+    exit 1
+  fi
+  cat "$FUNNEL_LOG" >&2
+  rm -f "$FUNNEL_LOG"
+  exit 1
 fi
+rm -f "$FUNNEL_LOG"
 sleep 3
 
 FUNNEL_URL=""
 if command -v jq >/dev/null 2>&1; then
-  FUNNEL_URL=$(tailscale funnel status --json 2>/dev/null | jq -r '
+  FUNNEL_URL=$(sudo tailscale funnel status --json 2>/dev/null | jq -r '
     .. | strings | select(test("^https://.*\\.ts\\.net$"))
   ' 2>/dev/null | head -1 || true)
 fi
 if [[ -z "$FUNNEL_URL" ]]; then
-  FUNNEL_URL=$(tailscale funnel status 2>/dev/null \
+  FUNNEL_URL=$(sudo tailscale funnel status 2>/dev/null \
     | grep -oE 'https://[a-zA-Z0-9][a-zA-Z0-9.-]*\.ts\.net' \
     | head -1 || true)
 fi
