@@ -1,6 +1,8 @@
 # Deploy produzione — Netlify + API su VPS + GitHub
 
-Guida Netlify passo-passo (monorepo, GitHub, variabili, troubleshooting): **[`netlify-guida-completa.md`](netlify-guida-completa.md)**.
+**Deploy autonomo (Mint + dominio, senza Netlify):** **[`guida-deploy-autonomo-mint-dominio.md`](guida-deploy-autonomo-mint-dominio.md)**.
+
+Guida Netlify (opzionale): **[`netlify-guida-completa.md`](netlify-guida-completa.md)**.
 
 ## 1. Repository GitHub
 

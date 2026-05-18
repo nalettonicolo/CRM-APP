@@ -1,6 +1,7 @@
 import { DEFAULT_APP_NAME, mergeSiteHome, publicAssetUrl } from "@/lib/branding";
+import { getServerApiBase } from "@/lib/server-api-url";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
+const API_URL = getServerApiBase();
 
 export type PublicSettings = Record<string, unknown>;
 

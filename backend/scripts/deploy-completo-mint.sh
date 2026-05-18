@@ -30,6 +30,14 @@ chmod +x "$BACKEND/scripts/"*.sh 2>/dev/null || true
 echo "==> API (upgrade-mint)"
 bash "$BACKEND/scripts/upgrade-mint.sh"
 
+if [[ -f "$CRM_ROOT/frontend/.env.production" ]] && [[ "${SKIP_FRONTEND:-0}" != "1" ]]; then
+  echo "==> Frontend (crm-web)"
+  bash "$BACKEND/scripts/deploy-frontend-mint.sh"
+else
+  echo "==> Frontend: saltato (manca frontend/.env.production o SKIP_FRONTEND=1)"
+  echo "    Deploy autonomo: vedi docs/guida-deploy-autonomo-mint-dominio.md"
+fi
+
 PORT=$(grep -E '^PORT=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2 | tr -d '\r' || echo "4100")
 
 echo "==> Tunnel Cloudflare"
@@ -81,10 +89,16 @@ fi
 
 echo ""
 pm2 list
+FRONTEND_URL=$(grep -E '^FRONTEND_URL=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2- | tr -d '\r' || true)
 echo ""
-echo "==> Netlify (obbligatorio se API_URL è cambiato)"
-echo "  NEXT_PUBLIC_API_URL=${API_URL:-<stesso valore di API_URL nel .env>}"
-echo "  Deploys → Clear cache and deploy site"
+if [[ -n "$FRONTEND_URL" ]] && [[ "$FRONTEND_URL" != *netlify.app* ]]; then
+  echo "==> Sito pubblico (autonomo): $FRONTEND_URL"
+  echo "  Tunnel: hostname → http://127.0.0.1:3000 (crm-web)"
+elif [[ -n "$API_URL" ]]; then
+  echo "==> Se usi ancora Netlify:"
+  echo "  NEXT_PUBLIC_API_URL=$API_URL"
+  echo "  Altrimenti: docs/guida-deploy-autonomo-mint-dominio.md"
+fi
 echo ""
 echo "==> Boot automatico (una volta)"
 echo "  pm2 startup   # poi esegui la riga sudo, poi: pm2 save"
