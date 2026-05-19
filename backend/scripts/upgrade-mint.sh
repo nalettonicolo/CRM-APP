@@ -17,12 +17,18 @@ if [[ ! -f "$BACKEND/.env" ]]; then
   exit 1
 fi
 
-# Password Gmail (16 caratteri con spazi) va tra virgolette, altrimenti source esegue "cnno" ecc. come comandi
-if grep -qE '^SMTP_PASS=[^"'\''[:space:]].*[[:space:]]' "$BACKEND/.env" 2>/dev/null; then
-  echo "Errore: SMTP_PASS in $BACKEND/.env ha spazi ma non è tra virgolette."
-  echo "  Esempio: SMTP_PASS=\"abcd efgh ijkl mnop\""
-  exit 1
-fi
+# Valori con spazi (SMTP_PASS, SMTP_FROM_NAME, …) devono essere tra virgolette
+while IFS= read -r line || [[ -n "$line" ]]; do
+  line="${line%%#*}"
+  line="${line%"${line##*[![:space:]]}"}"
+  [[ -z "$line" ]] && continue
+  if [[ "$line" =~ ^[A-Za-z_][A-Za-z0-9_]*=([^\"\']).*[[:space:]] ]]; then
+    echo "Errore: in $BACKEND/.env c'è un valore con spazi ma senza virgolette:"
+    echo "  $line"
+    echo "  Esempio: SMTP_FROM_NAME=\"Nicolò Service\""
+    exit 1
+  fi
+done < "$BACKEND/.env"
 
 # Prisma legge DATABASE_URL dall'ambiente — senza source .env fallisce con P1012
 set -a
@@ -34,6 +40,15 @@ if [[ -z "${DATABASE_URL:-}" ]]; then
   echo "Errore: DATABASE_URL vuoto in $BACKEND/.env"
   exit 1
 fi
+
+echo "==> Cartelle upload (logo, galleria, allegati)"
+UPLOAD_DIR_RESOLVED="${UPLOAD_DIR:-./uploads}"
+if [[ "$UPLOAD_DIR_RESOLVED" != /* ]]; then
+  UPLOAD_DIR_RESOLVED="$BACKEND/$UPLOAD_DIR_RESOLVED"
+fi
+UPLOAD_DIR_RESOLVED="$(cd "$(dirname "$UPLOAD_DIR_RESOLVED")" 2>/dev/null && pwd)/$(basename "$UPLOAD_DIR_RESOLVED")"
+mkdir -p "$UPLOAD_DIR_RESOLVED/branding" "$UPLOAD_DIR_RESOLVED/gallery" "$UPLOAD_DIR_RESOLVED/attachments"
+echo "    $UPLOAD_DIR_RESOLVED"
 
 echo "==> Install dipendenze (root monorepo — include @types per tsc)"
 NPM_CI_FLAGS=()
