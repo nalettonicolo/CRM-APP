@@ -26,6 +26,11 @@ export default function SettingsPage() {
     queryFn: settingsApi.get,
   });
 
+  const { data: smtpStatus } = useQuery({
+    queryKey: ["settings", "smtp-status"],
+    queryFn: settingsApi.smtpStatus,
+  });
+
   const [banner, setBanner] = useState("");
   const [appName, setAppName] = useState(DEFAULT_APP_NAME);
   const [tagline, setTagline] = useState("");
@@ -40,6 +45,10 @@ export default function SettingsPage() {
     email: "",
     phone: "",
     website: "",
+  });
+  const [quoteDefaults, setQuoteDefaults] = useState({
+    withholdingTaxPercent: "20",
+    stampDutyAmount: "2",
   });
   const [smtp, setSmtp] = useState({
     host: "smtp.gmail.com",
@@ -73,12 +82,21 @@ export default function SettingsPage() {
       phone: co.phone || "",
       website: co.website || "",
     });
+    const qd = (data.quote_defaults as Record<string, number>) || {};
+    setQuoteDefaults({
+      withholdingTaxPercent:
+        qd.withholdingTaxPercent != null
+          ? String(qd.withholdingTaxPercent)
+          : "20",
+      stampDutyAmount:
+        qd.stampDutyAmount != null ? String(qd.stampDutyAmount) : "2",
+    });
     const sm = (data.smtp as Record<string, string>) || {};
     setSmtp({
       host: sm.host || "smtp.gmail.com",
       port: sm.port || "587",
       user: sm.user || "",
-      pass: sm.pass || "",
+      pass: "",
       from: sm.from || sm.user || "",
       fromName: (sm.fromName as string) || "Nicolò Service",
       secure: String(sm.secure) === "true",
@@ -91,6 +109,7 @@ export default function SettingsPage() {
   const testSmtpMut = useMutation({
     mutationFn: () => settingsApi.testSmtp(testEmailTo),
     onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["settings", "smtp-status"] });
       setBanner(res.message || "Email di test inviata.");
       setTimeout(() => setBanner(""), 4000);
     },
@@ -145,9 +164,13 @@ export default function SettingsPage() {
   const saveMut = useMutation({
     mutationFn: ({ key, value }: { key: string; value: unknown }) =>
       settingsApi.update(key, value),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ["settings"] });
       qc.invalidateQueries({ queryKey: ["settings", "public"] });
+      qc.invalidateQueries({ queryKey: ["settings", "smtp-status"] });
+      if (vars.key === "smtp") {
+        setSmtp((s) => ({ ...s, pass: "" }));
+      }
       setBanner("Salvato.");
       setTimeout(() => setBanner(""), 2500);
     },
@@ -460,11 +483,80 @@ export default function SettingsPage() {
                 setCompany((c) => ({ ...c, website: e.target.value }))
               }
             />
+            <p className="text-xs text-muted-foreground">
+              L&apos;email azienda riceve le notifiche del form contatto sul sito.
+            </p>
             <Button
               disabled={saveMut.isPending}
               onClick={() => saveMut.mutate({ key: "company", value: company })}
             >
               Salva contatti
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Preventivi — valori predefiniti</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Ritenuta d&apos;acconto e marca da bollo applicati automaticamente ai
+              nuovi preventivi (modificabili per singolo documento). Non si
+              applicano a fatture o altri moduli.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Ritenuta d&apos;acconto %
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={quoteDefaults.withholdingTaxPercent}
+                  onChange={(e) =>
+                    setQuoteDefaults((q) => ({
+                      ...q,
+                      withholdingTaxPercent: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Marca da bollo (€)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={quoteDefaults.stampDutyAmount}
+                  onChange={(e) =>
+                    setQuoteDefaults((q) => ({
+                      ...q,
+                      stampDutyAmount: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <Button
+              disabled={saveMut.isPending}
+              onClick={() =>
+                saveMut.mutate({
+                  key: "quote_defaults",
+                  value: {
+                    withholdingTaxPercent:
+                      Number(quoteDefaults.withholdingTaxPercent) || 0,
+                    stampDutyAmount:
+                      Number(quoteDefaults.stampDutyAmount) || 0,
+                  },
+                })
+              }
+            >
+              Salva predefiniti preventivo
             </Button>
           </CardContent>
         </Card>
@@ -487,6 +579,20 @@ export default function SettingsPage() {
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
+            {smtpStatus && (
+              <p
+                className={cn(
+                  "rounded-lg px-3 py-2 text-sm",
+                  smtpStatus.configured
+                    ? "border border-green-500/40 bg-green-500/10 text-green-800"
+                    : "border border-amber-500/40 bg-amber-500/10 text-amber-900"
+                )}
+              >
+                {smtpStatus.configured
+                  ? `SMTP attivo (${smtpStatus.from || smtpStatus.user})`
+                  : "SMTP non configurato: le email dal sito e dal CRM non partono finché non salvi host, utente e password app."}
+              </p>
+            )}
             <Input
               placeholder="Host (smtp.gmail.com)"
               value={smtp.host}
@@ -510,7 +616,11 @@ export default function SettingsPage() {
             />
             <Input
               type="password"
-              placeholder="Password per le app Gmail"
+              placeholder={
+                smtpStatus?.hasPassword
+                  ? "Lascia vuoto per non modificare la password"
+                  : "Password per le app Gmail (16 caratteri)"
+              }
               value={smtp.pass}
               onChange={(e) => setSmtp((s) => ({ ...s, pass: e.target.value }))}
             />

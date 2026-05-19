@@ -18,6 +18,7 @@ import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 import { syncQuoteCalendarEvent } from "../services/quoteCalendar.js";
+import { getQuoteDefaults } from "../services/quoteDefaults.js";
 
 const quoteItemInputSchema = z.object({
   type: z.enum(["service", "product", "custom"]).default("custom"),
@@ -193,6 +194,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         category: z.string().optional(),
         validUntil: z.string().datetime().optional(),
         eventAt: z.string().datetime().optional(),
+        eventEndAt: z.string().datetime().optional(),
         notes: z.string().optional(),
         discountPercent: z.number().optional(),
         discountAmount: z.number().optional(),
@@ -214,6 +216,14 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
       }
     }
 
+    const defaults = await getQuoteDefaults();
+    const bodyWithTaxDefaults = {
+      ...body,
+      withholdingTaxPercent:
+        body.withholdingTaxPercent ?? defaults.withholdingTaxPercent,
+      stampDutyAmount: body.stampDutyAmount ?? defaults.stampDutyAmount,
+    };
+
     const totals = calculateQuoteTotals(
       items.map((i) => ({
         quantity: i.quantity,
@@ -221,7 +231,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         vatRate: i.vatRate,
         discount: i.discount,
       })),
-      calcOptions(body)
+      calcOptions(bodyWithTaxDefaults)
     );
 
     const number = await generateQuoteNumber();
@@ -238,13 +248,16 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         category: body.category,
         validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
         eventAt: body.eventAt ? new Date(body.eventAt) : undefined,
+        eventEndAt: body.eventEndAt ? new Date(body.eventEndAt) : undefined,
         notes: body.notes,
         discountPercent: toDecimal(body.discountPercent || 0),
         discountAmount: toDecimal(body.discountAmount || 0),
         depositPercent: toDecimal(totals.depositAmount > 0 && totals.total > 0
           ? (totals.depositAmount / totals.total) * 100
           : body.depositPercent || 0),
-        withholdingTaxPercent: toDecimal(body.withholdingTaxPercent || 0),
+        withholdingTaxPercent: toDecimal(
+          bodyWithTaxDefaults.withholdingTaxPercent || 0
+        ),
         ...decimalTaxFields(totals),
         items: {
           create: items.map((item, idx) => ({
@@ -445,6 +458,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
         category: z.string().optional().nullable(),
         validUntil: z.string().datetime().optional().nullable(),
         eventAt: z.string().datetime().optional().nullable(),
+        eventEndAt: z.string().datetime().optional().nullable(),
         notes: z.string().optional().nullable(),
         internalNotes: z.string().optional().nullable(),
         discountPercent: z.number().optional(),
@@ -542,6 +556,9 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           }),
           ...(body.eventAt !== undefined && {
             eventAt: body.eventAt ? new Date(body.eventAt) : null,
+          }),
+          ...(body.eventEndAt !== undefined && {
+            eventEndAt: body.eventEndAt ? new Date(body.eventEndAt) : null,
           }),
           ...(body.status !== undefined && { status: body.status }),
           ...(body.discountPercent !== undefined && {

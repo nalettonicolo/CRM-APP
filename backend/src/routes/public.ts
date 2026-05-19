@@ -17,8 +17,18 @@ router.post("/contact", async (req, res, next) => {
         company: z.string().optional(),
         message: z.string().min(10),
         services: z.array(z.string().min(1)).optional(),
+        eventDateFrom: z.string().optional(),
+        eventDateTo: z.string().optional(),
       })
       .parse(req.body);
+
+    const parseDay = (s?: string) => {
+      if (!s?.trim()) return undefined;
+      const d = new Date(`${s.trim()}T12:00:00`);
+      return Number.isNaN(d.getTime()) ? undefined : d;
+    };
+    const eventDateFrom = parseDay(data.eventDateFrom);
+    const eventDateTo = parseDay(data.eventDateTo);
 
     const lead = await prisma.lead.create({
       data: {
@@ -28,6 +38,8 @@ router.post("/contact", async (req, res, next) => {
         company: data.company,
         message: data.message,
         services: data.services ?? [],
+        eventDateFrom,
+        eventDateTo,
         source: "website",
       },
     });
@@ -44,6 +56,15 @@ router.post("/contact", async (req, res, next) => {
           `<p><strong>${data.name}</strong> (${data.email})</p>
            ${data.phone ? `<p>Tel: ${data.phone}</p>` : ""}
            <p>${data.company || ""}</p>
+           ${
+             eventDateFrom
+               ? `<p><strong>Date evento:</strong> ${eventDateFrom.toLocaleDateString("it-IT")}${
+                   eventDateTo
+                     ? ` → ${eventDateTo.toLocaleDateString("it-IT")}`
+                     : ""
+                 }</p>`
+               : ""
+           }
            ${data.services?.length ? `<p><strong>Servizi:</strong> ${data.services.join(", ")}</p>` : ""}
            <p>${data.message}</p>
            <p><a href="mailto:${data.email}">Rispondi al cliente</a></p>`,

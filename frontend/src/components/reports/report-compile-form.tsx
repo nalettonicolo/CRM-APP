@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { MapPin, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ReportPreviewStep } from "@/components/reports/report-preview-step";
+import { ReportSignStep } from "@/components/reports/report-sign-step";
 import {
   clientsApi,
   interventionsApi,
@@ -19,9 +21,10 @@ const textareaClass =
 
 type CheckItem = { label: string; checked: boolean };
 type MaterialRow = { name: string; quantity: string; unit: string };
+type Step = "form" | "preview" | "sign";
 
 export function ReportCompileForm({
-  reportId,
+  reportId: initialReportId,
   initial,
   interventionId: interventionIdProp,
 }: {
@@ -30,14 +33,22 @@ export function ReportCompileForm({
   interventionId?: string;
 }) {
   const router = useRouter();
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const drawing = useRef(false);
+  const [step, setStep] = useState<Step>("form");
+  const [savedReport, setSavedReport] = useState<ReportDetail | null>(initial ?? null);
+  const [activeReportId, setActiveReportId] = useState(initialReportId);
 
   const [clientId, setClientId] = useState(initial?.clientId || initial?.client?.id || "");
   const [description, setDescription] = useState(initial?.description || "");
   const [workHours, setWorkHours] = useState(
     initial?.workHours != null ? String(Number(initial.workHours)) : ""
   );
+  const [kmTraveled, setKmTraveled] = useState(
+    initial?.kmTraveled != null ? String(Number(initial.kmTraveled)) : ""
+  );
+  const [expensesAmount, setExpensesAmount] = useState(
+    initial?.expensesAmount != null ? String(Number(initial.expensesAmount)) : ""
+  );
+  const [expensesNotes, setExpensesNotes] = useState(initial?.expensesNotes || "");
   const [checklist, setChecklist] = useState<CheckItem[]>(
     (initial?.checklist as CheckItem[]) || [
       { label: "Impianto verificato", checked: false },
@@ -78,7 +89,7 @@ export function ReportCompileForm({
     } else if (interventionPrefill.title) {
       setDescription(`Intervento ${interventionPrefill.number}: ${interventionPrefill.title}`);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- prefill once when intervention loads
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interventionPrefill, initial]);
 
   const { data: clientsData } = useQuery({
@@ -86,58 +97,46 @@ export function ReportCompileForm({
     queryFn: () => clientsApi.list({ limit: "200" }),
   });
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    if (initial?.technicianSignature) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0);
-      img.src = initial.technicianSignature;
-    }
-  }, [initial?.technicianSignature]);
-
-  function getSignature(): string | undefined {
-    const canvas = canvasRef.current;
-    if (!canvas) return undefined;
-    return canvas.toDataURL("image/png");
+  function buildPayload(): ReportPayload {
+    return {
+      clientId,
+      interventionId: interventionId || undefined,
+      description,
+      workHours: workHours ? Number(workHours) : 0,
+      kmTraveled: kmTraveled ? Number(kmTraveled) : 0,
+      expensesAmount: expensesAmount ? Number(expensesAmount) : 0,
+      expensesNotes: expensesNotes.trim() || undefined,
+      checklist,
+      materials: materials
+        .filter((m) => m.name.trim())
+        .map((m) => ({
+          name: m.name,
+          quantity: Number(m.quantity) || 0,
+          unit: m.unit || "pz",
+        })),
+      latitude: coords?.lat,
+      longitude: coords?.lng,
+      status: "DRAFT",
+    };
   }
 
-  function clearSignature() {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  function setupCanvas(e: React.MouseEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    if (!drawing.current) {
-      drawing.current = true;
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-    }
-    ctx.lineWidth = 2;
-    ctx.lineCap = "round";
-    ctx.strokeStyle = "#111";
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  }
-
-  function stopDraw() {
-    drawing.current = false;
-  }
+  const saveMut = useMutation({
+    mutationFn: async () => {
+      if (!clientId) throw new Error("Seleziona un cliente.");
+      const payload = buildPayload();
+      if (activeReportId) {
+        return reportsApi.update(activeReportId, payload);
+      }
+      return reportsApi.createDraft(payload);
+    },
+    onSuccess: (data) => {
+      setSavedReport(data);
+      setActiveReportId(data.id);
+      setStep("preview");
+      setError("");
+    },
+    onError: (e: Error) => setError(e.message || "Salvataggio fallito."),
+  });
 
   function captureGeo() {
     if (!navigator.geolocation) {
@@ -153,48 +152,35 @@ export function ReportCompileForm({
     );
   }
 
-  function buildPayload(status?: string): ReportPayload {
-    return {
-      clientId,
-      interventionId: interventionId || undefined,
-      description,
-      workHours: workHours ? Number(workHours) : 0,
-      checklist,
-      materials: materials
-        .filter((m) => m.name.trim())
-        .map((m) => ({
-          name: m.name,
-          quantity: Number(m.quantity) || 0,
-          unit: m.unit || "pz",
-        })),
-      technicianSignature: getSignature(),
-      latitude: coords?.lat,
-      longitude: coords?.lng,
-      status,
-    };
+  if (step === "preview" && savedReport) {
+    return (
+      <ReportPreviewStep
+        report={savedReport}
+        onSign={() => setStep("sign")}
+        onSaveLater={() => router.push(`/reports/${savedReport.id}`)}
+        onEdit={() => setStep("form")}
+      />
+    );
   }
 
-  const saveMut = useMutation({
-    mutationFn: async (submit: boolean) => {
-      if (!clientId) throw new Error("Seleziona un cliente.");
-      const payload = buildPayload(submit ? "SUBMITTED" : "DRAFT");
-      if (reportId) {
-        return reportsApi.update(reportId, payload);
-      }
-      return reportsApi.createDraft(payload);
-    },
-    onSuccess: (data) => {
-      router.push(`/reports/${data.id}`);
-    },
-    onError: (e: Error) => setError(e.message || "Salvataggio fallito."),
-  });
+  if (step === "sign" && activeReportId) {
+    return (
+      <ReportSignStep
+        reportId={activeReportId}
+        initialTechnicianSignature={savedReport?.technicianSignature}
+        initialClientSignature={savedReport?.clientSignature}
+        onBack={() => setStep("preview")}
+        onDone={() => router.push(`/reports/${activeReportId}`)}
+      />
+    );
+  }
 
   return (
     <form
       className="mx-auto max-w-lg space-y-5 pb-24"
       onSubmit={(e) => {
         e.preventDefault();
-        saveMut.mutate(true);
+        saveMut.mutate();
       }}
     >
       {error && (
@@ -230,14 +216,48 @@ export function ReportCompileForm({
         />
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Ore lavoro</label>
+          <Input
+            type="number"
+            step="0.25"
+            min="0"
+            value={workHours}
+            onChange={(e) => setWorkHours(e.target.value)}
+            placeholder="es. 4"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Km percorsi</label>
+          <Input
+            type="number"
+            step="0.1"
+            min="0"
+            value={kmTraveled}
+            onChange={(e) => setKmTraveled(e.target.value)}
+            placeholder="es. 120"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Costi (€)</label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            value={expensesAmount}
+            onChange={(e) => setExpensesAmount(e.target.value)}
+            placeholder="es. 45"
+          />
+        </div>
+      </div>
+
       <div>
-        <label className="mb-1 block text-sm font-medium">Ore lavorate</label>
+        <label className="mb-1 block text-sm font-medium">Dettaglio costi</label>
         <Input
-          type="number"
-          step="0.25"
-          min="0"
-          value={workHours}
-          onChange={(e) => setWorkHours(e.target.value)}
+          value={expensesNotes}
+          onChange={(e) => setExpensesNotes(e.target.value)}
+          placeholder="Pedaggi, parcheggio, materiali…"
         />
       </div>
 
@@ -295,40 +315,6 @@ export function ReportCompileForm({
             </li>
           ))}
         </ul>
-      </div>
-
-      <div>
-        <label className="mb-1 block text-sm font-medium">Firma tecnico</label>
-        <canvas
-          ref={canvasRef}
-          width={320}
-          height={120}
-          className="w-full max-w-full touch-none rounded-lg border border-border bg-white"
-          onMouseDown={setupCanvas}
-          onMouseMove={(e) => drawing.current && setupCanvas(e)}
-          onMouseUp={stopDraw}
-          onMouseLeave={stopDraw}
-          onTouchStart={(e) => {
-            e.preventDefault();
-            const t = e.touches[0];
-            setupCanvas({
-              clientX: t.clientX,
-              clientY: t.clientY,
-            } as React.MouseEvent<HTMLCanvasElement>);
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault();
-            const t = e.touches[0];
-            setupCanvas({
-              clientX: t.clientX,
-              clientY: t.clientY,
-            } as React.MouseEvent<HTMLCanvasElement>);
-          }}
-          onTouchEnd={stopDraw}
-        />
-        <Button type="button" variant="ghost" size="sm" className="mt-1" onClick={clearSignature}>
-          Cancella firma
-        </Button>
       </div>
 
       <div>
@@ -405,16 +391,11 @@ export function ReportCompileForm({
 
       <div className="fixed bottom-0 left-0 right-0 z-20 flex gap-2 border-t border-border bg-background/95 p-4 backdrop-blur md:static md:border-0 md:bg-transparent md:p-0">
         <Button
-          type="button"
-          variant="outline"
-          className="flex-1"
+          type="submit"
+          className="w-full"
           disabled={saveMut.isPending}
-          onClick={() => saveMut.mutate(false)}
         >
-          Salva bozza
-        </Button>
-        <Button type="submit" className="flex-1" disabled={saveMut.isPending}>
-          {saveMut.isPending ? "Invio…" : "Invia report"}
+          {saveMut.isPending ? "Salvataggio…" : "Salva e anteprima"}
         </Button>
       </div>
     </form>

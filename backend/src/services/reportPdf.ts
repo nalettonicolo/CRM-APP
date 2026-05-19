@@ -108,6 +108,24 @@ export async function generateReportPdf(
     doc.fontSize(10).text(`${money(report.workHours)} h`);
     doc.moveDown();
 
+    const km = Number(report.kmTraveled ?? 0);
+    if (km > 0) {
+      doc.fontSize(11).text("Km percorsi", { underline: true });
+      doc.fontSize(10).text(`${money(km)} km`);
+      doc.moveDown();
+    }
+
+    const expenses = Number(report.expensesAmount ?? 0);
+    const expensesNotes = report.expensesNotes;
+    if (expenses > 0 || expensesNotes?.trim()) {
+      doc.fontSize(11).text("Costi sostenuti", { underline: true });
+      doc.fontSize(10).text(`€ ${money(expenses)}`);
+      if (expensesNotes?.trim()) {
+        doc.text(expensesNotes.trim());
+      }
+      doc.moveDown();
+    }
+
     if (report.description) {
       doc.fontSize(11).text("Descrizione lavori", { underline: true });
       doc.fontSize(10).text(report.description);

@@ -17,6 +17,13 @@ if [[ ! -f "$BACKEND/.env" ]]; then
   exit 1
 fi
 
+# Password Gmail (16 caratteri con spazi) va tra virgolette, altrimenti source esegue "cnno" ecc. come comandi
+if grep -qE '^SMTP_PASS=[^"'\''[:space:]].*[[:space:]]' "$BACKEND/.env" 2>/dev/null; then
+  echo "Errore: SMTP_PASS in $BACKEND/.env ha spazi ma non è tra virgolette."
+  echo "  Esempio: SMTP_PASS=\"abcd efgh ijkl mnop\""
+  exit 1
+fi
+
 # Prisma legge DATABASE_URL dall'ambiente — senza source .env fallisce con P1012
 set -a
 # shellcheck disable=SC1091

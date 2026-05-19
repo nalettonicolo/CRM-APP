@@ -63,6 +63,9 @@ const reportBodySchema = z.object({
   interventionId: z.string().optional(),
   description: z.string().optional(),
   workHours: z.number().optional(),
+  kmTraveled: z.number().min(0).optional(),
+  expensesAmount: z.number().min(0).optional(),
+  expensesNotes: z.string().optional(),
   checklist: z.any().optional(),
   materials: z
     .array(
@@ -85,6 +88,9 @@ const reportBodySchema = z.object({
 const reportPatchSchema = z.object({
   description: z.string().optional(),
   workHours: z.number().optional(),
+  kmTraveled: z.number().min(0).optional(),
+  expensesAmount: z.number().min(0).optional(),
+  expensesNotes: z.string().optional(),
   checklist: z.any().optional(),
   technicianSignature: z.string().optional(),
   clientSignature: z.string().optional(),
@@ -162,6 +168,9 @@ router.post(
           technicianId: req.user!.userId,
           description: data.description,
           workHours: data.workHours ?? 0,
+          kmTraveled: toDecimal(data.kmTraveled ?? 0),
+          expensesAmount: toDecimal(data.expensesAmount ?? 0),
+          expensesNotes: data.expensesNotes,
           checklist: data.checklist,
           technicianSignature: data.technicianSignature,
           clientSignature: data.clientSignature,
@@ -262,6 +271,13 @@ router.patch(
             description: data.description,
             workHours:
               data.workHours != null ? toDecimal(data.workHours) : undefined,
+            kmTraveled:
+              data.kmTraveled != null ? toDecimal(data.kmTraveled) : undefined,
+            expensesAmount:
+              data.expensesAmount != null
+                ? toDecimal(data.expensesAmount)
+                : undefined,
+            expensesNotes: data.expensesNotes,
             checklist: data.checklist,
             technicianSignature: data.technicianSignature,
             clientSignature: data.clientSignature,
@@ -383,6 +399,10 @@ router.post("/reports", requirePermission("reports", "CREATE"), async (req: Auth
         technicianId: req.user!.userId,
         description: data.description,
         workHours: data.workHours || 0,
+        kmTraveled: data.kmTraveled != null ? toDecimal(data.kmTraveled) : 0,
+        expensesAmount:
+          data.expensesAmount != null ? toDecimal(data.expensesAmount) : 0,
+        expensesNotes: data.expensesNotes,
         checklist: data.checklist,
         technicianSignature: data.technicianSignature,
         clientSignature: data.clientSignature,

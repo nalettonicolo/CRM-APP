@@ -204,6 +204,19 @@ export default function LeadsPage() {
                     <dd>{detail.company}</dd>
                   </div>
                 )}
+                {(detail.eventDateFrom || detail.eventDateTo) && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-muted-foreground">Date evento</dt>
+                    <dd className="font-medium">
+                      {detail.eventDateFrom
+                        ? formatDate(detail.eventDateFrom)
+                        : "—"}
+                      {detail.eventDateTo
+                        ? ` → ${formatDate(detail.eventDateTo)}`
+                        : ""}
+                    </dd>
+                  </div>
+                )}
               </dl>
 
               <div>

@@ -9,6 +9,7 @@ import { PriceInput } from "@/components/ui/price-input";
 import {
   clientsApi,
   inventoryApi,
+  settingsApi,
   type PaymentTermDraft,
   type Product,
   type Quote,
@@ -37,6 +38,7 @@ export type QuoteFormPayload = {
   notes?: string;
   validUntil?: string;
   eventAt?: string;
+  eventEndAt?: string;
   depositPercent?: number;
   depositAmount?: number;
   withholdingTaxPercent?: number;
@@ -80,6 +82,12 @@ export function QuoteForm({
     queryFn: inventoryApi.products,
   });
 
+  const { data: settingsData } = useQuery({
+    queryKey: ["settings", "quote-defaults"],
+    queryFn: settingsApi.get,
+    enabled: !initial,
+  });
+
   const [pickService, setPickService] = useState("");
   const [pickProduct, setPickProduct] = useState("");
 
@@ -88,6 +96,7 @@ export function QuoteForm({
   const [notes, setNotes] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [eventAt, setEventAt] = useState("");
+  const [eventEndAt, setEventEndAt] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermDraft[]>([]);
   const [withholdingTaxPercent, setWithholdingTaxPercent] = useState("");
   const [withholdingTaxAmount, setWithholdingTaxAmount] = useState("");
@@ -142,6 +151,9 @@ export function QuoteForm({
       if (initial.eventAt) {
         setEventAt(initial.eventAt.slice(0, 10));
       }
+      if (initial.eventEndAt) {
+        setEventEndAt(initial.eventEndAt.slice(0, 10));
+      }
       if (Number(initial.withholdingTaxPercent) > 0) {
         setWithholdingTaxPercent(String(Number(initial.withholdingTaxPercent)));
       }
@@ -167,6 +179,24 @@ export function QuoteForm({
       }
     }
   }, [initial]);
+
+  useEffect(() => {
+    if (initial || !settingsData) return;
+    const qd = settingsData.quote_defaults as
+      | { withholdingTaxPercent?: number; stampDutyAmount?: number }
+      | undefined;
+    if (!qd) return;
+    if (Number(qd.withholdingTaxPercent) > 0) {
+      setWithholdingTaxPercent((prev) =>
+        prev ? prev : String(Number(qd.withholdingTaxPercent))
+      );
+    }
+    if (Number(qd.stampDutyAmount) > 0) {
+      setStampDutyAmount((prev) =>
+        prev ? prev : String(Number(qd.stampDutyAmount))
+      );
+    }
+  }, [settingsData, initial]);
 
   function updateItem(index: number, patch: Partial<QuoteItemDraft>) {
     setItems((rows) =>
@@ -235,6 +265,9 @@ export function QuoteForm({
       eventAt: eventAt
         ? new Date(`${eventAt}T10:00:00`).toISOString()
         : undefined,
+      eventEndAt: eventEndAt
+        ? new Date(`${eventEndAt}T18:00:00`).toISOString()
+        : undefined,
       paymentTerms: paymentTerms
         .filter((t) => t.label.trim())
         .map((t) => ({
@@ -257,7 +290,7 @@ export function QuoteForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <div className="sm:col-span-2 lg:col-span-1">
           <label className="mb-1 block text-sm font-medium">Cliente *</label>
           <select
@@ -290,14 +323,23 @@ export function QuoteForm({
           />
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Data evento</label>
+          <label className="mb-1 block text-sm font-medium">Evento da</label>
           <Input
             type="date"
             value={eventAt}
             onChange={(e) => setEventAt(e.target.value)}
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Evento a</label>
+          <Input
+            type="date"
+            value={eventEndAt}
+            min={eventAt || undefined}
+            onChange={(e) => setEventEndAt(e.target.value)}
+          />
           <p className="mt-1 text-xs text-muted-foreground">
-            Alla conferma del preventivo viene creato un evento in calendario (ore 10:00).
+            Calendario: inizio 10:00, fine 18:00 (ultimo giorno se indicato).
           </p>
         </div>
       </div>

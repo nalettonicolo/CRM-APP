@@ -47,6 +47,7 @@ export async function getSmtpConfig(): Promise<SmtpConfig> {
 
   const pass = normalizeSmtpSecret(db.pass || config.smtp.pass);
   const user = (db.user || config.smtp.user || "").trim();
+  const from = (db.from || config.smtp.from || user || "").trim();
 
   return {
     host: (db.host || config.smtp.host || "").trim(),
@@ -54,11 +55,11 @@ export async function getSmtpConfig(): Promise<SmtpConfig> {
     secure: db.secure ?? config.smtp.secure,
     user,
     pass,
-    from: (db.from || config.smtp.from || "").trim(),
+    from,
     fromName: (db.fromName || config.smtp.fromName || "CRM Gestionale").trim(),
   };
 }
 
 export function isSmtpConfigured(smtp: SmtpConfig): boolean {
-  return Boolean(smtp.host && smtp.user && smtp.pass && smtp.from);
+  return Boolean(smtp.host && smtp.user && smtp.pass && (smtp.from || smtp.user));
 }

@@ -10,6 +10,17 @@ function defaultEventStart(quote: {
   return base;
 }
 
+function defaultEventEnd(
+  quote: { eventEndAt: Date | null },
+  startAt: Date
+): Date {
+  if (quote.eventEndAt) {
+    const end = new Date(quote.eventEndAt);
+    if (end >= startAt) return end;
+  }
+  return new Date(startAt.getTime() + 2 * 60 * 60 * 1000);
+}
+
 /** Crea o aggiorna un evento calendario collegato a un preventivo accettato. */
 export async function syncQuoteCalendarEvent(quoteId: string) {
   const quote = await prisma.quote.findUnique({
@@ -22,13 +33,14 @@ export async function syncQuoteCalendarEvent(quoteId: string) {
       clientId: true,
       total: true,
       eventAt: true,
+      eventEndAt: true,
       acceptedAt: true,
     },
   });
   if (!quote || quote.status !== "ACCEPTED") return null;
 
   const startAt = defaultEventStart(quote);
-  const endAt = new Date(startAt.getTime() + 2 * 60 * 60 * 1000);
+  const endAt = defaultEventEnd(quote, startAt);
   const title = quote.title?.trim()
     ? `Evento: ${quote.title.trim()}`
     : `Preventivo ${quote.number}`;

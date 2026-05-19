@@ -292,15 +292,17 @@ model ClientAccount {
 }
 
 model Lead {
-  id          String   @id @default(cuid())
-  clientId    String?
-  client      Client?  @relation(fields: [clientId], references: [id])
-  name        String
-  email       String
-  phone       String?
-  company     String?
-  message     String?  @db.Text
-  services    String[] @default([])
+  id            String    @id @default(cuid())
+  clientId      String?
+  client        Client?   @relation(fields: [clientId], references: [id])
+  name          String
+  email         String
+  phone         String?
+  company       String?
+  message       String?   @db.Text
+  eventDateFrom DateTime?
+  eventDateTo     DateTime?
+  services      String[] @default([])
   source      String?  @default("website")
   status      String   @default("new")
   assignedTo  String?
@@ -405,6 +407,7 @@ model Quote {
   sentAt          DateTime?
   acceptedAt      DateTime?
   eventAt         DateTime?
+  eventEndAt      DateTime?
   items           QuoteItem[]
   calendarEvents  Event[]
   paymentTerms    QuotePaymentTerm[]
@@ -556,6 +559,9 @@ model InterventionReport {
   status          ReportStatus @default(DRAFT)
   description     String?      @db.Text
   workHours       Decimal      @default(0) @db.Decimal(6, 2)
+  kmTraveled      Decimal      @default(0) @db.Decimal(10, 2)
+  expensesAmount  Decimal      @default(0) @db.Decimal(12, 2)
+  expensesNotes   String?      @db.Text
   checklist       Json?
   technicianSignature String?
   clientSignature String?

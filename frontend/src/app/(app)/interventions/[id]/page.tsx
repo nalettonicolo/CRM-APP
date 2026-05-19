@@ -106,6 +106,10 @@ export default function InterventionDetailPage() {
             )}
 
             <DetailSection title="Report">
+              <p className="mb-3 text-sm text-muted-foreground">
+                Compila il verbale, salva l&apos;anteprima, poi firma o lascia in
+                bozza per dopo.
+              </p>
               <Button asChild size="sm" className="mb-4">
                 <Link href={`/reports/new?interventionId=${id}`}>
                   <FilePlus className="h-4 w-4" /> Crea report da intervento

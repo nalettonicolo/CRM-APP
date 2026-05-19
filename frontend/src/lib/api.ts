@@ -241,6 +241,7 @@ export interface Quote {
   rejectedAt?: string;
   validUntil?: string;
   eventAt?: string;
+  eventEndAt?: string;
   notes?: string;
   internalNotes?: string;
   category?: string;
@@ -489,9 +490,13 @@ export interface ReportPayload {
   interventionId?: string;
   description?: string;
   workHours?: number;
+  kmTraveled?: number;
+  expensesAmount?: number;
+  expensesNotes?: string;
   checklist?: { label: string; checked: boolean }[];
   materials?: { name: string; quantity: number; unit?: string; productId?: string }[];
   technicianSignature?: string;
+  clientSignature?: string;
   latitude?: number;
   longitude?: number;
   status?: string;
@@ -531,6 +536,10 @@ export interface Report {
 export interface ReportDetail extends Report {
   clientId?: string;
   description?: string;
+  kmTraveled?: number | string;
+  expensesAmount?: number | string;
+  expensesNotes?: string;
+  clientSignature?: string | null;
   checklist?: { label: string; checked: boolean }[];
   technicianSignature?: string;
   latitude?: number | string;
@@ -548,14 +557,18 @@ export interface ReportDetail extends Report {
   }[];
 }
 
-export async function downloadReportPdf(id: string, filename: string) {
+export async function fetchReportPdfBlob(id: string): Promise<Blob> {
   const token = getToken();
   const res = await fetch(`${API_URL}/api/interventions/reports/${id}/pdf`, {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     credentials: "include",
   });
-  if (!res.ok) throw new ApiError(res.status, "Download PDF fallito");
-  const blob = await res.blob();
+  if (!res.ok) throw new ApiError(res.status, "Anteprima PDF non disponibile");
+  return res.blob();
+}
+
+export async function downloadReportPdf(id: string, filename: string) {
+  const blob = await fetchReportPdfBlob(id);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -870,6 +883,14 @@ export const settingsApi = {
       "/settings/smtp/test",
       { method: "POST", body: JSON.stringify({ to }) }
     ),
+  smtpStatus: () =>
+    api<{
+      configured: boolean;
+      host: string | null;
+      user: string | null;
+      from: string | null;
+      hasPassword: boolean;
+    }>("/settings/smtp/status"),
 };
 
 export async function uploadBrandingAsset(file: File, kind: "logo" | "favicon") {
@@ -959,6 +980,8 @@ export interface LeadItem {
   company?: string;
   message?: string;
   services?: string[];
+  eventDateFrom?: string;
+  eventDateTo?: string;
   source?: string;
   status: string;
   createdAt: string;
@@ -1038,6 +1061,8 @@ export const publicApi = {
     company?: string;
     message: string;
     services?: string[];
+    eventDateFrom?: string;
+    eventDateTo?: string;
   }) =>
     fetch(`${API_URL}/api/public/contact`, {
       method: "POST",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Download, Mail, Pencil } from "lucide-react";
@@ -12,6 +12,8 @@ import {
   DetailField,
   DetailSection,
 } from "@/components/detail/detail-shell";
+import { ReportPreviewStep } from "@/components/reports/report-preview-step";
+import { ReportSignStep } from "@/components/reports/report-sign-step";
 import { downloadReportPdf, reportsApi } from "@/lib/api";
 import { reportStatusLabels } from "@/lib/labels";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
@@ -27,8 +29,10 @@ const statusColors: Record<string, string> = {
 export default function ReportDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
   const qc = useQueryClient();
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [draftView, setDraftView] = useState<"detail" | "preview" | "sign">("detail");
 
   const sendEmail = useMutation({
     mutationFn: () => reportsApi.sendEmail(id),
@@ -50,8 +54,45 @@ export default function ReportDetailPage() {
           <p className="text-muted-foreground">Caricamento...</p>
         ) : isError || !data ? (
           <p className="text-destructive">{DOCUMENT_COPY.report.notFound}</p>
+        ) : draftView === "preview" ? (
+          <div className="max-w-3xl space-y-4">
+            <ReportPreviewStep
+              report={data}
+              onSign={() => setDraftView("sign")}
+              onSaveLater={() => setDraftView("detail")}
+              onEdit={() => router.push(`/reports/${id}/edit`)}
+            />
+          </div>
+        ) : draftView === "sign" ? (
+          <div className="max-w-lg">
+            <ReportSignStep
+              reportId={id}
+              initialTechnicianSignature={data.technicianSignature}
+              initialClientSignature={data.clientSignature}
+              onBack={() => setDraftView("preview")}
+              onDone={() => {
+                qc.invalidateQueries({ queryKey: ["report", id] });
+                setDraftView("detail");
+              }}
+            />
+          </div>
         ) : (
           <div className="space-y-6">
+            {data.status === "DRAFT" && (
+              <div className="flex flex-wrap gap-2 rounded-xl border border-primary/30 bg-primary/5 p-4">
+                <p className="w-full text-sm text-muted-foreground">
+                  Bozza salvata: visualizza l&apos;anteprima prima di firmare e inviare.
+                </p>
+                <Button size="sm" onClick={() => setDraftView("preview")}>
+                  Anteprima e firma
+                </Button>
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/reports/${id}/edit`}>
+                    <Pencil className="h-4 w-4" /> Modifica dati
+                  </Link>
+                </Button>
+              </div>
+            )}
             <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
               <div className="flex items-start gap-4">
                 <div className="rounded-xl bg-primary/10 p-3">
@@ -128,6 +169,22 @@ export default function ReportDetailPage() {
             <DetailSection title="Riepilogo">
               <div className="grid gap-4 sm:grid-cols-2">
                 <DetailField label="Ore lavorate" value={`${Number(data.workHours)} h`} />
+                {Number(data.kmTraveled) > 0 && (
+                  <DetailField
+                    label="Km percorsi"
+                    value={`${Number(data.kmTraveled)} km`}
+                  />
+                )}
+                {(Number(data.expensesAmount) > 0 || data.expensesNotes) && (
+                  <DetailField
+                    label="Costi sostenuti"
+                    value={
+                      Number(data.expensesAmount) > 0
+                        ? `€ ${Number(data.expensesAmount).toFixed(2)}`
+                        : data.expensesNotes || "—"
+                    }
+                  />
+                )}
                 <DetailField
                   label="Creato"
                   value={data.createdAt ? formatDate(data.createdAt) : undefined}

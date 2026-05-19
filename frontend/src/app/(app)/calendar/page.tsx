@@ -22,7 +22,8 @@ export default function CalendarPage() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [type, setType] = useState("APPOINTMENT");
-  const [startAt, setStartAt] = useState("");
+  const [eventFrom, setEventFrom] = useState("");
+  const [eventTo, setEventTo] = useState("");
   const qc = useQueryClient();
 
   const upcomingFrom = useMemo(() => new Date().toISOString(), []);
@@ -42,17 +43,23 @@ export default function CalendarPage() {
   });
 
   const createMut = useMutation({
-    mutationFn: () =>
-      eventsApi.create({
+    mutationFn: () => {
+      const start = new Date(`${eventFrom}T10:00:00`);
+      const endDay = eventTo || eventFrom;
+      const end = new Date(`${endDay}T18:00:00`);
+      return eventsApi.create({
         title,
         type,
-        startAt: new Date(startAt).toISOString(),
-      }),
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+      });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["events"] });
       setOpen(false);
       setTitle("");
-      setStartAt("");
+      setEventFrom("");
+      setEventTo("");
     },
   });
 
@@ -110,18 +117,33 @@ export default function CalendarPage() {
               <option value="REMINDER">Promemoria</option>
               <option value="OTHER">Altro</option>
             </select>
-            <Input
-              type="datetime-local"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-            />
+            <div>
+              <label className="mb-1 block text-sm font-medium">Data evento (da)</label>
+              <Input
+                type="date"
+                value={eventFrom}
+                onChange={(e) => setEventFrom(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Data evento (a)</label>
+              <Input
+                type="date"
+                value={eventTo}
+                min={eventFrom || undefined}
+                onChange={(e) => setEventTo(e.target.value)}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Orario predefinito: inizio 10:00, fine 18:00 (ultimo giorno).
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Annulla
             </Button>
             <Button
-              disabled={!title || !startAt || createMut.isPending}
+              disabled={!title || !eventFrom || createMut.isPending}
               onClick={() => createMut.mutate()}
             >
               Crea

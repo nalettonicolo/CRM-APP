@@ -35,6 +35,8 @@ export function ContactForm() {
         phone: (fd.get("phone") as string) || undefined,
         company: (fd.get("company") as string) || undefined,
         message: fd.get("message") as string,
+        eventDateFrom: (fd.get("eventDateFrom") as string) || undefined,
+        eventDateTo: (fd.get("eventDateTo") as string) || undefined,
         services: services.length > 0 ? services : undefined,
       });
       setDone(true);
@@ -148,6 +150,31 @@ export function ContactForm() {
               </button>
             );
           })}
+        </motion.div>
+      </motion.div>
+
+      <motion.div className="space-y-5 md:grid md:grid-cols-2 md:gap-5 md:space-y-0">
+        <motion.div>
+          <label htmlFor="contact-event-from" className="public-label">
+            Data evento (da)
+          </label>
+          <input
+            id="contact-event-from"
+            name="eventDateFrom"
+            type="date"
+            className="public-input"
+          />
+        </motion.div>
+        <motion.div>
+          <label htmlFor="contact-event-to" className="public-label">
+            Data evento (a)
+          </label>
+          <input
+            id="contact-event-to"
+            name="eventDateTo"
+            type="date"
+            className="public-input"
+          />
         </motion.div>
       </motion.div>
 

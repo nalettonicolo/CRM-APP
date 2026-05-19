@@ -38,6 +38,7 @@ export default function NewQuotePage() {
                     notes: data.notes,
                     validUntil: data.validUntil,
                     eventAt: data.eventAt,
+                    eventEndAt: data.eventEndAt,
                     withholdingTaxPercent: data.withholdingTaxPercent,
                     withholdingTaxAmount: data.withholdingTaxAmount,
                     stampDutyAmount: data.stampDutyAmount,
