@@ -95,22 +95,12 @@ export function mergeSiteHome(raw: unknown): SiteHomeSettings {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
+/** URL assoluto per logo, galleria, allegati (Netlify → API su Mint/Tailscale). */
 export function publicAssetUrl(pathOrUrl: string | undefined | null): string {
   if (!pathOrUrl?.trim()) return "";
   const s = pathOrUrl.trim();
-  if (/^https?:\/\//i.test(s)) {
-    try {
-      const u = new URL(s);
-      if (u.pathname.startsWith("/uploads/")) {
-        return u.pathname;
-      }
-    } catch {
-      /* ignore */
-    }
-    return s;
-  }
-  if (s.startsWith("/uploads/")) return s;
+  if (/^https?:\/\//i.test(s)) return s;
   const base = API_URL.replace(/\/$/, "");
-  if (!base) return s.startsWith("/") ? s : `/${s}`;
-  return `${base}${s.startsWith("/") ? s : `/${s}`}`;
+  const path = s.startsWith("/") ? s : `/${s}`;
+  return base ? `${base}${path}` : path;
 }

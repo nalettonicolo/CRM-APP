@@ -1,18 +1,15 @@
 import type { NextConfig } from "next";
 
-/** Target rete locale per proxy Next → Express (deploy autonomo su Mint). */
+/**
+ * Proxy Next → API: su Mint usa API_INTERNAL_URL (127.0.0.1:4100).
+ * Su Netlify usa NEXT_PUBLIC_API_URL (Tailscale / dominio pubblico).
+ */
 function apiRewriteBase(): string {
   const internal = process.env.API_INTERNAL_URL?.trim();
   if (internal) return internal.replace(/\/$/, "");
-  const pub = process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000";
-  const base = pub.replace(/\/$/, "");
-  try {
-    const u = new URL(base);
-    if (u.hostname === "localhost" || u.hostname === "127.0.0.1") return base;
-    return "http://127.0.0.1:4100";
-  } catch {
-    return "http://127.0.0.1:4100";
-  }
+  return (
+    process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000"
+  ).replace(/\/$/, "");
 }
 
 const nextConfig: NextConfig = {
