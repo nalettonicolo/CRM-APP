@@ -20,6 +20,7 @@ import {
   SERVICE_UNIT_OPTIONS,
   serviceUnitLabel,
 } from "@/lib/labels";
+import { dateInputToIso, toDateInputValue } from "@/lib/utils";
 
 export type QuoteItemDraft = {
   type: "custom" | "service" | "product";
@@ -39,6 +40,7 @@ export type QuoteFormPayload = {
   validUntil?: string;
   eventAt?: string;
   eventEndAt?: string;
+  eventLocation?: string;
   depositPercent?: number;
   depositAmount?: number;
   withholdingTaxPercent?: number;
@@ -97,6 +99,7 @@ export function QuoteForm({
   const [validUntil, setValidUntil] = useState("");
   const [eventAt, setEventAt] = useState("");
   const [eventEndAt, setEventEndAt] = useState("");
+  const [eventLocation, setEventLocation] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermDraft[]>([]);
   const [withholdingTaxPercent, setWithholdingTaxPercent] = useState("");
   const [withholdingTaxAmount, setWithholdingTaxAmount] = useState("");
@@ -122,6 +125,7 @@ export function QuoteForm({
                 ? Number(t.amount)
                 : undefined,
             isBalance: t.isBalance,
+            dueDate: t.dueDate || undefined,
           }))
         );
       } else if (Number(initial.depositAmount) > 0) {
@@ -145,15 +149,14 @@ export function QuoteForm({
       } else {
         setPaymentTerms([]);
       }
-      if (initial.validUntil) {
-        setValidUntil(initial.validUntil.slice(0, 10));
-      }
-      if (initial.eventAt) {
-        setEventAt(initial.eventAt.slice(0, 10));
-      }
-      if (initial.eventEndAt) {
-        setEventEndAt(initial.eventEndAt.slice(0, 10));
-      }
+      setValidUntil(
+        initial.validUntil ? toDateInputValue(initial.validUntil) : ""
+      );
+      setEventAt(initial.eventAt ? toDateInputValue(initial.eventAt) : "");
+      setEventEndAt(
+        initial.eventEndAt ? toDateInputValue(initial.eventEndAt) : ""
+      );
+      setEventLocation(initial.eventLocation || "");
       if (Number(initial.withholdingTaxPercent) > 0) {
         setWithholdingTaxPercent(String(Number(initial.withholdingTaxPercent)));
       }
@@ -259,15 +262,10 @@ export function QuoteForm({
       clientId,
       title,
       notes: notes || undefined,
-      validUntil: validUntil
-        ? new Date(`${validUntil}T12:00:00`).toISOString()
-        : undefined,
-      eventAt: eventAt
-        ? new Date(`${eventAt}T10:00:00`).toISOString()
-        : undefined,
-      eventEndAt: eventEndAt
-        ? new Date(`${eventEndAt}T18:00:00`).toISOString()
-        : undefined,
+      validUntil: validUntil ? dateInputToIso(validUntil, 12) : undefined,
+      eventAt: eventAt ? dateInputToIso(eventAt, 10) : undefined,
+      eventEndAt: eventEndAt ? dateInputToIso(eventEndAt, 18) : undefined,
+      eventLocation: eventLocation.trim() || undefined,
       paymentTerms: paymentTerms
         .filter((t) => t.label.trim())
         .map((t) => ({
@@ -276,6 +274,7 @@ export function QuoteForm({
           percent: t.isBalance ? undefined : t.percent,
           amount: t.isBalance ? undefined : t.amount,
           isBalance: t.isBalance === true,
+          dueDate: t.dueDate,
         })),
       withholdingTaxPercent: withholdingTaxPercent
         ? Number(withholdingTaxPercent)
@@ -310,37 +309,71 @@ export function QuoteForm({
             ))}
           </select>
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Titolo</label>
-          <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+        <div className="sm:col-span-2 lg:col-span-2">
+          <label className="mb-1 block text-sm font-medium">
+            Oggetto del preventivo
+          </label>
+          <Input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="es. Servizio fonico — primo spettacolo"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Breve descrizione del servizio (senza date né luogo).
+          </p>
         </div>
         <div>
-          <label className="mb-1 block text-sm font-medium">Valido fino al</label>
+          <label className="mb-1 block text-sm font-medium">
+            Offerta valida fino al
+          </label>
           <Input
             type="date"
             value={validUntil}
             onChange={(e) => setValidUntil(e.target.value)}
           />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Evento da</label>
-          <Input
-            type="date"
-            value={eventAt}
-            onChange={(e) => setEventAt(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium">Evento a</label>
-          <Input
-            type="date"
-            value={eventEndAt}
-            min={eventAt || undefined}
-            onChange={(e) => setEventEndAt(e.target.value)}
-          />
           <p className="mt-1 text-xs text-muted-foreground">
-            Calendario: inizio 10:00, fine 18:00 (ultimo giorno se indicato).
+            Scadenza accettazione del preventivo.
           </p>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-muted/20 p-4">
+        <p className="mb-3 text-sm font-medium text-foreground">
+          Date e luogo del servizio
+        </p>
+        <div className="mb-4">
+          <label className="mb-1 block text-sm font-medium">Luogo</label>
+          <Input
+            value={eventLocation}
+            onChange={(e) => setEventLocation(e.target.value)}
+            placeholder="es. Teatro Comunale, Via Roma 1 — Milano"
+          />
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Primo giorno di servizio
+            </label>
+            <Input
+              type="date"
+              value={eventAt}
+              onChange={(e) => setEventAt(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">
+              Ultimo giorno (se diverso)
+            </label>
+            <Input
+              type="date"
+              value={eventEndAt}
+              min={eventAt || undefined}
+              onChange={(e) => setEventEndAt(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-muted-foreground">
+              Lascia vuoto se un solo giorno. In calendario: 10:00–18:00.
+            </p>
+          </div>
         </div>
       </div>
 

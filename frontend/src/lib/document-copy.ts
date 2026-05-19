@@ -40,6 +40,15 @@ export const DOCUMENT_COPY = {
     notFound: "Documento non trovato.",
     fromQuotePrefix: "Da preventivo",
     generateFromQuote: "Genera documento di cortesia",
+    createButton: "Nuovo documento",
+    createDialogTitle: "Nuovo documento di cortesia",
+    createDialogHint:
+      "Scegli un preventivo già accettato. Importi e cliente vengono copiati dal preventivo.",
+    createEmpty:
+      "Nessun preventivo accettato disponibile (oppure esiste già un documento per tutti i preventivi accettati).",
+    createSubmit: "Crea documento",
+    listEmpty:
+      "Nessun documento. Crea da un preventivo accettato con il pulsante sopra.",
   },
   portal: {
     quoteSignTitle: "Firma del preventivo",

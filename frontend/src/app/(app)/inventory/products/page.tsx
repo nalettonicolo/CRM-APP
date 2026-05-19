@@ -65,9 +65,16 @@ export default function ProductsPage() {
     },
   });
 
+  const [deleteError, setDeleteError] = useState("");
+
   const deleteMut = useMutation({
     mutationFn: (id: string) => inventoryApi.deleteProduct(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => {
+      setDeleteError("");
+      qc.invalidateQueries({ queryKey: ["products"] });
+    },
+    onError: (e: Error) =>
+      setDeleteError(e.message || "Impossibile eliminare il prodotto."),
   });
 
   return (
@@ -82,6 +89,11 @@ export default function ProductsPage() {
             Catalogo servizi →
           </Link>
         </div>
+        {deleteError && (
+          <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">
+            {deleteError}
+          </p>
+        )}
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Catalogo prodotti</CardTitle>

@@ -19,6 +19,7 @@ const itemSchema = z.object({
   percent: z.number().min(0).max(100).optional().nullable(),
   amount: z.number().min(0).optional().nullable(),
   isBalance: z.boolean().optional(),
+  dueDate: z.string().datetime().optional().nullable(),
 });
 
 const templateSchema = z.object({

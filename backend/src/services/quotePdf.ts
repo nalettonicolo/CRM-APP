@@ -42,19 +42,12 @@ export async function generateQuotePdf(
     doc.on("error", reject);
 
     const subtitleRight = [
-      `Data: ${quote.createdAt.toLocaleDateString("it-IT")}`,
+      `Emesso il: ${quote.createdAt.toLocaleDateString("it-IT")}`,
     ];
-    if (quote.validUntil) {
-      subtitleRight.push(
-        `Valido fino al: ${quote.validUntil.toLocaleDateString("it-IT")}`
-      );
-    }
 
     drawPdfLetterhead(doc, companyInfo, logoPath, {
       titleRight: `Preventivo ${quote.number}`,
-      subtitleRight: quote.title
-        ? [quote.title, ...subtitleRight]
-        : subtitleRight,
+      subtitleRight,
     });
 
     const clientName =
@@ -77,6 +70,29 @@ export async function generateQuotePdf(
     }
     if (quote.client.email) doc.text(quote.client.email);
     if (quote.client.phone) doc.text(quote.client.phone);
+    doc.moveDown();
+
+    doc.fontSize(11).text("Riferimenti preventivo", { underline: true });
+    doc.fontSize(10);
+    if (quote.title?.trim()) {
+      doc.text(`Oggetto: ${quote.title.trim()}`);
+    }
+    const loc = (quote as Quote & { eventLocation?: string | null })
+      .eventLocation?.trim();
+    if (loc) doc.text(`Luogo: ${loc}`);
+    if (quote.eventAt) {
+      const end = quote.eventEndAt ?? quote.eventAt;
+      const sameDay = quote.eventAt.toDateString() === end.toDateString();
+      const period = sameDay
+        ? quote.eventAt.toLocaleDateString("it-IT")
+        : `${quote.eventAt.toLocaleDateString("it-IT")} – ${end.toLocaleDateString("it-IT")}`;
+      doc.text(`Periodo di servizio: ${period}`);
+    }
+    if (quote.validUntil) {
+      doc.text(
+        `Offerta valida fino al: ${quote.validUntil.toLocaleDateString("it-IT")}`
+      );
+    }
     doc.moveDown();
 
     const tableTop = doc.y;

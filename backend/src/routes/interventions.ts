@@ -38,11 +38,52 @@ function reportAccessWhere(req: AuthRequest, id?: string) {
   return where;
 }
 
+const reportQuoteInclude = {
+  select: {
+    id: true,
+    number: true,
+    title: true,
+    status: true,
+    total: true,
+    eventAt: true,
+    eventEndAt: true,
+    validUntil: true,
+    items: {
+      orderBy: { sortOrder: "asc" as const },
+      select: {
+        description: true,
+        quantity: true,
+        unit: true,
+        unitPrice: true,
+        total: true,
+      },
+    },
+  },
+};
+
+async function assertQuoteForClient(
+  quoteId: string | undefined | null,
+  clientId: string
+) {
+  if (!quoteId) return;
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    select: { clientId: true },
+  });
+  if (!quote) throw new ValidationError("Preventivo non trovato");
+  if (quote.clientId !== clientId) {
+    throw new ValidationError(
+      "Il preventivo non appartiene al cliente selezionato"
+    );
+  }
+}
+
 async function loadReportForAction(req: AuthRequest, id: string) {
   const report = await prisma.interventionReport.findFirst({
     where: reportAccessWhere(req, id),
     include: {
       client: true,
+      quote: reportQuoteInclude,
       technician: {
         select: {
           firstName: true,
@@ -60,6 +101,7 @@ async function loadReportForAction(req: AuthRequest, id: string) {
 
 const reportBodySchema = z.object({
   clientId: z.string(),
+  quoteId: z.string().optional().nullable(),
   interventionId: z.string().optional(),
   description: z.string().optional(),
   workHours: z.number().optional(),
@@ -86,6 +128,7 @@ const reportBodySchema = z.object({
 });
 
 const reportPatchSchema = z.object({
+  quoteId: z.string().optional().nullable(),
   description: z.string().optional(),
   workHours: z.number().optional(),
   kmTraveled: z.number().min(0).optional(),
@@ -158,12 +201,14 @@ router.post(
   async (req: AuthRequest, res, next) => {
     try {
       const data = reportBodySchema.parse(req.body);
+      await assertQuoteForClient(data.quoteId, data.clientId);
       const number = await generateNumber("RPT", "report");
 
       const report = await prisma.interventionReport.create({
         data: {
           number,
           clientId: data.clientId,
+          quoteId: data.quoteId || null,
           interventionId: data.interventionId,
           technicianId: req.user!.userId,
           description: data.description,
@@ -190,7 +235,7 @@ router.post(
               }
             : undefined,
         },
-        include: { materials: true, client: true },
+        include: { materials: true, client: true, quote: reportQuoteInclude },
       });
 
       await logActivity({
@@ -199,7 +244,7 @@ router.post(
         action: "CREATE",
         entityType: "report",
         entityId: report.id,
-        details: { status: "DRAFT" },
+        details: { status: "DRAFT", quoteId: data.quoteId || null },
       });
 
       res.status(201).json(report);
@@ -225,6 +270,7 @@ router.get("/reports/:id", requirePermission("reports", "READ"), async (req: Aut
           },
         },
         materials: { include: { product: true } },
+        quote: reportQuoteInclude,
         intervention: {
           include: {
             client: true,
@@ -250,6 +296,10 @@ router.patch(
       const data = reportPatchSchema.parse(req.body);
       const existing = await loadReportForAction(req, paramId(req));
 
+      if (data.quoteId !== undefined) {
+        await assertQuoteForClient(data.quoteId, existing.clientId);
+      }
+
       if (existing.status !== "DRAFT" && data.status === undefined) {
         const allowed =
           req.user!.role === "ADMIN" || req.user!.role === "SUPER_ADMIN";
@@ -268,6 +318,9 @@ router.patch(
         return tx.interventionReport.update({
           where: { id: existing.id },
           data: {
+            ...(data.quoteId !== undefined && {
+              quoteId: data.quoteId || null,
+            }),
             description: data.description,
             workHours:
               data.workHours != null ? toDecimal(data.workHours) : undefined,
@@ -298,7 +351,11 @@ router.patch(
                 }
               : undefined,
           },
-          include: { materials: true, client: true },
+          include: {
+            materials: true,
+            client: true,
+            quote: reportQuoteInclude,
+          },
         });
       });
 

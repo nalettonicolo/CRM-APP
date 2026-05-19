@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { DetailBack } from "@/components/detail/detail-shell";
@@ -13,6 +13,7 @@ export default function EditQuotePage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -47,12 +48,13 @@ export default function EditQuotePage() {
                     setLoading(true);
                     setError("");
                     try {
-                      await quotesApi.update(id, {
+                      const updated = await quotesApi.update(id, {
                         title: data.title,
                         notes: data.notes,
                         validUntil: data.validUntil ?? null,
                         eventAt: data.eventAt ?? null,
                         eventEndAt: data.eventEndAt ?? null,
+                        eventLocation: data.eventLocation ?? null,
                         withholdingTaxPercent: data.withholdingTaxPercent,
                         withholdingTaxAmount: data.withholdingTaxAmount,
                         stampDutyAmount: data.stampDutyAmount,
@@ -68,6 +70,9 @@ export default function EditQuotePage() {
                           productId: i.productId,
                         })),
                       });
+                      qc.setQueryData(["quote", id], updated);
+                      await qc.invalidateQueries({ queryKey: ["quote", id] });
+                      await qc.invalidateQueries({ queryKey: ["quotes"] });
                       router.push(`/quotes/${id}`);
                     } catch (err: unknown) {
                       setError(err instanceof Error ? err.message : "Errore");

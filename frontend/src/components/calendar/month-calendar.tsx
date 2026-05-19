@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { EventHubDialog } from "@/components/calendar/event-hub-dialog";
 import { eventsApi, type EventItem } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -26,10 +25,13 @@ function sameDay(a: Date, b: Date) {
   );
 }
 
-export function MonthCalendar() {
+export function MonthCalendar({
+  onEventSelect,
+}: {
+  onEventSelect: (event: EventItem) => void;
+}) {
   const [cursor, setCursor] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-  const [hubEvent, setHubEvent] = useState<EventItem | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const qc = useQueryClient();
 
@@ -165,7 +167,7 @@ export function MonthCalendar() {
                     onDragEnd={() => setDraggingId(null)}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setHubEvent(ev);
+                      onEventSelect(ev);
                     }}
                     className={cn(
                       "truncate rounded px-1 py-0.5 text-[10px] font-medium text-white cursor-grab active:cursor-grabbing",
@@ -216,9 +218,9 @@ export function MonthCalendar() {
                   role="button"
                   tabIndex={0}
                   className="flex cursor-pointer items-center justify-between rounded-lg border border-border px-3 py-2 text-sm transition-colors hover:border-primary/30 hover:bg-primary/5"
-                  onClick={() => setHubEvent(ev)}
+                  onClick={() => onEventSelect(ev)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") setHubEvent(ev);
+                    if (e.key === "Enter" || e.key === " ") onEventSelect(ev);
                   }}
                 >
                   <div>
@@ -240,13 +242,6 @@ export function MonthCalendar() {
         </div>
       )}
 
-      <EventHubDialog
-        event={hubEvent}
-        open={!!hubEvent}
-        onOpenChange={(open) => {
-          if (!open) setHubEvent(null);
-        }}
-      />
     </div>
   );
 }

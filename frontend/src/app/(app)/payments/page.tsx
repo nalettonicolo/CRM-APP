@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClientPaymentOverview } from "@/components/payments/client-payment-overview";
 import {
   Dialog,
   DialogContent,
@@ -69,7 +70,7 @@ export default function PaymentsPage() {
   });
 
   const { data: summary } = useQuery({
-    queryKey: ["payments", "summary"],
+    queryKey: ["payments", "summary", filterClient],
     queryFn: () => paymentsApi.summary(),
   });
 
@@ -205,6 +206,8 @@ export default function PaymentsPage() {
             </CardContent>
           </Card>
         </div>
+
+        {filterClient ? <ClientPaymentOverview clientId={filterClient} /> : null}
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2">

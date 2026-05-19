@@ -102,6 +102,9 @@ enum EventType {
   DEADLINE
   REMINDER
   MEETING
+  SITE_VISIT
+  EVENT
+  RENTAL
   OTHER
 }
 
@@ -408,12 +411,14 @@ model Quote {
   acceptedAt      DateTime?
   eventAt         DateTime?
   eventEndAt      DateTime?
+  eventLocation   String?
   items           QuoteItem[]
   calendarEvents  Event[]
   paymentTerms    QuotePaymentTerm[]
   attachments     Attachment[]  @relation("QuoteAttachments")
   invoicePreviews InvoicePreview[]
   payments        ClientPayment[]
+  reports         InterventionReport[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -429,6 +434,7 @@ model ClientPayment {
   quoteId            String?
   quote              Quote?        @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   quotePaymentTermId String?
+  quotePaymentTerm   QuotePaymentTerm? @relation("TermPayments", fields: [quotePaymentTermId], references: [id], onDelete: SetNull)
   label              String
   amount             Decimal       @db.Decimal(12, 2)
   paidAt             DateTime      @default(now())
@@ -446,17 +452,20 @@ model ClientPayment {
 }
 
 model QuotePaymentTerm {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   quoteId   String
-  quote     Quote    @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  quote     Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
   label     String
-  note      String?  @db.Text
-  percent   Decimal? @db.Decimal(5, 2)
-  amount    Decimal  @default(0) @db.Decimal(12, 2)
-  isBalance Boolean  @default(false)
-  sortOrder Int      @default(0)
+  note      String?   @db.Text
+  percent   Decimal?  @db.Decimal(5, 2)
+  amount    Decimal   @default(0) @db.Decimal(12, 2)
+  isBalance Boolean   @default(false)
+  dueDate   DateTime?
+  sortOrder Int       @default(0)
+  payments  ClientPayment[] @relation("TermPayments")
 
   @@index([quoteId])
+  @@index([dueDate])
 }
 
 model PaymentTermTemplate {
@@ -552,6 +561,8 @@ model InterventionReport {
   number          String       @unique
   interventionId  String?
   intervention    Intervention? @relation(fields: [interventionId], references: [id])
+  quoteId         String?
+  quote           Quote?       @relation(fields: [quoteId], references: [id], onDelete: SetNull)
   clientId        String
   client          Client       @relation(fields: [clientId], references: [id])
   technicianId    String
@@ -576,6 +587,7 @@ model InterventionReport {
   updatedAt       DateTime     @updatedAt
 
   @@index([clientId])
+  @@index([quoteId])
   @@index([technicianId])
   @@index([status])
 }

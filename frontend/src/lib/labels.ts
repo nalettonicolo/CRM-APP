@@ -22,6 +22,13 @@ export const paymentStatusLabels: Record<string, string> = {
   OVERDUE: "Scaduto",
 };
 
+export const scheduleRowStatusLabels: Record<string, string> = {
+  PAID: "Pagato",
+  PARTIAL: "Parziale",
+  PENDING: "In scadenza",
+  OVERDUE: "Scaduto",
+};
+
 export const paymentMethodLabels: Record<string, string> = {
   BANK_TRANSFER: "Bonifico",
   CASH: "Contanti",
@@ -78,10 +85,21 @@ export const eventTypeLabels: Record<string, string> = {
   APPOINTMENT: "Appuntamento",
   INTERVENTION: "Intervento",
   MEETING: "Riunione",
+  SITE_VISIT: "Sopralluogo",
+  EVENT: "Evento",
+  RENTAL: "Noleggio",
   DEADLINE: "Scadenza",
   REMINDER: "Promemoria",
   OTHER: "Altro",
 };
+
+/** Tipi principali per creazione / modifica eventi in calendario */
+export const calendarEventTypeOptions = [
+  { value: "MEETING", label: "Riunione" },
+  { value: "SITE_VISIT", label: "Sopralluogo" },
+  { value: "EVENT", label: "Evento" },
+  { value: "RENTAL", label: "Noleggio" },
+] as const;
 
 export const reportStatusLabels: Record<string, string> = {
   DRAFT: "Bozza",

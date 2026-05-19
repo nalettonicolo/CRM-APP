@@ -10,18 +10,26 @@ import { DetailBack } from "@/components/detail/detail-shell";
 function NewReportContent() {
   const searchParams = useSearchParams();
   const interventionId = searchParams.get("interventionId") || undefined;
+  const clientId = searchParams.get("clientId") || undefined;
+  const quoteId = searchParams.get("quoteId") || undefined;
+  const fromCalendar = Boolean(clientId || quoteId || interventionId);
 
   return (
     <>
       <Header title="Nuovo report" />
       <div className="p-4 sm:p-6">
         <DetailBack href="/reports" label="Torna ai report" />
-        {interventionId && (
+        {fromCalendar && (
           <p className="mb-4 text-sm text-muted-foreground">
-            Collegato all&apos;intervento programmato (dati precompilati).
+            Dati precompilati dall&apos;evento in calendario
+            {quoteId ? " e dal preventivo collegato" : ""}.
           </p>
         )}
-        <ReportCompileForm interventionId={interventionId} />
+        <ReportCompileForm
+          interventionId={interventionId}
+          clientId={clientId}
+          quoteId={quoteId}
+        />
         <p className="mt-4 text-center text-xs text-muted-foreground">
           <Link href="/reports" className="text-primary hover:underline">
             Annulla

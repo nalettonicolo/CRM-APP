@@ -8,8 +8,33 @@ import {
 } from "../middleware/auth.js";
 import { toDecimal } from "../services/quoteCalculator.js";
 import { logActivity } from "../services/activityLog.js";
-import { NotFoundError } from "../utils/errors.js";
+import { ForbiddenError, NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import { hasPermission } from "../utils/permissions.js";
+
+function requireCatalogDelete(resource: "products" | "services") {
+  return (req: AuthRequest, _res: import("express").Response, next: import("express").NextFunction): void => {
+    if (!req.user) {
+      next(new ForbiddenError());
+      return;
+    }
+    const role = req.user.role;
+    if (
+      hasPermission(role, resource, "DELETE") ||
+      hasPermission(role, "inventory", "DELETE") ||
+      hasPermission(role, resource, "*") ||
+      hasPermission(role, "inventory", "*")
+    ) {
+      next();
+      return;
+    }
+    next(
+      new ForbiddenError(
+        "Non hai il permesso di eliminare voci dal catalogo. Contatta un amministratore."
+      )
+    );
+  };
+}
 
 const router = Router();
 router.use(authenticate);
@@ -385,24 +410,25 @@ router.post("/warehouses", requirePermission("inventory", "CREATE"), async (req:
 
 router.delete(
   "/products/:id",
-  requirePermission("products", "DELETE"),
+  requireCatalogDelete("products"),
   async (req: AuthRequest, res, next) => {
     try {
       const id = paramId(req);
       const existing = await prisma.product.findUnique({ where: { id } });
       if (!existing) throw new NotFoundError();
 
-      await prisma.$transaction([
-        prisma.quoteItem.updateMany({
+      await prisma.$transaction(async (tx) => {
+        await tx.quoteItem.updateMany({
           where: { productId: id },
           data: { productId: null },
-        }),
-        prisma.reportMaterial.updateMany({
+        });
+        await tx.reportMaterial.updateMany({
           where: { productId: id },
           data: { productId: null },
-        }),
-        prisma.product.delete({ where: { id } }),
-      ]);
+        });
+        await tx.inventory.deleteMany({ where: { productId: id } });
+        await tx.product.delete({ where: { id } });
+      });
 
       await logActivity({
         userId: req.user!.userId,
@@ -421,20 +447,20 @@ router.delete(
 
 router.delete(
   "/services/:id",
-  requirePermission("services", "DELETE"),
+  requireCatalogDelete("services"),
   async (req: AuthRequest, res, next) => {
     try {
       const id = paramId(req);
       const existing = await prisma.service.findUnique({ where: { id } });
       if (!existing) throw new NotFoundError();
 
-      await prisma.$transaction([
-        prisma.quoteItem.updateMany({
+      await prisma.$transaction(async (tx) => {
+        await tx.quoteItem.updateMany({
           where: { serviceId: id },
           data: { serviceId: null },
-        }),
-        prisma.service.delete({ where: { id } }),
-      ]);
+        });
+        await tx.service.delete({ where: { id } });
+      });
 
       await logActivity({
         userId: req.user!.userId,

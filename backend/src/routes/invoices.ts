@@ -11,7 +11,7 @@ import { logActivity } from "../services/activityLog.js";
 import { generateInvoicePdf } from "../services/invoicePdf.js";
 import { loadCompanySettings } from "../services/quotePdf.js";
 import { toDecimal } from "../services/quoteCalculator.js";
-import { NotFoundError } from "../utils/errors.js";
+import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 
 const router = Router();
@@ -73,6 +73,20 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
       include: { client: true },
     });
     if (!quote) throw new NotFoundError("Preventivo non trovato");
+    if (quote.status !== "ACCEPTED") {
+      throw new ValidationError(
+        "Il preventivo deve essere accettato prima di generare il documento"
+      );
+    }
+
+    const existing = await prisma.invoicePreview.findFirst({
+      where: { quoteId: quote.id },
+    });
+    if (existing) {
+      throw new ValidationError(
+        `Esiste già il documento ${existing.number} per questo preventivo`
+      );
+    }
 
     const number = await generateInvoiceNumber();
     const invoice = await prisma.invoicePreview.create({

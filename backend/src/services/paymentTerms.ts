@@ -4,6 +4,7 @@ export interface PaymentTermInput {
   percent?: number | null;
   amount?: number | null;
   isBalance?: boolean;
+  dueDate?: string | null;
 }
 
 export interface ResolvedPaymentTerm extends PaymentTermInput {

@@ -9,7 +9,11 @@ cd "$CRM_ROOT"
 
 if [[ "${SKIP_PULL:-0}" != "1" ]]; then
   echo "==> Git pull"
-  git pull origin main
+  if ! git pull origin main; then
+    echo "    Conflitto su script di deploy: uso versione da repository"
+    git checkout -- backend/scripts/upgrade-mint.sh backend/scripts/deploy-completo-mint.sh 2>/dev/null || true
+    git pull origin main
+  fi
 fi
 
 if [[ ! -f "$BACKEND/.env" ]]; then

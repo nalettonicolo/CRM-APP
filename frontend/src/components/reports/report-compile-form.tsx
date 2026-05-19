@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { MapPin, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { FileText, MapPin, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ReportPreviewStep } from "@/components/reports/report-preview-step";
@@ -11,10 +12,17 @@ import { ReportSignStep } from "@/components/reports/report-sign-step";
 import {
   clientsApi,
   interventionsApi,
+  quotesApi,
   reportsApi,
+  type Quote,
   type ReportDetail,
   type ReportPayload,
 } from "@/lib/api";
+import {
+  appendToDescription,
+  buildQuoteItemsBlock,
+  buildQuoteReferenceBlock,
+} from "@/lib/report-quote";
 
 const textareaClass =
   "flex min-h-[100px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
@@ -27,10 +35,14 @@ export function ReportCompileForm({
   reportId: initialReportId,
   initial,
   interventionId: interventionIdProp,
+  clientId: clientIdProp,
+  quoteId: quoteIdProp,
 }: {
   reportId?: string;
   initial?: ReportDetail;
   interventionId?: string;
+  clientId?: string;
+  quoteId?: string;
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("form");
@@ -38,6 +50,9 @@ export function ReportCompileForm({
   const [activeReportId, setActiveReportId] = useState(initialReportId);
 
   const [clientId, setClientId] = useState(initial?.clientId || initial?.client?.id || "");
+  const [quoteId, setQuoteId] = useState(
+    initial?.quoteId || initial?.quote?.id || ""
+  );
   const [description, setDescription] = useState(initial?.description || "");
   const [workHours, setWorkHours] = useState(
     initial?.workHours != null ? String(Number(initial.workHours)) : ""
@@ -78,6 +93,12 @@ export function ReportCompileForm({
     enabled: !!interventionIdProp && !initial,
   });
 
+  const { data: quotePrefill } = useQuery({
+    queryKey: ["quote-prefill", quoteIdProp],
+    queryFn: () => quotesApi.get(quoteIdProp!),
+    enabled: !!quoteIdProp && !initial,
+  });
+
   useEffect(() => {
     if (!interventionPrefill || initial) return;
     setInterventionId(interventionPrefill.id);
@@ -92,14 +113,50 @@ export function ReportCompileForm({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interventionPrefill, initial]);
 
+  useEffect(() => {
+    if (initial) return;
+    if (clientIdProp) setClientId(clientIdProp);
+  }, [clientIdProp, initial]);
+
+  useEffect(() => {
+    if (!quotePrefill || initial) return;
+    setQuoteId(quotePrefill.id);
+    if (quotePrefill.clientId) setClientId(quotePrefill.clientId);
+    setDescription((d) =>
+      d.trim()
+        ? d
+        : appendToDescription("", buildQuoteReferenceBlock(quotePrefill))
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quotePrefill, initial]);
+
   const { data: clientsData } = useQuery({
     queryKey: ["clients-select"],
     queryFn: () => clientsApi.list({ limit: "200" }),
   });
 
+  const { data: clientQuotes } = useQuery({
+    queryKey: ["quotes-by-client", clientId],
+    queryFn: () =>
+      quotesApi.list({ clientId, limit: "100" }),
+    enabled: Boolean(clientId),
+  });
+
+  const { data: selectedQuoteFull } = useQuery({
+    queryKey: ["quote-for-report", quoteId],
+    queryFn: () => quotesApi.get(quoteId),
+    enabled: Boolean(quoteId),
+  });
+
+  const selectedQuote =
+    selectedQuoteFull ||
+    clientQuotes?.data?.find((q) => q.id === quoteId) ||
+    initial?.quote;
+
   function buildPayload(): ReportPayload {
     return {
       clientId,
+      quoteId: quoteId || null,
       interventionId: interventionId || undefined,
       description,
       workHours: workHours ? Number(workHours) : 0,
@@ -137,6 +194,22 @@ export function ReportCompileForm({
     },
     onError: (e: Error) => setError(e.message || "Salvataggio fallito."),
   });
+
+  async function insertQuoteBlock(
+    builder: (quote: Quote) => string
+  ) {
+    if (!quoteId) {
+      setError("Seleziona un preventivo.");
+      return;
+    }
+    try {
+      const quote = selectedQuoteFull ?? (await quotesApi.get(quoteId));
+      setDescription((d) => appendToDescription(d, builder(quote)));
+      setError("");
+    } catch {
+      setError("Impossibile caricare il dettaglio del preventivo.");
+    }
+  }
 
   function captureGeo() {
     if (!navigator.geolocation) {
@@ -194,7 +267,10 @@ export function ReportCompileForm({
         <select
           className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
           value={clientId}
-          onChange={(e) => setClientId(e.target.value)}
+          onChange={(e) => {
+            setClientId(e.target.value);
+            setQuoteId("");
+          }}
           required
         >
           <option value="">Seleziona…</option>
@@ -205,6 +281,67 @@ export function ReportCompileForm({
           ))}
         </select>
       </div>
+
+      {clientId && (
+        <div>
+          <label className="mb-1 block text-sm font-medium">
+            Preventivo (richiamo)
+          </label>
+          <select
+            className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+            value={quoteId}
+            onChange={(e) => setQuoteId(e.target.value)}
+          >
+            <option value="">Nessun preventivo</option>
+            {clientQuotes?.data
+              ?.filter((q) => q.status !== "REJECTED")
+              .map((q) => (
+                <option key={q.id} value={q.id}>
+                  {q.number}
+                  {q.title ? ` — ${q.title}` : ""}
+                </option>
+              ))}
+          </select>
+          {quoteId && selectedQuote && (
+            <div className="mt-3 rounded-lg border border-primary/25 bg-primary/5 p-3">
+              <p className="flex items-center gap-1.5 text-sm font-medium">
+                <FileText className="h-4 w-4 text-primary" />
+                {selectedQuote.number}
+                {selectedQuote.title ? ` — ${selectedQuote.title}` : ""}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    insertQuoteBlock(buildQuoteReferenceBlock)
+                  }
+                >
+                  Inserisci riferimenti
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => insertQuoteBlock(buildQuoteItemsBlock)}
+                >
+                  Inserisci dettaglio voci
+                </Button>
+                <Button type="button" variant="ghost" size="sm" asChild>
+                  <Link href={`/quotes/${quoteId}`} target="_blank">
+                    Apri preventivo
+                  </Link>
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                I testi vengono aggiunti alla descrizione lavoro; puoi modificarli
+                liberamente prima del salvataggio.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="mb-1 block text-sm font-medium">Descrizione lavoro</label>

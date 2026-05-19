@@ -20,6 +20,12 @@ export function ReportPreviewStep({
       <div className="rounded-xl border border-border bg-muted/30 p-4 text-sm">
         <p className="font-medium">{report.number}</p>
         <ul className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-2">
+          {report.quote && (
+            <li className="sm:col-span-2">
+              Preventivo: {report.quote.number}
+              {report.quote.title ? ` — ${report.quote.title}` : ""}
+            </li>
+          )}
           <li>Ore: {Number(report.workHours)} h</li>
           {Number(report.kmTraveled) > 0 && (
             <li>Km: {Number(report.kmTraveled)}</li>

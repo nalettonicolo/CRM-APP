@@ -7,6 +7,7 @@ import { paramId } from "../utils/params.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { logActivity } from "../services/activityLog.js";
 import { syncQuotePaymentStatus } from "../services/quotePayments.js";
+import { getClientPaymentOverview } from "../services/paymentSchedule.js";
 
 const router = Router();
 router.use(authenticate);
@@ -49,6 +50,23 @@ router.get("/summary", requirePermission("payments", "READ"), async (req, res, n
     next(e);
   }
 });
+
+router.get(
+  "/client-overview",
+  requirePermission("payments", "READ"),
+  async (req, res, next) => {
+    try {
+      const clientId = String(req.query.clientId || "");
+      if (!clientId) {
+        throw new ValidationError("clientId obbligatorio");
+      }
+      const overview = await getClientPaymentOverview(clientId);
+      res.json(overview);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.get("/", requirePermission("payments", "READ"), async (req, res, next) => {
   try {

@@ -2,6 +2,8 @@ import PDFDocument from "pdfkit";
 import type {
   Client,
   InterventionReport,
+  Quote,
+  QuoteItem,
   ReportMaterial,
   User,
 } from "@prisma/client";
@@ -17,6 +19,17 @@ type ReportWithRelations = InterventionReport & {
   client: Client;
   technician: Pick<User, "firstName" | "lastName" | "email" | "phone">;
   materials: ReportMaterial[];
+  quote?:
+    | (Pick<
+        Quote,
+        "number" | "title" | "status" | "total" | "eventAt" | "eventEndAt"
+      > & {
+        items: Pick<
+          QuoteItem,
+          "description" | "quantity" | "unit" | "unitPrice" | "total"
+        >[];
+      })
+    | null;
 };
 
 function money(n: number | { toString(): string }) {
@@ -96,6 +109,22 @@ export async function generateReportPdf(
     if (report.client.email) doc.text(report.client.email);
     if (report.client.phone) doc.text(report.client.phone);
     doc.moveDown();
+
+    if (report.quote) {
+      doc.fontSize(11).text("Preventivo di riferimento", { underline: true });
+      doc.fontSize(10).text(`N. ${report.quote.number}`);
+      if (report.quote.title) doc.text(report.quote.title);
+      if (report.quote.eventAt) {
+        const end = report.quote.eventEndAt
+          ? ` – ${report.quote.eventEndAt.toLocaleDateString("it-IT")}`
+          : "";
+        doc.text(
+          `Evento: ${report.quote.eventAt.toLocaleDateString("it-IT")}${end}`
+        );
+      }
+      doc.text(`Totale: € ${money(report.quote.total)}`);
+      doc.moveDown();
+    }
 
     doc.fontSize(11).text("Tecnico", { underline: true });
     doc.fontSize(10).text(

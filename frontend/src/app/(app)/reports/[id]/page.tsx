@@ -119,6 +119,15 @@ export default function ReportDetailPage() {
                       Intervento {data.intervention.number} — {data.intervention.title}
                     </Link>
                   )}
+                  {data.quote && (
+                    <Link
+                      href={`/quotes/${data.quote.id}`}
+                      className="mt-1 block text-xs text-muted-foreground hover:text-primary"
+                    >
+                      Preventivo {data.quote.number}
+                      {data.quote.title ? ` — ${data.quote.title}` : ""}
+                    </Link>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2">

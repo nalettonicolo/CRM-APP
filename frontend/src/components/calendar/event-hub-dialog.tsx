@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   ClipboardList,
@@ -17,8 +19,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import type { EventItem } from "@/lib/api";
-import { eventTypeLabels } from "@/lib/labels";
+import { eventsApi, type EventItem } from "@/lib/api";
+import { calendarEventTypeOptions, eventTypeLabels } from "@/lib/labels";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 function formatEventTime(ev: EventItem) {
@@ -82,8 +84,15 @@ function buildActions(event: EventItem): HubAction[] {
       icon: Wrench,
       variant: quoteId ? "outline" : "default",
     });
+  }
+
+  if (clientId || interventionId) {
+    const reportParams = new URLSearchParams();
+    if (clientId) reportParams.set("clientId", clientId);
+    if (quoteId) reportParams.set("quoteId", quoteId);
+    if (interventionId) reportParams.set("interventionId", interventionId);
     actions.push({
-      href: `/reports/new?interventionId=${interventionId}`,
+      href: `/reports/new?${reportParams.toString()}`,
       label: "Crea report",
       icon: ClipboardList,
       variant: "secondary",
@@ -106,16 +115,34 @@ export function EventHubDialog({
   event,
   open,
   onOpenChange,
+  onEventUpdated,
 }: {
   event: EventItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onEventUpdated?: (event: EventItem) => void;
 }) {
+  const qc = useQueryClient();
+  const [eventType, setEventType] = useState(event?.type || "EVENT");
+
+  useEffect(() => {
+    if (event) setEventType(event.type || "EVENT");
+  }, [event?.id, event?.type]);
+
+  const updateTypeMut = useMutation({
+    mutationFn: (type: string) => eventsApi.update(event!.id, { type }),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      onEventUpdated?.(updated);
+    },
+  });
+
   if (!event) return null;
 
   const clientName =
     event.client?.companyName || event.client?.contactName || null;
   const actions = buildActions(event);
+  const typeLabel = eventTypeLabels[eventType] || eventType;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -129,12 +156,38 @@ export function EventHubDialog({
 
         <dl className="grid gap-2 text-sm">
           <MetaRow label="Quando" value={formatEventTime(event)} />
-          {event.type && (
-            <MetaRow
-              label="Tipo"
-              value={eventTypeLabels[event.type] || event.type}
-            />
-          )}
+          <div>
+            <dt className="mb-1 text-xs text-muted-foreground">Tipo</dt>
+            <dd>
+              <select
+                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                value={eventType}
+                disabled={updateTypeMut.isPending}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setEventType(next);
+                  updateTypeMut.mutate(next);
+                }}
+              >
+                {calendarEventTypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+                {!calendarEventTypeOptions.some((o) => o.value === event.type) &&
+                  event.type && (
+                    <option value={event.type}>
+                      {eventTypeLabels[event.type] || event.type}
+                    </option>
+                  )}
+              </select>
+              {updateTypeMut.isError && (
+                <p className="mt-1 text-xs text-red-600">
+                  Impossibile aggiornare il tipo.
+                </p>
+              )}
+            </dd>
+          </div>
           {clientName && <MetaRow label="Cliente" value={clientName} />}
           {event.quote?.total != null && (
             <MetaRow
@@ -149,6 +202,11 @@ export function EventHubDialog({
             {event.description}
           </p>
         )}
+
+        <p className="text-xs text-muted-foreground">
+          Etichetta in lista:{" "}
+          <span className="font-medium text-primary">{typeLabel}</span>
+        </p>
 
         {actions.length > 0 ? (
           <div className="flex flex-col gap-2 pt-2">

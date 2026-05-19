@@ -3,14 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import { FileText, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { quotesApi } from "@/lib/api";
 import { quoteStatusLabels } from "@/lib/labels";
+import {
+  formatQuoteListSubtitle,
+  formatQuoteServicePeriod,
+} from "@/lib/quote-display";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 
 const statusStyle: Record<string, string> = {
@@ -31,7 +34,11 @@ export default function QuotesPage() {
   return (
     <>
       <Header title="Preventivi" />
-      <motion.div className="p-3 sm:p-4 md:p-6">
+      <div className="p-3 sm:p-4 md:p-6">
+        <p className="mb-4 text-sm text-muted-foreground">
+          Ogni riga riassume oggetto, periodo di servizio e luogo. Le date non vanno
+          nell&apos;oggetto: usale nei campi dedicati in modifica.
+        </p>
         <div className="mb-6 flex justify-end">
           <Button asChild>
             <Link href="/quotes/new">
@@ -46,18 +53,23 @@ export default function QuotesPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="px-4 py-3 text-left font-medium">Numero</th>
+                    <th className="px-4 py-3 text-left font-medium">N. preventivo</th>
                     <th className="px-4 py-3 text-left font-medium">Cliente</th>
-                    <th className="px-4 py-3 text-left font-medium">Titolo</th>
+                    <th className="px-4 py-3 text-left font-medium">Oggetto</th>
+                    <th className="px-4 py-3 text-left font-medium">Periodo servizio</th>
+                    <th className="px-4 py-3 text-left font-medium">Luogo</th>
                     <th className="px-4 py-3 text-left font-medium">Stato</th>
-                    <th className="px-4 py-3 text-right font-medium">Totale</th>
-                    <th className="px-4 py-3 text-right font-medium">Data</th>
+                    <th className="px-4 py-3 text-right font-medium">Importo</th>
+                    <th className="px-4 py-3 text-right font-medium">Emesso il</th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                      <td
+                        colSpan={8}
+                        className="px-4 py-8 text-center text-muted-foreground"
+                      >
                         Caricamento...
                       </td>
                     </tr>
@@ -71,7 +83,22 @@ export default function QuotesPage() {
                         <td className="px-4 py-3">
                           {q.client?.companyName || q.client?.contactName}
                         </td>
-                        <td className="px-4 py-3">{q.title || "—"}</td>
+                        <td className="px-4 py-3 max-w-[11rem]">
+                          <span className="line-clamp-2" title={q.title || undefined}>
+                            {q.title || "—"}
+                          </span>
+                          {formatQuoteListSubtitle(q) && (
+                            <span className="mt-0.5 block text-xs text-muted-foreground lg:hidden">
+                              {formatQuoteListSubtitle(q)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap text-muted-foreground">
+                          {formatQuoteServicePeriod(q) || "—"}
+                        </td>
+                        <td className="px-4 py-3 max-w-[9rem] truncate text-muted-foreground">
+                          {q.eventLocation?.trim() || "—"}
+                        </td>
                         <td className="px-4 py-3">
                           <span
                             className={cn(
@@ -96,7 +123,7 @@ export default function QuotesPage() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     </>
   );
 }

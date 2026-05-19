@@ -3,6 +3,20 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticate, requirePermission } from "../middleware/auth.js";
 import { paramId } from "../utils/params.js";
+import { EVENT_TYPE_VALUES } from "../constants/eventTypes.js";
+
+const eventTypeSchema = z.enum(EVENT_TYPE_VALUES);
+
+const eventInclude = {
+  client: { select: { id: true, companyName: true, contactName: true } },
+  assignee: { select: { firstName: true, lastName: true } },
+  intervention: {
+    select: { id: true, number: true, title: true, status: true },
+  },
+  quote: {
+    select: { id: true, number: true, title: true, status: true, total: true },
+  },
+} as const;
 
 const router = Router();
 router.use(authenticate);
@@ -19,16 +33,7 @@ router.get("/", requirePermission("events", "READ"), async (req, res, next) => {
 
     const events = await prisma.event.findMany({
       where,
-      include: {
-        client: { select: { id: true, companyName: true, contactName: true } },
-        assignee: { select: { firstName: true, lastName: true } },
-        intervention: {
-          select: { id: true, number: true, title: true, status: true },
-        },
-        quote: {
-          select: { id: true, number: true, title: true, status: true, total: true },
-        },
-      },
+      include: eventInclude,
       orderBy: { startAt: "asc" },
     });
     res.json(events);
@@ -43,14 +48,7 @@ router.post("/", requirePermission("events", "CREATE"), async (req, res, next) =
       .object({
         title: z.string(),
         description: z.string().optional(),
-        type: z.enum([
-          "APPOINTMENT",
-          "INTERVENTION",
-          "DEADLINE",
-          "REMINDER",
-          "MEETING",
-          "OTHER",
-        ]),
+        type: eventTypeSchema,
         startAt: z.string().datetime(),
         endAt: z.string().datetime().optional(),
         allDay: z.boolean().optional(),
@@ -68,11 +66,7 @@ router.post("/", requirePermission("events", "CREATE"), async (req, res, next) =
         startAt: new Date(data.startAt),
         endAt: data.endAt ? new Date(data.endAt) : undefined,
       },
-      include: {
-        client: { select: { id: true, companyName: true, contactName: true } },
-        intervention: { select: { id: true, number: true, title: true, status: true } },
-        quote: { select: { id: true, number: true, title: true, status: true, total: true } },
-      },
+      include: eventInclude,
     });
     res.status(201).json(event);
   } catch (e) {
@@ -85,6 +79,7 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req, res, nex
     const data = z
       .object({
         title: z.string().optional(),
+        type: eventTypeSchema.optional(),
         startAt: z.string().datetime().optional(),
         endAt: z.string().datetime().optional(),
         assigneeId: z.string().optional(),
@@ -94,10 +89,13 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req, res, nex
     const event = await prisma.event.update({
       where: { id: paramId(req) },
       data: {
-        ...data,
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.type !== undefined && { type: data.type }),
+        ...(data.assigneeId !== undefined && { assigneeId: data.assigneeId }),
         ...(data.startAt && { startAt: new Date(data.startAt) }),
         ...(data.endAt && { endAt: new Date(data.endAt) }),
       },
+      include: eventInclude,
     });
     res.json(event);
   } catch (e) {

@@ -22,7 +22,11 @@ fi
 
 if [[ "${SKIP_PULL:-0}" != "1" ]] && [[ -d "$CRM_ROOT/.git" ]]; then
   echo "==> Git pull"
-  git -C "$CRM_ROOT" pull origin main
+  if ! git -C "$CRM_ROOT" pull origin main; then
+    echo "    Conflitto su script di deploy: uso versione da repository"
+    git -C "$CRM_ROOT" checkout -- backend/scripts/upgrade-mint.sh backend/scripts/deploy-completo-mint.sh 2>/dev/null || true
+    git -C "$CRM_ROOT" pull origin main
+  fi
 fi
 
 chmod +x "$BACKEND/scripts/"*.sh 2>/dev/null || true

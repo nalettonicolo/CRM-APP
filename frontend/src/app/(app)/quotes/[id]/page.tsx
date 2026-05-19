@@ -9,7 +9,12 @@ import { FileText, User, Pencil, Download, Mail, Receipt, Check, X } from "lucid
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/header";
-import { DetailBack, DetailSection } from "@/components/detail/detail-shell";
+import {
+  DetailBack,
+  DetailField,
+  DetailSection,
+} from "@/components/detail/detail-shell";
+import { formatQuoteServicePeriod } from "@/lib/quote-display";
 import { downloadQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
 import {
   quoteStatusLabels,
@@ -103,10 +108,7 @@ export default function QuoteDetailPage() {
                     {clientName}
                   </Link>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Creato {formatDate(quote.createdAt)}
-                    {quote.validUntil
-                      ? ` · Valido fino al ${formatDate(quote.validUntil)}`
-                      : ""}
+                    Emesso il {formatDate(quote.createdAt)}
                   </p>
                 </div>
               </div>
@@ -197,6 +199,29 @@ export default function QuoteDetailPage() {
               </div>
             </div>
 
+            <DetailSection title="Oggetto, date e luogo">
+              <dl className="grid gap-4 text-sm sm:grid-cols-2">
+                <DetailField
+                  label="Oggetto del preventivo"
+                  value={quote.title || "—"}
+                />
+                <DetailField
+                  label="Periodo di servizio"
+                  value={formatQuoteServicePeriod(quote) || "—"}
+                />
+                <DetailField
+                  label="Luogo del servizio"
+                  value={quote.eventLocation?.trim() || "—"}
+                />
+                <DetailField
+                  label="Offerta valida fino al"
+                  value={
+                    quote.validUntil ? formatDate(quote.validUntil) : "—"
+                  }
+                />
+              </dl>
+            </DetailSection>
+
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {[
                 { label: "Imponibile", value: quote.subtotal },
@@ -271,6 +296,11 @@ export default function QuoteDetailPage() {
                       >
                         <span>
                           <span className="font-medium">{t.label}</span>
+                          {t.dueDate ? (
+                            <span className="block text-xs text-muted-foreground">
+                              Scadenza: {formatDate(t.dueDate)}
+                            </span>
+                          ) : null}
                           {t.note ? (
                             <span className="text-muted-foreground">
                               {" "}

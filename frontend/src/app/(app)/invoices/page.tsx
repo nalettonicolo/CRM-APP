@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Receipt } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
+import { InvoiceCreateDialog } from "@/components/invoices/invoice-create-dialog";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { invoicesApi } from "@/lib/api";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
@@ -24,9 +25,12 @@ export default function InvoicesPage() {
     <>
       <Header title={DOCUMENT_COPY.invoice.pageTitle} />
       <div className="p-3 sm:p-4 md:p-6">
-        <p className="mb-4 text-sm text-muted-foreground">
-          {DOCUMENT_COPY.invoice.pageIntro}
-        </p>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {DOCUMENT_COPY.invoice.pageIntro}
+          </p>
+          <InvoiceCreateDialog />
+        </div>
         <Card>
           <CardContent className="p-0">
             <table className="w-full text-sm">
@@ -50,7 +54,7 @@ export default function InvoicesPage() {
                   <tr>
                     <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
                       <Receipt className="mx-auto mb-2 h-8 w-8 opacity-40" />
-                      Nessuna fattura. Genera da un preventivo accettato.
+                      {DOCUMENT_COPY.invoice.listEmpty}
                     </td>
                   </tr>
                 ) : (

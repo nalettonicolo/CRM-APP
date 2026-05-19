@@ -34,6 +34,7 @@ export async function syncQuoteCalendarEvent(quoteId: string) {
       total: true,
       eventAt: true,
       eventEndAt: true,
+      eventLocation: true,
       acceptedAt: true,
     },
   });
@@ -44,7 +45,14 @@ export async function syncQuoteCalendarEvent(quoteId: string) {
   const title = quote.title?.trim()
     ? `Evento: ${quote.title.trim()}`
     : `Preventivo ${quote.number}`;
-  const description = `Preventivo ${quote.number} confermato · Totale ${Number(quote.total).toFixed(2)} €`;
+  const descParts = [
+    `Preventivo ${quote.number} confermato`,
+    `Totale ${Number(quote.total).toFixed(2)} €`,
+  ];
+  if (quote.eventLocation?.trim()) {
+    descParts.push(quote.eventLocation.trim());
+  }
+  const description = descParts.join(" · ");
 
   const existing = await prisma.event.findFirst({
     where: { quoteId: quote.id },
@@ -53,7 +61,7 @@ export async function syncQuoteCalendarEvent(quoteId: string) {
   const data = {
     title,
     description,
-    type: "MEETING" as const,
+    type: "EVENT" as const,
     startAt,
     endAt,
     clientId: quote.clientId,

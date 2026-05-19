@@ -139,9 +139,16 @@ export default function ServicesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
   });
 
+  const [deleteError, setDeleteError] = useState("");
+
   const deleteMut = useMutation({
     mutationFn: (id: string) => inventoryApi.deleteService(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["services"] }),
+    onSuccess: () => {
+      setDeleteError("");
+      qc.invalidateQueries({ queryKey: ["services"] });
+    },
+    onError: (e: Error) =>
+      setDeleteError(e.message || "Impossibile eliminare il servizio."),
   });
 
   const grouped = services.reduce<Record<string, Service[]>>((acc, s) => {
@@ -162,6 +169,11 @@ export default function ServicesPage() {
           voce è esente da IVA. Nei preventivi la quantità segue l&apos;unità (es.
           120 km × 0,50 €).
         </p>
+        {deleteError && (
+          <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">
+            {deleteError}
+          </p>
+        )}
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle>Servizi</CardTitle>

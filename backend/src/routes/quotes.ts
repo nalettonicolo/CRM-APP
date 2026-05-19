@@ -45,6 +45,7 @@ function paymentTermsForCalc(
     percent: t.percent,
     amount: t.amount,
     isBalance: t.isBalance,
+    dueDate: t.dueDate,
   }));
 }
 
@@ -111,14 +112,18 @@ function buildPaymentTermsCreate(
   if (!terms?.length) return undefined;
   const resolved = resolvePaymentTerms(total, paymentTermsForCalc(terms)!);
   return {
-    create: resolved.map((t, idx) => ({
-      label: t.label,
-      note: t.note || undefined,
-      percent: t.percent != null ? toDecimal(t.percent) : undefined,
-      amount: toDecimal(t.amount),
-      isBalance: t.isBalance === true,
-      sortOrder: idx,
-    })),
+    create: resolved.map((t, idx) => {
+      const src = terms[idx];
+      return {
+        label: t.label,
+        note: t.note || undefined,
+        percent: t.percent != null ? toDecimal(t.percent) : undefined,
+        amount: toDecimal(t.amount),
+        isBalance: t.isBalance === true,
+        dueDate: src?.dueDate ? new Date(src.dueDate) : undefined,
+        sortOrder: idx,
+      };
+    }),
   };
 }
 
@@ -195,6 +200,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         validUntil: z.string().datetime().optional(),
         eventAt: z.string().datetime().optional(),
         eventEndAt: z.string().datetime().optional(),
+        eventLocation: z.string().optional().nullable(),
         notes: z.string().optional(),
         discountPercent: z.number().optional(),
         discountAmount: z.number().optional(),
@@ -249,6 +255,7 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         validUntil: body.validUntil ? new Date(body.validUntil) : undefined,
         eventAt: body.eventAt ? new Date(body.eventAt) : undefined,
         eventEndAt: body.eventEndAt ? new Date(body.eventEndAt) : undefined,
+        eventLocation: body.eventLocation?.trim() || undefined,
         notes: body.notes,
         discountPercent: toDecimal(body.discountPercent || 0),
         discountAmount: toDecimal(body.discountAmount || 0),
@@ -459,6 +466,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
         validUntil: z.string().datetime().optional().nullable(),
         eventAt: z.string().datetime().optional().nullable(),
         eventEndAt: z.string().datetime().optional().nullable(),
+        eventLocation: z.string().optional().nullable(),
         notes: z.string().optional().nullable(),
         internalNotes: z.string().optional().nullable(),
         discountPercent: z.number().optional(),
@@ -559,6 +567,9 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           }),
           ...(body.eventEndAt !== undefined && {
             eventEndAt: body.eventEndAt ? new Date(body.eventEndAt) : null,
+          }),
+          ...(body.eventLocation !== undefined && {
+            eventLocation: body.eventLocation?.trim() || null,
           }),
           ...(body.status !== undefined && { status: body.status }),
           ...(body.discountPercent !== undefined && {

@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { MonthCalendar } from "@/components/calendar/month-calendar";
+import { EventHubDialog } from "@/components/calendar/event-hub-dialog";
+import type { EventItem } from "@/lib/api";
 import { UpcomingEventsPanel } from "@/components/events/upcoming-events-panel";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -17,11 +19,13 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { eventsApi } from "@/lib/api";
+import { calendarEventTypeOptions } from "@/lib/labels";
 
 export default function CalendarPage() {
+  const [hubEvent, setHubEvent] = useState<EventItem | null>(null);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
-  const [type, setType] = useState("APPOINTMENT");
+  const [type, setType] = useState("EVENT");
   const [eventFrom, setEventFrom] = useState("");
   const [eventTo, setEventTo] = useState("");
   const qc = useQueryClient();
@@ -80,7 +84,7 @@ export default function CalendarPage() {
           <div className="order-2 xl:order-1 xl:col-span-2">
             <Card>
               <CardContent className="p-4 sm:p-6">
-                <MonthCalendar />
+                <MonthCalendar onEventSelect={setHubEvent} />
               </CardContent>
             </Card>
           </div>
@@ -89,10 +93,20 @@ export default function CalendarPage() {
               events={upcoming}
               loading={upcomingLoading}
               variant="sidebar"
+              onEventClick={setHubEvent}
             />
           </div>
         </div>
       </div>
+
+      <EventHubDialog
+        event={hubEvent}
+        open={!!hubEvent}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setHubEvent(null);
+        }}
+        onEventUpdated={setHubEvent}
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
@@ -105,18 +119,20 @@ export default function CalendarPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
-            <select
-              className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-            >
-              <option value="APPOINTMENT">Appuntamento</option>
-              <option value="INTERVENTION">Intervento</option>
-              <option value="MEETING">Riunione</option>
-              <option value="DEADLINE">Scadenza</option>
-              <option value="REMINDER">Promemoria</option>
-              <option value="OTHER">Altro</option>
-            </select>
+            <div>
+              <label className="mb-1 block text-sm font-medium">Tipo</label>
+              <select
+                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                {calendarEventTypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label className="mb-1 block text-sm font-medium">Data evento (da)</label>
               <Input

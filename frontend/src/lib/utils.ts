@@ -34,3 +34,36 @@ export function formatDate(date: string | Date) {
     year: "numeric",
   }).format(new Date(date));
 }
+
+/** Valore per `<input type="date">` in ora locale (evita errori con slice UTC). */
+export function toDateInputValue(iso: string | Date): string {
+  const d = new Date(iso);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Da campo data (YYYY-MM-DD) a ISO per API, ora locale. */
+export function dateInputToIso(dateOnly: string, hour: number): string {
+  const [y, m, d] = dateOnly.split("-").map(Number);
+  return new Date(y, m - 1, d, hour, 0, 0, 0).toISOString();
+}
+
+/** Intervallo date evento (preventivi, lead, calendario). */
+export function formatEventDateRange(
+  start?: string | Date | null,
+  end?: string | Date | null
+): string {
+  if (!start && !end) return "";
+  if (start && !end) return formatDate(start);
+  if (!start && end) return formatDate(end);
+  const a = new Date(start!);
+  const b = new Date(end!);
+  const sameDay =
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  if (sameDay) return formatDate(a);
+  return `${formatDate(a)} – ${formatDate(b)}`;
+}

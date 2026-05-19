@@ -242,6 +242,7 @@ export interface Quote {
   validUntil?: string;
   eventAt?: string;
   eventEndAt?: string;
+  eventLocation?: string | null;
   notes?: string;
   internalNotes?: string;
   category?: string;
@@ -266,6 +267,7 @@ export interface QuotePaymentTerm {
   percent?: number | string | null;
   amount?: number | string;
   isBalance: boolean;
+  dueDate?: string | null;
   sortOrder?: number;
 }
 
@@ -290,6 +292,7 @@ export type PaymentTermDraft = {
   percent?: number;
   amount?: number;
   isBalance?: boolean;
+  dueDate?: string;
 };
 
 export const paymentTermTemplatesApi = {
@@ -487,6 +490,7 @@ export const reportsApi = {
 
 export interface ReportPayload {
   clientId: string;
+  quoteId?: string | null;
   interventionId?: string;
   description?: string;
   workHours?: number;
@@ -549,6 +553,18 @@ export interface ReportDetail extends Report {
   client?: Client;
   technician?: { firstName: string; lastName: string; email?: string };
   intervention?: { id: string; number: string; title: string };
+  quoteId?: string | null;
+  quote?: {
+    id: string;
+    number: string;
+    title?: string | null;
+    status: string;
+    total?: number | string;
+    eventAt?: string | null;
+    eventEndAt?: string | null;
+    validUntil?: string | null;
+    items?: QuoteItem[];
+  };
   materials?: {
     id: string;
     name: string;
@@ -645,7 +661,10 @@ export const eventsApi = {
     allDay?: boolean;
   }) =>
     api<EventItem>("/events", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<{ title: string; startAt: string; endAt: string }>) =>
+  update: (
+    id: string,
+    data: Partial<{ title: string; type: string; startAt: string; endAt: string }>
+  ) =>
     api<EventItem>(`/events/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
@@ -674,16 +693,18 @@ export interface Invoice {
 }
 
 export const invoicesApi = {
-  list: (params?: Record<string, string>) => {
+  list: async (params?: Record<string, string>) => {
     const q = params ? "?" + new URLSearchParams(params).toString() : "";
-    return api<{ data: Invoice[]; total: number }>(`/invoices${q}`);
+    const rows = await api<Invoice[]>(`/invoices${q}`);
+    return { data: rows, total: rows.length };
   },
   get: (id: string) => api<Invoice>(`/invoices/${id}`),
-  fromQuote: (quoteId: string) =>
-    api<Invoice>("/invoices/from-quote", {
+  createFromQuote: (quoteId: string) =>
+    api<Invoice>("/invoices", {
       method: "POST",
       body: JSON.stringify({ quoteId }),
     }),
+  fromQuote: (quoteId: string) => invoicesApi.createFromQuote(quoteId),
 };
 
 export interface AutomationRule {
@@ -806,7 +827,49 @@ export const paymentsApi = {
     }),
   delete: (id: string) =>
     api<{ success: boolean }>(`/payments/${id}`, { method: "DELETE" }),
+  clientOverview: (clientId: string) =>
+    api<ClientPaymentOverview>(
+      `/payments/client-overview?${new URLSearchParams({ clientId })}`
+    ),
 };
+
+export type ScheduleRowStatus = "PAID" | "PARTIAL" | "PENDING" | "OVERDUE";
+
+export interface PaymentScheduleRow {
+  id: string;
+  quoteId: string;
+  quoteNumber: string;
+  quoteTitle: string | null;
+  label: string;
+  amount: number;
+  paidAmount: number;
+  remaining: number;
+  dueDate: string;
+  status: ScheduleRowStatus;
+}
+
+export interface ClientDocumentRow {
+  id: string;
+  kind: "quote" | "invoice";
+  number: string;
+  title: string | null;
+  total: number;
+  balanceDue: number;
+  paymentStatus: string;
+  href: string;
+}
+
+export interface ClientPaymentOverview {
+  open: ClientDocumentRow[];
+  closed: ClientDocumentRow[];
+  schedule: PaymentScheduleRow[];
+  summary: {
+    openAmount: number;
+    closedAmount: number;
+    overdueCount: number;
+    upcomingCount: number;
+  };
+}
 
 export interface EventGalleryItem {
   id: string;

@@ -11,7 +11,7 @@ import {
   type PaymentTermDraft,
   type PaymentTermTemplate,
 } from "@/lib/api";
-import { formatCurrency } from "@/lib/utils";
+import { dateInputToIso, formatCurrency, toDateInputValue } from "@/lib/utils";
 
 export type { PaymentTermDraft };
 
@@ -46,6 +46,7 @@ const emptyRow = (): PaymentTermDraft => ({
   percent: undefined,
   amount: undefined,
   isBalance: false,
+  dueDate: undefined,
 });
 
 function templateToDraft(t: PaymentTermTemplate): PaymentTermDraft[] {
@@ -167,6 +168,24 @@ export function PaymentScheduleEditor({
                     updateRow(index, { note: e.target.value || undefined })
                   }
                 />
+                <div>
+                  <label className="mb-0.5 block text-xs text-muted-foreground">
+                    Scadenza
+                  </label>
+                  <Input
+                    type="date"
+                    value={
+                      term.dueDate ? toDateInputValue(term.dueDate) : ""
+                    }
+                    onChange={(e) =>
+                      updateRow(index, {
+                        dueDate: e.target.value
+                          ? dateInputToIso(e.target.value, 12)
+                          : undefined,
+                      })
+                    }
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <div>
                     <label className="mb-0.5 block text-xs text-muted-foreground">

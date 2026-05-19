@@ -33,11 +33,13 @@ export function UpcomingEventsPanel({
   loading,
   variant = "default",
   className,
+  onEventClick,
 }: {
   events?: EventItem[];
   loading?: boolean;
   variant?: "default" | "prominent" | "sidebar";
   className?: string;
+  onEventClick?: (event: EventItem) => void;
 }) {
   const list = events ?? [];
   const isProminent = variant === "prominent";
@@ -74,8 +76,22 @@ export function UpcomingEventsPanel({
               className={cn(
                 "group rounded-xl border border-border bg-card transition-colors hover:border-primary/30 hover:bg-primary/5",
                 isProminent ? "p-4 shadow-sm" : "px-3 py-2.5",
-                isSidebar && "border-primary/20 bg-primary/5"
+                isSidebar && "border-primary/20 bg-primary/5",
+                onEventClick && "cursor-pointer"
               )}
+              role={onEventClick ? "button" : undefined}
+              tabIndex={onEventClick ? 0 : undefined}
+              onClick={onEventClick ? () => onEventClick(ev) : undefined}
+              onKeyDown={
+                onEventClick
+                  ? (e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        onEventClick(ev);
+                      }
+                    }
+                  : undefined
+              }
             >
               <div className="flex items-start gap-3">
                 <div
