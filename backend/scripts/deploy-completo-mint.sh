@@ -26,9 +26,10 @@ if [[ "${SKIP_PULL:-0}" != "1" ]] && [[ -d "$CRM_ROOT/.git" ]]; then
 fi
 
 chmod +x "$BACKEND/scripts/"*.sh 2>/dev/null || true
+chmod +x "$BACKEND/scripts/deploy-completo-mint.sh" 2>/dev/null || true
 
 echo "==> API (upgrade-mint)"
-bash "$BACKEND/scripts/upgrade-mint.sh"
+SKIP_PULL=1 CRM_ROOT="$CRM_ROOT" bash "$BACKEND/scripts/upgrade-mint.sh"
 
 if [[ -f "$CRM_ROOT/frontend/.env.production" ]] && [[ "${SKIP_FRONTEND:-0}" != "1" ]]; then
   echo "==> Frontend (crm-web)"

@@ -2,15 +2,48 @@
 # Esegui sul Mini PC (Mint), nella cartella del progetto.
 set -euo pipefail
 
-cd ~/CRM-APP
+CRM_ROOT="${CRM_ROOT:-$HOME/CRM-APP}"
+BACKEND="${CRM_ROOT}/backend"
 
-echo "==> Git pull"
-git pull origin main
+cd "$CRM_ROOT"
 
-cd backend
+if [[ "${SKIP_PULL:-0}" != "1" ]]; then
+  echo "==> Git pull"
+  git pull origin main
+fi
+
+if [[ ! -f "$BACKEND/.env" ]]; then
+  echo "Errore: $BACKEND/.env mancante (copia da .env.example e imposta DATABASE_URL)"
+  exit 1
+fi
+
+# Prisma legge DATABASE_URL dall'ambiente — senza source .env fallisce con P1012
+set -a
+# shellcheck disable=SC1091
+source "$BACKEND/.env"
+set +a
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "Errore: DATABASE_URL vuoto in $BACKEND/.env"
+  exit 1
+fi
+
+echo "==> Install dipendenze (root monorepo — include @types per tsc)"
+NPM_CI_FLAGS=()
+if [[ "${NODE_ENV:-}" == "production" ]]; then
+  NPM_CI_FLAGS=(--include=dev)
+  echo "    NODE_ENV=production: forzo installazione devDependencies"
+fi
+npm ci "${NPM_CI_FLAGS[@]}"
+
+if [[ ! -d "$CRM_ROOT/node_modules/@types/node" ]]; then
+  echo "Errore: @types/node mancante dopo npm ci. Dalla root: cd $CRM_ROOT && npm ci"
+  exit 1
+fi
 
 echo "==> Schema database (nuove tabelle/colonne)"
-npx prisma db push
+cd "$BACKEND"
+npx prisma db push --schema=prisma/schema.prisma
 
 if [[ "${RUN_DB_SEED:-}" == "1" ]]; then
   echo "==> Seed database (RUN_DB_SEED=1)"
@@ -18,20 +51,19 @@ if [[ "${RUN_DB_SEED:-}" == "1" ]]; then
 fi
 
 echo "==> Build API"
-npm ci
-npm run build
+npm run build --workspace=backend
 
 echo "==> Avvio / riavvio PM2 (crm-api)"
 if pm2 describe crm-api >/dev/null 2>&1; then
   pm2 restart crm-api --update-env
 else
   echo "    crm-api non presente — avvio nuovo processo"
-  pm2 start dist/index.js --name crm-api --cwd "$(pwd)" --update-env
+  pm2 start dist/index.js --name crm-api --cwd "$BACKEND" --update-env
 fi
 pm2 save
 pm2 status crm-api
 
-PORT=$(grep -E '^PORT=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r' || echo "4100")
+PORT=$(grep -E '^PORT=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2 | tr -d '\r' || echo "4100")
 if curl -sf "http://127.0.0.1:${PORT}/api/health" >/dev/null; then
   echo "    Health locale OK (porta ${PORT})"
 else
