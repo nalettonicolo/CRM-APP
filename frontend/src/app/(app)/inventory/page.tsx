@@ -25,11 +25,11 @@ export default function InventoryPage() {
       <div className="p-3 sm:p-4 md:p-6">
         <PageCreateBar>
           <PageCreateLink
-            href="/inventory/products"
+            href="/inventory/products?new=1"
             label={SECTION_CREATE.product}
           />
           <PageCreateLink
-            href="/inventory/services"
+            href="/inventory/services?new=1"
             label={SECTION_CREATE.service}
           />
         </PageCreateBar>

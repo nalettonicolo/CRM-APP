@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -22,10 +23,23 @@ import { formatCurrency } from "@/lib/utils";
 const empty = { name: "", sku: "", price: "", category: "" };
 
 export default function ProductsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState(empty);
+
+  const openCreateDialog = useCallback(() => {
+    setEditing(null);
+    setOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    openCreateDialog();
+    router.replace("/inventory/products");
+  }, [searchParams, router, openCreateDialog]);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products"],
@@ -98,13 +112,7 @@ export default function ProductsPage() {
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle>Catalogo prodotti</CardTitle>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null);
-                setOpen(true);
-              }}
-            >
+            <Button size="sm" onClick={openCreateDialog}>
               <Plus className="h-4 w-4" /> {SECTION_CREATE.product}
             </Button>
           </CardHeader>

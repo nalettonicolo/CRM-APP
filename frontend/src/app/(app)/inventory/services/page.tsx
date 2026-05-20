@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +21,7 @@ import {
   SERVICE_UNIT_OPTIONS,
   serviceUnitLabel,
 } from "@/lib/labels";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const UNIT_CUSTOM = "__custom__";
@@ -51,11 +53,24 @@ function resolveUnit(unit: string, customUnit: string) {
 }
 
 export default function ServicesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Service | null>(null);
   const [form, setForm] = useState(empty);
   const [addingCategory, setAddingCategory] = useState(false);
+
+  const openCreateDialog = useCallback(() => {
+    setEditing(null);
+    setOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    openCreateDialog();
+    router.replace("/inventory/services");
+  }, [searchParams, router, openCreateDialog]);
 
   const { data: services = [], isLoading } = useQuery({
     queryKey: ["services", "all"],
@@ -177,14 +192,8 @@ export default function ServicesPage() {
         <Card className="mt-4">
           <CardHeader className="flex flex-row items-center justify-between gap-2">
             <CardTitle>Servizi</CardTitle>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditing(null);
-                setOpen(true);
-              }}
-            >
-              <Plus className="h-4 w-4" /> Nuovo servizio
+            <Button size="sm" onClick={openCreateDialog}>
+              <Plus className="h-4 w-4" /> {SECTION_CREATE.service}
             </Button>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
