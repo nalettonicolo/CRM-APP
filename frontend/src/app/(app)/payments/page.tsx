@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Trash2, Wallet } from "lucide-react";
+import { AlertCircle, Pencil, Trash2, Wallet } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import {
   PageCreateBar,
@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClientPaymentOverview } from "@/components/payments/client-payment-overview";
+import { OpenPaymentsPanel } from "@/components/payments/open-payments-panel";
 import {
   Dialog,
   DialogContent,
@@ -77,6 +77,14 @@ export default function PaymentsPage() {
   const { data: summary } = useQuery({
     queryKey: ["payments", "summary", filterClient],
     queryFn: () => paymentsApi.summary(),
+  });
+
+  const { data: openOverview } = useQuery({
+    queryKey: ["payments", "open-overview", filterClient || "all"],
+    queryFn: () =>
+      paymentsApi.openOverview(
+        filterClient ? { clientId: filterClient } : undefined
+      ),
   });
 
   const { data: clientsRes } = useQuery({
@@ -144,6 +152,7 @@ export default function PaymentsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments"] });
       qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["payments", "open-overview"] });
       setOpen(false);
       setEditing(null);
     },
@@ -154,6 +163,7 @@ export default function PaymentsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payments"] });
       qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["payments", "open-overview"] });
     },
   });
 
@@ -182,7 +192,7 @@ export default function PaymentsPage() {
           </PageCreateBar>
         </div>
 
-        <div className="mb-6 grid gap-4 sm:grid-cols-2">
+        <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
@@ -200,6 +210,23 @@ export default function PaymentsPage() {
             </CardContent>
           </Card>
           <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base text-amber-800 dark:text-amber-200">
+                <AlertCircle className="h-4 w-4" />
+                Da incassare
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold tabular-nums text-amber-800 dark:text-amber-200">
+                {formatCurrency(openOverview?.summary.openAmount ?? 0)}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {openOverview?.open.length ?? 0} documenti ·{" "}
+                {openOverview?.schedule.length ?? 0} scadenze aperte
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="sm:col-span-2 lg:col-span-1">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Filtro cliente</CardTitle>
             </CardHeader>
@@ -220,7 +247,7 @@ export default function PaymentsPage() {
           </Card>
         </div>
 
-        {filterClient ? <ClientPaymentOverview clientId={filterClient} /> : null}
+        <OpenPaymentsPanel clientId={filterClient || undefined} />
 
         <Card>
           <CardHeader>

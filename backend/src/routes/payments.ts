@@ -7,7 +7,10 @@ import { paramId } from "../utils/params.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { logActivity } from "../services/activityLog.js";
 import { syncQuotePaymentStatus } from "../services/quotePayments.js";
-import { getClientPaymentOverview } from "../services/paymentSchedule.js";
+import {
+  getClientPaymentOverview,
+  getOpenPaymentsOverview,
+} from "../services/paymentSchedule.js";
 
 const router = Router();
 router.use(authenticate);
@@ -50,6 +53,22 @@ router.get("/summary", requirePermission("payments", "READ"), async (req, res, n
     next(e);
   }
 });
+
+router.get(
+  "/open-overview",
+  requirePermission("payments", "READ"),
+  async (req, res, next) => {
+    try {
+      const clientId = req.query.clientId
+        ? String(req.query.clientId)
+        : undefined;
+      const overview = await getOpenPaymentsOverview(clientId);
+      res.json(overview);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.get(
   "/client-overview",

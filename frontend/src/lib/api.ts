@@ -843,7 +843,36 @@ export const paymentsApi = {
     api<ClientPaymentOverview>(
       `/payments/client-overview?${new URLSearchParams({ clientId })}`
     ),
+  openOverview: (params?: { clientId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.clientId) q.set("clientId", params.clientId);
+    const qs = q.toString();
+    return api<OpenPaymentsOverview>(
+      `/payments/open-overview${qs ? `?${qs}` : ""}`
+    );
+  },
 };
+
+export interface OpenPaymentDocumentRow extends ClientDocumentRow {
+  clientId: string;
+  clientName: string;
+}
+
+export interface OpenPaymentScheduleRow extends PaymentScheduleRow {
+  clientId: string;
+  clientName: string;
+}
+
+export interface OpenPaymentsOverview {
+  open: OpenPaymentDocumentRow[];
+  schedule: OpenPaymentScheduleRow[];
+  summary: {
+    openAmount: number;
+    overdueCount: number;
+    upcomingCount: number;
+    partialCount: number;
+  };
+}
 
 export type ScheduleRowStatus = "PAID" | "PARTIAL" | "PENDING" | "OVERDUE";
 
