@@ -426,10 +426,21 @@ export const inventoryApi = {
     api<{ success: boolean }>(`/inventory/products/${id}`, {
       method: "DELETE",
     }),
-  deleteService: (id: string) =>
-    api<{ success: boolean }>(`/inventory/services/${id}`, {
-      method: "DELETE",
-    }),
+  deleteService: async (id: string) => {
+    try {
+      return await api<{ success: boolean }>(
+        `/inventory/services/${id}/delete`,
+        { method: "POST" }
+      );
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 404) {
+        return api<{ success: boolean }>(`/inventory/services/${id}`, {
+          method: "DELETE",
+        });
+      }
+      throw e;
+    }
+  },
 };
 
 export interface InventoryItem {

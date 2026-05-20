@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { ImageIcon } from "lucide-react";
 import { authApi, backupApi, settingsApi, uploadBrandingAsset } from "@/lib/api";
 import {
   DEFAULT_APP_NAME,
@@ -380,12 +381,6 @@ export default function SettingsPage() {
               apparirà in home, login e PDF. Dopo il caricamento verifica la
               anteprima qui sotto.
             </p>
-            <Link
-              href="/settings/event-gallery"
-              className="text-sm text-primary hover:underline"
-            >
-              Galleria foto eventi →
-            </Link>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex flex-wrap items-end gap-4">
@@ -738,6 +733,25 @@ export default function SettingsPage() {
                 Disattiva
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Foto lavori in homepage
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Carica le foto dei tuoi eventi con una breve descrizione: compaiono
+              nella sezione &quot;I nostri eventi&quot; del sito pubblico. Senza
+              foto resta il messaggio &quot;Presto pubblicheremo…&quot;.
+            </p>
+            <Link href="/settings/event-gallery">
+              <Button>Gestisci galleria foto</Button>
+            </Link>
           </CardContent>
         </Card>
 

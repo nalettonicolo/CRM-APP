@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { eventGalleryApi } from "@/lib/api";
 import { publicAssetUrl } from "@/lib/branding";
 import { useFadeUp } from "@/lib/motion-presets";
+import { cn } from "@/lib/utils";
 
 type GalleryItemData = {
   id: string;
@@ -27,7 +28,11 @@ function GalleryItem({ item, index }: { item: GalleryItemData; index: number }) 
       {(item.title || item.caption) && (
         <figcaption className="p-4 text-sm">
           {item.title && <p className="font-medium text-white">{item.title}</p>}
-          {item.caption && <p className="mt-1 text-slate-400">{item.caption}</p>}
+          {item.caption && (
+            <p className={cn("text-slate-400", item.title && "mt-1")}>
+              {item.caption}
+            </p>
+          )}
         </figcaption>
       )}
     </motion.figure>

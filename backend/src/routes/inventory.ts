@@ -36,6 +36,47 @@ function requireCatalogDelete(resource: "products" | "services") {
   };
 }
 
+async function performServiceDelete(req: AuthRequest, id: string) {
+  const existing = await prisma.service.findUnique({
+    where: { id },
+    include: { _count: { select: { quoteItems: true } } },
+  });
+  if (!existing) throw new NotFoundError("Servizio non trovato");
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (existing._count.quoteItems > 0) {
+        await tx.quoteItem.updateMany({
+          where: { serviceId: id },
+          data: { serviceId: null },
+        });
+      }
+      await tx.service.delete({ where: { id } });
+    });
+  } catch (e) {
+    const code =
+      e && typeof e === "object" && "code" in e
+        ? String((e as { code: string }).code)
+        : "";
+    if (code === "P2003") {
+      throw new ValidationError(
+        "Impossibile eliminare il servizio: è ancora collegato ad altri dati."
+      );
+    }
+    throw e;
+  }
+
+  await logActivity({
+    userId: req.user!.userId,
+    action: "DELETE",
+    entityType: "service",
+    entityId: id,
+    details: { name: existing.name },
+  });
+
+  return { success: true as const };
+}
+
 const router = Router();
 router.use(authenticate);
 
@@ -445,54 +486,26 @@ router.delete(
   }
 );
 
+async function handleServiceDelete(req: AuthRequest, res: import("express").Response, next: import("express").NextFunction) {
+  try {
+    const result = await performServiceDelete(req, paramId(req));
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+}
+
 router.delete(
   "/services/:id",
   requireCatalogDelete("services"),
-  async (req: AuthRequest, res, next) => {
-    try {
-      const id = paramId(req);
-      const existing = await prisma.service.findUnique({
-        where: { id },
-        include: { _count: { select: { quoteItems: true } } },
-      });
-      if (!existing) throw new NotFoundError("Servizio non trovato");
+  handleServiceDelete
+);
 
-      try {
-        await prisma.$transaction(async (tx) => {
-          if (existing._count.quoteItems > 0) {
-            await tx.quoteItem.updateMany({
-              where: { serviceId: id },
-              data: { serviceId: null },
-            });
-          }
-          await tx.service.delete({ where: { id } });
-        });
-      } catch (e) {
-        const code =
-          e && typeof e === "object" && "code" in e
-            ? String((e as { code: string }).code)
-            : "";
-        if (code === "P2003") {
-          throw new ValidationError(
-            "Impossibile eliminare il servizio: è ancora collegato a dati nel sistema. Le righe preventivo verranno scollegate automaticamente al prossimo aggiornamento."
-          );
-        }
-        throw e;
-      }
-
-      await logActivity({
-        userId: req.user!.userId,
-        action: "DELETE",
-        entityType: "service",
-        entityId: id,
-        details: { name: existing.name },
-      });
-
-      res.json({ success: true });
-    } catch (e) {
-      next(e);
-    }
-  }
+/** POST alternativo: alcuni proxy/tunnel bloccano DELETE; stessa logica di sopra. */
+router.post(
+  "/services/:id/delete",
+  requireCatalogDelete("services"),
+  handleServiceDelete
 );
 
 router.patch("/warehouses/:id", requirePermission("inventory", "UPDATE"), async (req: AuthRequest, res, next) => {

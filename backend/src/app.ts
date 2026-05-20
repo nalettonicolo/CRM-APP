@@ -84,7 +84,14 @@ app.use("/api/auth/login", authLimiter);
 app.use("/uploads", express.static(path.resolve(config.upload.dir)));
 
 app.get("/api/health", (_req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    features: {
+      serviceDelete: true,
+      serviceDeletePost: true,
+    },
+  });
 });
 
 app.use("/api/uploads", uploadRoutes);

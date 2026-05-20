@@ -164,19 +164,26 @@ export default function ServicesPage() {
       qc.invalidateQueries({ queryKey: ["services"] });
     },
     onError: (e: unknown) => {
-      const msg =
-        e instanceof ApiError
-          ? e.message
-          : e instanceof Error
-            ? e.message
-            : "Impossibile eliminare il servizio.";
-      setDeleteError(
-        e instanceof ApiError && e.status === 403
-          ? `${msg} Il tuo ruolo potrebbe non avere il permesso di eliminazione.`
-          : e instanceof ApiError && e.status === 404
-            ? `${msg} Verifica che l'API sul server sia aggiornata (deploy Mint).`
-            : msg
-      );
+      if (!(e instanceof ApiError)) {
+        setDeleteError("Impossibile eliminare il servizio.");
+        return;
+      }
+      if (e.status === 403) {
+        setDeleteError(
+          `${e.message} Il tuo ruolo potrebbe non avere il permesso di eliminazione.`
+        );
+        return;
+      }
+      if (
+        e.status === 404 &&
+        !/non trovato/i.test(e.message)
+      ) {
+        setDeleteError(
+          "L'API sul server non è aggiornata. Sul Mini PC (Mint) esegui: cd ~/CRM-APP && git pull origin main && ./backend/scripts/deploy-completo-mint.sh — poi riprova."
+        );
+        return;
+      }
+      setDeleteError(e.message);
     },
   });
 
