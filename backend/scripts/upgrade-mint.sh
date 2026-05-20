@@ -68,15 +68,22 @@ if [[ ! -d "$CRM_ROOT/node_modules/@types/node" ]]; then
 fi
 
 echo "==> Schema database (nuove tabelle/colonne)"
-cd "$BACKEND"
-npx prisma db push --schema=prisma/schema.prisma
+(
+  cd "$BACKEND"
+  npx prisma db push --schema=prisma/schema.prisma
+  if [[ "${RUN_DB_SEED:-}" == "1" ]]; then
+    echo "==> Seed database (RUN_DB_SEED=1)"
+    npx prisma db seed
+  fi
+)
 
-if [[ "${RUN_DB_SEED:-}" == "1" ]]; then
-  echo "==> Seed database (RUN_DB_SEED=1)"
-  npx prisma db seed
+echo "==> Build API (dalla root monorepo — non da backend/)"
+cd "$CRM_ROOT"
+if [[ ! -f "$CRM_ROOT/package.json" ]] || ! grep -q '"workspaces"' "$CRM_ROOT/package.json" 2>/dev/null; then
+  echo "Errore: esegui lo script dalla root del repo ($CRM_ROOT), non solo la cartella backend."
+  echo "  cd $CRM_ROOT && bash backend/scripts/upgrade-mint.sh"
+  exit 1
 fi
-
-echo "==> Build API"
 npm run build --workspace=backend
 
 echo "==> Avvio / riavvio PM2 (crm-api)"
