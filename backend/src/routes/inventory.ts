@@ -8,7 +8,7 @@ import {
 } from "../middleware/auth.js";
 import { toDecimal } from "../services/quoteCalculator.js";
 import { logActivity } from "../services/activityLog.js";
-import { ForbiddenError, NotFoundError } from "../utils/errors.js";
+import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 import { hasPermission } from "../utils/permissions.js";
 
@@ -451,16 +451,34 @@ router.delete(
   async (req: AuthRequest, res, next) => {
     try {
       const id = paramId(req);
-      const existing = await prisma.service.findUnique({ where: { id } });
-      if (!existing) throw new NotFoundError();
-
-      await prisma.$transaction(async (tx) => {
-        await tx.quoteItem.updateMany({
-          where: { serviceId: id },
-          data: { serviceId: null },
-        });
-        await tx.service.delete({ where: { id } });
+      const existing = await prisma.service.findUnique({
+        where: { id },
+        include: { _count: { select: { quoteItems: true } } },
       });
+      if (!existing) throw new NotFoundError("Servizio non trovato");
+
+      try {
+        await prisma.$transaction(async (tx) => {
+          if (existing._count.quoteItems > 0) {
+            await tx.quoteItem.updateMany({
+              where: { serviceId: id },
+              data: { serviceId: null },
+            });
+          }
+          await tx.service.delete({ where: { id } });
+        });
+      } catch (e) {
+        const code =
+          e && typeof e === "object" && "code" in e
+            ? String((e as { code: string }).code)
+            : "";
+        if (code === "P2003") {
+          throw new ValidationError(
+            "Impossibile eliminare il servizio: è ancora collegato a dati nel sistema. Le righe preventivo verranno scollegate automaticamente al prossimo aggiornamento."
+          );
+        }
+        throw e;
+      }
 
       await logActivity({
         userId: req.user!.userId,

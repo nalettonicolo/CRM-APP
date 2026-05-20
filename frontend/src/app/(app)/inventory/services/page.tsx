@@ -16,7 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { inventoryApi, type Service } from "@/lib/api";
+import { ApiError, inventoryApi, type Service } from "@/lib/api";
 import {
   SERVICE_UNIT_OPTIONS,
   serviceUnitLabel,
@@ -158,12 +158,26 @@ export default function ServicesPage() {
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => inventoryApi.deleteService(id),
+    onMutate: () => setDeleteError(""),
     onSuccess: () => {
       setDeleteError("");
       qc.invalidateQueries({ queryKey: ["services"] });
     },
-    onError: (e: Error) =>
-      setDeleteError(e.message || "Impossibile eliminare il servizio."),
+    onError: (e: unknown) => {
+      const msg =
+        e instanceof ApiError
+          ? e.message
+          : e instanceof Error
+            ? e.message
+            : "Impossibile eliminare il servizio.";
+      setDeleteError(
+        e instanceof ApiError && e.status === 403
+          ? `${msg} Il tuo ruolo potrebbe non avere il permesso di eliminazione.`
+          : e instanceof ApiError && e.status === 404
+            ? `${msg} Verifica che l'API sul server sia aggiornata (deploy Mint).`
+            : msg
+      );
+    },
   });
 
   const grouped = services.reduce<Record<string, Service[]>>((acc, s) => {

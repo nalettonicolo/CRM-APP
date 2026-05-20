@@ -64,6 +64,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   WAREHOUSE: [
     "inventory:*",
     "products:*",
+    "services:*",
     "reports:read",
     "search:read",
   ],

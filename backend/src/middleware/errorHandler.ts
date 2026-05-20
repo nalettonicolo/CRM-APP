@@ -1,4 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
+import { Prisma } from "@prisma/client";
 import { AppError } from "../utils/errors.js";
 import { ZodError } from "zod";
 
@@ -23,6 +24,24 @@ export function errorHandler(
       details: err.flatten().fieldErrors,
     });
     return;
+  }
+
+  if (err instanceof Prisma.PrismaClientKnownRequestError) {
+    if (err.code === "P2003") {
+      res.status(409).json({
+        error:
+          "Impossibile eliminare: il record è ancora collegato ad altri dati. Riprova o contatta l'amministratore.",
+        code: "FOREIGN_KEY",
+      });
+      return;
+    }
+    if (err.code === "P2025") {
+      res.status(404).json({
+        error: "Risorsa non trovata",
+        code: "NOT_FOUND",
+      });
+      return;
+    }
   }
 
   console.error("[Error]", err);
