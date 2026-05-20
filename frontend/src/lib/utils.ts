@@ -67,3 +67,24 @@ export function formatEventDateRange(
   if (sameDay) return formatDate(a);
   return `${formatDate(a)} – ${formatDate(b)}`;
 }
+
+/** True se l'evento ricade (anche in parte) sul giorno di calendario indicato. */
+export function eventSpansDay(
+  day: Date,
+  startAt: string | Date,
+  endAt?: string | Date | null
+): boolean {
+  const start = new Date(startAt);
+  const end = endAt ? new Date(endAt) : start;
+  const dayStart = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+  const dayEnd = new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    23,
+    59,
+    59,
+    999
+  );
+  return start <= dayEnd && end >= dayStart;
+}

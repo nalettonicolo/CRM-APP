@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { inventoryApi, type Product } from "@/lib/api";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { formatCurrency } from "@/lib/utils";
 
 const empty = { name: "", sku: "", price: "", category: "" };
@@ -104,7 +105,7 @@ export default function ProductsPage() {
                 setOpen(true);
               }}
             >
-              <Plus className="h-4 w-4" /> Nuovo
+              <Plus className="h-4 w-4" /> {SECTION_CREATE.product}
             </Button>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">

@@ -2,15 +2,17 @@
 
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { Plus } from "lucide-react";
 import { Header } from "@/components/layout/header";
-import { Button } from "@/components/ui/button";
+import {
+  PageCreateBar,
+  PageCreateLink,
+} from "@/components/layout/page-create-action";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { interventionsApi } from "@/lib/api";
 import { reportStatusLabels } from "@/lib/labels";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { formatDate, cn } from "@/lib/utils";
 
 const statusColors: Record<string, string> = {
@@ -31,13 +33,9 @@ export default function ReportsPage() {
     <>
       <Header title={DOCUMENT_COPY.report.listTitle} />
       <div className="p-3 sm:p-4 md:p-6">
-        <div className="mb-4 flex justify-end">
-          <Button asChild>
-            <Link href="/reports/new">
-              <Plus className="h-4 w-4" /> Nuovo report
-            </Link>
-          </Button>
-        </div>
+        <PageCreateBar>
+          <PageCreateLink href="/reports/new" label={SECTION_CREATE.report} />
+        </PageCreateBar>
         <Card>
           <CardContent className="p-0">
             <table className="w-full text-sm">

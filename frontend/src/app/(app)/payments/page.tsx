@@ -3,8 +3,12 @@
 import { useMemo, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2, Wallet } from "lucide-react";
+import { Pencil, Trash2, Wallet } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import {
+  PageCreateBar,
+  PageCreateButton,
+} from "@/components/layout/page-create-action";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +27,7 @@ import {
   type ClientPayment,
 } from "@/lib/api";
 import { paymentMethodLabels } from "@/lib/labels";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 const METHODS = [
@@ -164,10 +169,18 @@ export default function PaymentsPage() {
     <>
       <Header title="Pagamenti" />
       <div className="p-3 sm:p-4 md:p-6">
-        <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
-          Registra acconti e incassi collegati a clienti e preventivi. Lo stato
-          pagamento del preventivo si aggiorna automaticamente.
-        </p>
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Registra acconti e incassi collegati a clienti e preventivi. Lo stato
+            pagamento del preventivo si aggiorna automaticamente.
+          </p>
+          <PageCreateBar className="mb-0 shrink-0">
+            <PageCreateButton
+              label={SECTION_CREATE.payment}
+              onClick={openCreate}
+            />
+          </PageCreateBar>
+        </div>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-2">
           <Card>
@@ -210,11 +223,8 @@ export default function PaymentsPage() {
         {filterClient ? <ClientPaymentOverview clientId={filterClient} /> : null}
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <CardHeader>
             <CardTitle>Movimenti</CardTitle>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4" /> Registra pagamento
-            </Button>
           </CardHeader>
           <CardContent className="p-0 overflow-x-auto">
             <table className="w-full text-sm">

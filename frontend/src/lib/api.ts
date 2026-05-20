@@ -467,6 +467,18 @@ export interface Service {
 export const interventionsApi = {
   list: () => api<Intervention[]>("/interventions"),
   get: (id: string) => api<InterventionDetail>(`/interventions/${id}`),
+  create: (data: {
+    clientId: string;
+    title: string;
+    description?: string;
+    location?: string;
+    scheduledAt?: string;
+    technicianId?: string;
+  }) =>
+    api<InterventionDetail>("/interventions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   reports: () => api<Report[]>("/interventions/reports"),
 };
 

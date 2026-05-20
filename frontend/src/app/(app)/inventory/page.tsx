@@ -4,8 +4,13 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Package, AlertTriangle } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import {
+  PageCreateBar,
+  PageCreateLink,
+} from "@/components/layout/page-create-action";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { inventoryApi } from "@/lib/api";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatCurrency } from "@/lib/utils";
 
 export default function InventoryPage() {
@@ -18,6 +23,16 @@ export default function InventoryPage() {
     <>
       <Header title="Magazzino" />
       <div className="p-3 sm:p-4 md:p-6">
+        <PageCreateBar>
+          <PageCreateLink
+            href="/inventory/products"
+            label={SECTION_CREATE.product}
+          />
+          <PageCreateLink
+            href="/inventory/services"
+            label={SECTION_CREATE.service}
+          />
+        </PageCreateBar>
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

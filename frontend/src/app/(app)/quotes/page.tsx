@@ -1,12 +1,13 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import {
+  PageCreateBar,
+  PageCreateLink,
+} from "@/components/layout/page-create-action";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { quotesApi } from "@/lib/api";
 import { quoteStatusLabels } from "@/lib/labels";
@@ -14,6 +15,7 @@ import {
   formatQuoteListSubtitle,
   formatQuoteServicePeriod,
 } from "@/lib/quote-display";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { formatCurrency, formatDate, cn } from "@/lib/utils";
 
 const statusStyle: Record<string, string> = {
@@ -39,13 +41,9 @@ export default function QuotesPage() {
           Ogni riga riassume oggetto, periodo di servizio e luogo. Le date non vanno
           nell&apos;oggetto: usale nei campi dedicati in modifica.
         </p>
-        <div className="mb-6 flex justify-end">
-          <Button asChild>
-            <Link href="/quotes/new">
-              <Plus className="h-4 w-4" /> Nuovo preventivo
-            </Link>
-          </Button>
-        </div>
+        <PageCreateBar className="mb-6">
+          <PageCreateLink href="/quotes/new" label={SECTION_CREATE.quote} />
+        </PageCreateBar>
 
         <Card>
           <CardContent className="p-0">

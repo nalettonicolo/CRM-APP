@@ -26,9 +26,19 @@ router.get("/", requirePermission("events", "READ"), async (req, res, next) => {
     const { from, to } = req.query;
     const where: Record<string, unknown> = {};
     if (from || to) {
-      where.startAt = {};
-      if (from) (where.startAt as Record<string, Date>).gte = new Date(from as string);
-      if (to) (where.startAt as Record<string, Date>).lte = new Date(to as string);
+      const fromDate = from ? new Date(from as string) : undefined;
+      const toDate = to ? new Date(to as string) : undefined;
+      const overlap: Record<string, unknown>[] = [];
+      if (toDate) overlap.push({ startAt: { lte: toDate } });
+      if (fromDate) {
+        overlap.push({
+          OR: [
+            { endAt: { gte: fromDate } },
+            { endAt: null, startAt: { gte: fromDate } },
+          ],
+        });
+      }
+      if (overlap.length) where.AND = overlap;
     }
 
     const events = await prisma.event.findMany({

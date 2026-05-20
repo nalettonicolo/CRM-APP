@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import {
+  PageCreateButton,
+} from "@/components/layout/page-create-action";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +14,7 @@ import { ClientDetailDialog } from "@/components/clients/client-detail-dialog";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
 import { clientsApi, type Client } from "@/lib/api";
 import { clientStatusLabels } from "@/lib/labels";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatDate } from "@/lib/utils";
 
 const statusColors: Record<string, string> = {
@@ -79,9 +83,10 @@ export default function ClientsPage() {
               ))}
             </select>
           </div>
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4" /> Nuovo cliente
-          </Button>
+          <PageCreateButton
+            label={SECTION_CREATE.client}
+            onClick={() => setDialogOpen(true)}
+          />
         </div>
 
         <Card>

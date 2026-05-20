@@ -21,12 +21,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { eventsApi, type EventItem } from "@/lib/api";
 import { calendarEventTypeOptions, eventTypeLabels } from "@/lib/labels";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatEventDateRange } from "@/lib/utils";
 
 function formatEventTime(ev: EventItem) {
-  const d = new Date(ev.startAt);
-  if (ev.allDay) return formatDate(ev.startAt);
-  return d.toLocaleString("it-IT", {
+  const start = new Date(ev.startAt);
+  const end = ev.endAt ? new Date(ev.endAt) : start;
+  const multiDay =
+    ev.endAt &&
+    (start.getFullYear() !== end.getFullYear() ||
+      start.getMonth() !== end.getMonth() ||
+      start.getDate() !== end.getDate());
+
+  if (ev.allDay || multiDay) return formatEventDateRange(ev.startAt, ev.endAt);
+  return start.toLocaleString("it-IT", {
     weekday: "long",
     day: "numeric",
     month: "long",

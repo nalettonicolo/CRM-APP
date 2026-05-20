@@ -6,12 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { EventItem } from "@/lib/api";
 import { eventTypeLabels } from "@/lib/labels";
-import { cn, formatDate } from "@/lib/utils";
+import { cn, formatEventDateRange } from "@/lib/utils";
 
-function formatEventWhen(startAt: string, allDay?: boolean) {
-  const d = new Date(startAt);
-  if (allDay) return formatDate(startAt);
-  return d.toLocaleString("it-IT", {
+function formatEventWhen(ev: EventItem) {
+  const start = new Date(ev.startAt);
+  const end = ev.endAt ? new Date(ev.endAt) : start;
+  const multiDay =
+    !!ev.endAt &&
+    (start.getFullYear() !== end.getFullYear() ||
+      start.getMonth() !== end.getMonth() ||
+      start.getDate() !== end.getDate());
+
+  if (ev.allDay || multiDay) {
+    return formatEventDateRange(ev.startAt, ev.endAt);
+  }
+  return start.toLocaleString("it-IT", {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -114,7 +123,7 @@ export function UpcomingEventsPanel({
                   <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      {formatEventWhen(ev.startAt, ev.allDay)}
+                      {formatEventWhen(ev)}
                     </span>
                     {ev.type && (
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">

@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { usersApi, type StaffUser } from "@/lib/api";
 import { userRoleLabels, userStatusLabels } from "@/lib/labels";
+import { SECTION_CREATE } from "@/lib/section-create";
+import { PageCreateButton } from "@/components/layout/page-create-action";
 import { useAuthStore } from "@/store/auth";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -156,9 +158,13 @@ export default function UsersPage() {
       <Header title="Utenti" />
       <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-6 flex justify-end">
-          <Button onClick={() => { setError(""); setCreateOpen(true); }}>
-            <Plus className="h-4 w-4" /> Nuovo utente
-          </Button>
+          <PageCreateButton
+            label={SECTION_CREATE.user}
+            onClick={() => {
+              setError("");
+              setCreateOpen(true);
+            }}
+          />
         </div>
 
         <Card>

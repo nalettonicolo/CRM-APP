@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
 import { MonthCalendar } from "@/components/calendar/month-calendar";
 import { EventHubDialog } from "@/components/calendar/event-hub-dialog";
 import type { EventItem } from "@/lib/api";
@@ -20,6 +19,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { eventsApi } from "@/lib/api";
 import { calendarEventTypeOptions } from "@/lib/labels";
+import { SECTION_CREATE } from "@/lib/section-create";
+import { PageCreateButton } from "@/components/layout/page-create-action";
 
 export default function CalendarPage() {
   const [hubEvent, setHubEvent] = useState<EventItem | null>(null);
@@ -75,9 +76,10 @@ export default function CalendarPage() {
           <p className="text-sm text-muted-foreground">
             Vista mensile e lista dei prossimi appuntamenti
           </p>
-          <Button onClick={() => setOpen(true)}>
-            <Plus className="h-4 w-4" /> Nuovo evento
-          </Button>
+          <PageCreateButton
+            label={SECTION_CREATE.event}
+            onClick={() => setOpen(true)}
+          />
         </div>
 
         <div className="grid gap-6 xl:grid-cols-3">

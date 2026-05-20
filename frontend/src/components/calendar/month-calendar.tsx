@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { eventsApi, type EventItem } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, eventSpansDay } from "@/lib/utils";
 
 const WEEKDAYS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
 
@@ -44,8 +44,15 @@ export function MonthCalendar({
   });
 
   const moveEvent = useMutation({
-    mutationFn: ({ id, startAt }: { id: string; startAt: string }) =>
-      eventsApi.update(id, { startAt }),
+    mutationFn: ({
+      id,
+      startAt,
+      endAt,
+    }: {
+      id: string;
+      startAt: string;
+      endAt?: string;
+    }) => eventsApi.update(id, { startAt, ...(endAt && { endAt }) }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["events"] }),
   });
 
@@ -76,7 +83,7 @@ export function MonthCalendar({
   }, [cursor]);
 
   const eventsForDay = (day: Date) =>
-    events.filter((ev) => sameDay(new Date(ev.startAt), day));
+    events.filter((ev) => eventSpansDay(day, ev.startAt, ev.endAt));
 
   const selectedEvents = selectedDay ? eventsForDay(selectedDay) : [];
 
@@ -89,10 +96,19 @@ export function MonthCalendar({
     if (!draggingId) return;
     const ev = events.find((e) => e.id === draggingId);
     if (!ev) return;
-    const old = new Date(ev.startAt);
+    const oldStart = new Date(ev.startAt);
+    const oldEnd = ev.endAt ? new Date(ev.endAt) : oldStart;
+    const durationMs = oldEnd.getTime() - oldStart.getTime();
     const next = new Date(day);
-    next.setHours(old.getHours(), old.getMinutes(), 0, 0);
-    moveEvent.mutate({ id: draggingId, startAt: next.toISOString() });
+    next.setHours(oldStart.getHours(), oldStart.getMinutes(), 0, 0);
+    const payload: { id: string; startAt: string; endAt?: string } = {
+      id: draggingId,
+      startAt: next.toISOString(),
+    };
+    if (ev.endAt) {
+      payload.endAt = new Date(next.getTime() + durationMs).toISOString();
+    }
+    moveEvent.mutate(payload);
     setDraggingId(null);
   }
 

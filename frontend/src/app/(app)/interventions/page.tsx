@@ -3,10 +3,15 @@
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
+import {
+  PageCreateBar,
+  PageCreateLink,
+} from "@/components/layout/page-create-action";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { interventionsApi } from "@/lib/api";
 import { interventionStatusLabels } from "@/lib/labels";
+import { SECTION_CREATE } from "@/lib/section-create";
 import { formatDate, cn } from "@/lib/utils";
 
 const statusColors: Record<string, string> = {
@@ -27,6 +32,12 @@ export default function InterventionsPage() {
     <>
       <Header title="Interventi" />
       <div className="p-3 sm:p-4 md:p-6">
+        <PageCreateBar>
+          <PageCreateLink
+            href="/interventions/new"
+            label={SECTION_CREATE.intervention}
+          />
+        </PageCreateBar>
         <Card>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
