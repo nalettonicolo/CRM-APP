@@ -428,15 +428,23 @@ export const inventoryApi = {
     }),
   deleteService: async (id: string) => {
     try {
-      return await api<{ success: boolean }>(
+      return await api<{ success: boolean; soft?: boolean }>(
         `/inventory/services/${id}/delete`,
         { method: "POST" }
       );
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
-        return api<{ success: boolean }>(`/inventory/services/${id}`, {
-          method: "DELETE",
-        });
+        try {
+          return await api<{ success: boolean }>(`/inventory/services/${id}`, {
+            method: "DELETE",
+          });
+        } catch (e2) {
+          if (e2 instanceof ApiError && e2.status === 404) {
+            await inventoryApi.updateService(id, { isActive: false });
+            return { success: true, soft: true };
+          }
+          throw e2;
+        }
       }
       throw e;
     }

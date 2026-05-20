@@ -155,12 +155,27 @@ export default function ServicesPage() {
   });
 
   const [deleteError, setDeleteError] = useState("");
+  const [deleteNotice, setDeleteNotice] = useState("");
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => inventoryApi.deleteService(id),
-    onMutate: () => setDeleteError(""),
-    onSuccess: () => {
+    mutationFn: (id: string) =>
+      inventoryApi.deleteService(id) as Promise<{
+        success: boolean;
+        soft?: boolean;
+      }>,
+    onMutate: () => {
       setDeleteError("");
+      setDeleteNotice("");
+    },
+    onSuccess: (result) => {
+      setDeleteError("");
+      if (result?.soft) {
+        setDeleteNotice(
+          "Servizio disattivato (API non aggiornata: non eliminato dal database). Aggiorna il Mint con deploy-completo-mint.sh per eliminazione definitiva."
+        );
+      } else {
+        setDeleteNotice("");
+      }
       qc.invalidateQueries({ queryKey: ["services"] });
     },
     onError: (e: unknown) => {
@@ -205,6 +220,11 @@ export default function ServicesPage() {
           voce è esente da IVA. Nei preventivi la quantità segue l&apos;unità (es.
           120 km × 0,50 €).
         </p>
+        {deleteNotice && (
+          <p className="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+            {deleteNotice}
+          </p>
+        )}
         {deleteError && (
           <p className="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600">
             {deleteError}
