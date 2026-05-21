@@ -501,6 +501,21 @@ router.delete(
   handleServiceDelete
 );
 
+/** POST senza "/delete" nel path (compatibile proxy Netlify / tunnel). */
+router.post(
+  "/services/remove",
+  requireCatalogDelete("services"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const { id } = z.object({ id: z.string().min(1) }).parse(req.body);
+      const result = await performServiceDelete(req, id);
+      res.json(result);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 /** POST alternativo: alcuni proxy/tunnel bloccano DELETE; stessa logica di sopra. */
 router.post(
   "/services/:id/delete",

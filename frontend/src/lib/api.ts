@@ -24,6 +24,7 @@ function getToken(): string | null {
 async function apiHealthFeatures(): Promise<{
   serviceDelete?: boolean;
   serviceDeletePost?: boolean;
+  serviceDeleteRemove?: boolean;
 } | null> {
   try {
     const res = await fetch(apiUrl("/health"));
@@ -467,34 +468,30 @@ export const inventoryApi = {
 
     const tryDelete = (direct: boolean) =>
       api<{ success: boolean; soft?: boolean }>(
-        `/inventory/services/${id}/delete`,
-        { method: "POST" },
+        "/inventory/services/remove",
+        { method: "POST", body: JSON.stringify({ id }) },
         { direct }
       ).catch(async (e) => {
         if (!(e instanceof ApiError) || e.status !== 404) throw e;
-        return api<{ success: boolean }>(`/inventory/services/${id}`, {
-          method: "DELETE",
-        }, { direct });
+        return api<{ success: boolean }>(
+          `/inventory/services/${id}/delete`,
+          { method: "POST" },
+          { direct }
+        ).catch(async (e2) => {
+          if (!(e2 instanceof ApiError) || e2.status !== 404) throw e2;
+          return api<{ success: boolean }>(
+            `/inventory/services/${id}`,
+            { method: "DELETE" },
+            { direct }
+          );
+        });
       });
 
     try {
       return await tryDelete(false);
     } catch (e) {
       if (!(e instanceof ApiError) || e.status !== 404) throw e;
-      try {
-        return await tryDelete(true);
-      } catch (e2) {
-        if (!(e2 instanceof ApiError) || e2.status !== 404) throw e2;
-        const features = await apiHealthFeatures();
-        if (
-          !features?.serviceDelete &&
-          !features?.serviceDeletePost
-        ) {
-          await inventoryApi.updateService(id, { isActive: false });
-          return { success: true, soft: true };
-        }
-        throw e2;
-      }
+      return tryDelete(true);
     }
   },
 };

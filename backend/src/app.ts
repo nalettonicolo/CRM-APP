@@ -90,6 +90,7 @@ app.get("/api/health", (_req, res) => {
     features: {
       serviceDelete: true,
       serviceDeletePost: true,
+      serviceDeleteRemove: true,
     },
   });
 });
