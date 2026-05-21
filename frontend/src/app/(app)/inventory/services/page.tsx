@@ -191,7 +191,7 @@ export default function ServicesPage() {
       }
       if (e.status === 404 && !/non trovato|risorsa non trovata/i.test(e.message)) {
         setDeleteError(
-          "Eliminazione non riuscita (route non trovata). Verifica NEXT_PUBLIC_API_URL su Netlify e fai Clear cache and deploy, oppure aggiorna il Mint con deploy-completo-mint.sh."
+          `Eliminazione non riuscita (${e.message || "route non trovata"}). Ricarica la pagina (deploy Netlify recente) o contatta l'amministratore.`
         );
         return;
       }

@@ -1,4 +1,9 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { apiUrl, getApiOrigin } from "./api-origin";
+
+/** Solo per asset statici (/uploads); le fetch API usano apiUrl(). */
+export const API_ASSET_ORIGIN =
+  process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") ||
+  "http://localhost:4000";
 
 export class ApiError extends Error {
   constructor(
@@ -21,7 +26,7 @@ async function apiHealthFeatures(): Promise<{
   serviceDeletePost?: boolean;
 } | null> {
   try {
-    const res = await fetch(`${API_URL}/api/health`);
+    const res = await fetch(apiUrl("/health"));
     if (!res.ok) return null;
     const data = (await res.json()) as { features?: Record<string, boolean> };
     return data.features ?? null;
@@ -43,7 +48,7 @@ export async function api<T>(
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_URL}/api${path}`, {
+  const res = await fetch(apiUrl(path), {
     ...options,
     headers,
     credentials: "include",
@@ -74,7 +79,7 @@ export async function api<T>(
 
 async function refreshToken(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_URL}/api/auth/refresh`, {
+    const res = await fetch(apiUrl("/auth/refresh"), {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
@@ -226,7 +231,7 @@ export const quotesApi = {
 
 export async function downloadQuotePdf(id: string, filename: string) {
   const token = getToken();
-  const res = await fetch(`${API_URL}/api/quotes/${id}/pdf`, {
+  const res = await fetch(apiUrl(`/quotes/${id}/pdf`), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     credentials: "include",
   });
@@ -629,7 +634,7 @@ export interface ReportDetail extends Report {
 
 export async function fetchReportPdfBlob(id: string): Promise<Blob> {
   const token = getToken();
-  const res = await fetch(`${API_URL}/api/interventions/reports/${id}/pdf`, {
+  const res = await fetch(apiUrl(`/interventions/reports/${id}/pdf`), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     credentials: "include",
   });
@@ -966,7 +971,7 @@ export interface EventGalleryItem {
 
 export const eventGalleryApi = {
   public: () =>
-    fetch(`${API_URL}/api/event-gallery/public`).then((r) => {
+    fetch(apiUrl("/event-gallery/public")).then((r) => {
       if (!r.ok) throw new Error("Galleria non disponibile");
       return r.json() as Promise<EventGalleryItem[]>;
     }),
@@ -990,7 +995,7 @@ export async function uploadGalleryImage(file: File) {
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(`${API_URL}/api/uploads/gallery`, {
+  const res = await fetch(apiUrl("/uploads/gallery"), {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,
@@ -1003,7 +1008,7 @@ export async function uploadGalleryImage(file: File) {
 
 /** Impostazioni pubbliche: niente redirect al login se il token in localStorage è scaduto. */
 export async function fetchPublicSettings(): Promise<Record<string, unknown>> {
-  const res = await fetch(`${API_URL}/api/settings/public`, {
+  const res = await fetch(apiUrl("/settings/public"), {
     method: "GET",
     cache: "no-store",
   });
@@ -1045,7 +1050,7 @@ export async function uploadBrandingAsset(file: File, kind: "logo" | "favicon") 
   const fd = new FormData();
   fd.append("file", file);
   const res = await fetch(
-    `${API_URL}/api/uploads/branding?kind=${encodeURIComponent(kind)}`,
+    `${apiUrl("/uploads/branding")}?kind=${encodeURIComponent(kind)}`,
     {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1082,7 +1087,7 @@ export const attachmentsApi = {
     fd.append("file", file);
     fd.append("entityType", entityType);
     fd.append("entityId", entityId);
-    const res = await fetch(`${API_URL}/api/attachments`, {
+    const res = await fetch(apiUrl("/attachments"), {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: fd,
@@ -1095,7 +1100,8 @@ export const attachmentsApi = {
   remove: (id: string) =>
     api<{ success: boolean }>(`/attachments/${id}`, { method: "DELETE" }),
   downloadUrl: (item: AttachmentItem) =>
-    item.url || `${API_URL}${item.path.startsWith("/") ? item.path : `/${item.path}`}`,
+    item.url ||
+      `${API_ASSET_ORIGIN}${item.path.startsWith("/") ? item.path : `/${item.path}`}`,
 };
 
 export interface ActivityLogItem {
@@ -1210,7 +1216,7 @@ export const publicApi = {
     eventDateFrom?: string;
     eventDateTo?: string;
   }) =>
-    fetch(`${API_URL}/api/public/contact`, {
+    fetch(apiUrl("/public/contact"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),

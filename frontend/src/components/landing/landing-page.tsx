@@ -76,6 +76,7 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
               logoUrl={logoSrc || undefined}
               appName={appName}
               variant="hero"
+              animated
               className="mb-6 sm:mb-8"
             />
             <span className="mb-5 inline-block rounded-full border border-violet-400/40 bg-violet-500/15 px-4 py-1.5 text-sm font-medium text-violet-200">

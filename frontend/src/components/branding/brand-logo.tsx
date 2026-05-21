@@ -8,6 +8,8 @@ type BrandLogoProps = {
   logoUrl?: string | null;
   appName: string;
   variant?: "nav" | "hero";
+  /** Hero: bagliore, respiro e luce (rispetta prefers-reduced-motion). */
+  animated?: boolean;
   className?: string;
 };
 
@@ -15,13 +17,45 @@ export function BrandLogo({
   logoUrl,
   appName,
   variant = "nav",
+  animated = false,
   className,
 }: BrandLogoProps) {
   const src = publicAssetUrl(logoUrl);
   const letter = appName.charAt(0).toUpperCase() || "N";
   const [failed, setFailed] = useState(false);
 
+  const imgClass = cn(
+    "object-contain",
+    variant === "nav" && "h-11 w-auto max-w-[180px]",
+    variant === "hero" &&
+      "mx-auto h-auto w-[min(88vw,14rem)] max-w-none object-contain sm:w-full sm:max-w-md lg:max-w-xl",
+    animated && variant === "hero" && "logo-hero-img",
+    !animated && variant === "hero" && "drop-shadow-md"
+  );
+
   if (src && !failed) {
+    if (animated && variant === "hero") {
+      return (
+        <div
+          className={cn(
+            "logo-hero-animated relative mx-auto inline-block max-w-full",
+            className
+          )}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={src}
+            alt={appName}
+            referrerPolicy="no-referrer"
+            onError={() => setFailed(true)}
+            className={imgClass}
+          />
+          <span className="logo-hero-shine" aria-hidden />
+          <span className="logo-hero-rays" aria-hidden />
+        </div>
+      );
+    }
+
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
@@ -29,13 +63,7 @@ export function BrandLogo({
         alt={appName}
         referrerPolicy="no-referrer"
         onError={() => setFailed(true)}
-        className={cn(
-          "object-contain",
-          variant === "nav" && "h-11 w-auto max-w-[180px]",
-          variant === "hero" &&
-            "mx-auto h-auto w-[min(88vw,14rem)] max-w-none object-contain drop-shadow-md sm:w-full sm:max-w-md lg:max-w-xl",
-          className
-        )}
+        className={cn(imgClass, className)}
       />
     );
   }
