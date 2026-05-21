@@ -97,10 +97,19 @@ pm2 save
 pm2 status crm-api
 
 PORT=$(grep -E '^PORT=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2 | tr -d '\r' || echo "4100")
-if curl -sf "http://127.0.0.1:${PORT}/api/health" >/dev/null; then
+sleep 2
+health_ok=0
+for _ in 1 2 3 4 5; do
+  if curl -sf "http://127.0.0.1:${PORT}/api/health" >/dev/null; then
+    health_ok=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$health_ok" == "1" ]]; then
   echo "    Health locale OK (porta ${PORT})"
 else
-  echo "    ATTENZIONE: API non risponde su 127.0.0.1:${PORT} — vedi: pm2 logs crm-api"
+  echo "    ATTENZIONE: API non risponde su 127.0.0.1:${PORT} — vedi: pm2 logs crm-api --lines 40"
 fi
 
 echo ""

@@ -15,7 +15,7 @@ router.post("/contact", async (req, res, next) => {
         email: z.string().email(),
         phone: z.string().optional(),
         company: z.string().optional(),
-        message: z.string().min(10),
+        message: z.string().min(1),
         services: z.array(z.string().min(1)).optional(),
         eventDateFrom: z.string().optional(),
         eventDateTo: z.string().optional(),

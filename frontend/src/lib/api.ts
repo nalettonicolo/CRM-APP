@@ -1194,7 +1194,11 @@ export const publicApi = {
     }).then(async (r) => {
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        throw new ApiError(r.status, data.error || "Errore invio");
+        throw new ApiError(
+          r.status,
+          data.error || "Errore invio",
+          data.code as string | undefined
+        );
       }
       return data as {
         success: boolean;

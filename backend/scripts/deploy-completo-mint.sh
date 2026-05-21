@@ -86,9 +86,22 @@ pm2 save
 API_URL=$(grep -E '^API_URL=' "$BACKEND/.env" 2>/dev/null | cut -d= -f2- | tr -d '\r' || true)
 
 echo ""
-echo "==> Healthcheck"
-curl -sf "http://127.0.0.1:${PORT}/api/health"
-echo " — locale OK"
+echo "==> Healthcheck (attendo avvio API…)"
+sleep 3
+health_ok=0
+for _ in 1 2 3 4 5; do
+  if curl -sf "http://127.0.0.1:${PORT}/api/health" >/dev/null; then
+    health_ok=1
+    break
+  fi
+  sleep 2
+done
+if [[ "$health_ok" == "1" ]]; then
+  curl -sf "http://127.0.0.1:${PORT}/api/health"
+  echo " — locale OK"
+else
+  echo "ATTENZIONE: API non risponde su 127.0.0.1:${PORT} — vedi: pm2 logs crm-api --lines 40"
+fi
 
 if [[ -n "$API_URL" ]] && [[ "$API_URL" == https://* ]]; then
   if curl -sf "${API_URL}/api/health"; then

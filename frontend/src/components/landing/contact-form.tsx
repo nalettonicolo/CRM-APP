@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { publicApi } from "@/lib/api";
+import { ApiError, publicApi } from "@/lib/api";
 import { CONTACT_SERVICE_OPTIONS } from "@/lib/labels";
 import { useFadeUp } from "@/lib/motion-presets";
 import { cn } from "@/lib/utils";
@@ -43,8 +43,16 @@ export function ContactForm() {
       if (res.emailWarning) setEmailWarning(res.emailWarning);
       setServices([]);
       e.currentTarget.reset();
-    } catch {
-      setError("Errore invio. Riprova più tardi.");
+    } catch (e) {
+      if (e instanceof ApiError) {
+        if (e.status === 400) {
+          setError("Compila tutti i campi obbligatori (nome, email, messaggio).");
+        } else {
+          setError(e.message || "Errore invio. Riprova più tardi.");
+        }
+      } else {
+        setError("Impossibile contattare il server. Riprova più tardi.");
+      }
     } finally {
       setLoading(false);
     }
