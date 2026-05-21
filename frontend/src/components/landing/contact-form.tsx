@@ -30,11 +30,11 @@ export function ContactForm() {
     const fd = new FormData(e.currentTarget);
     try {
       const res = await publicApi.contact({
-        name: fd.get("name") as string,
-        email: fd.get("email") as string,
-        phone: (fd.get("phone") as string) || undefined,
-        company: (fd.get("company") as string) || undefined,
-        message: fd.get("message") as string,
+        name: (fd.get("name") as string).trim(),
+        email: (fd.get("email") as string).trim(),
+        phone: ((fd.get("phone") as string) || "").trim() || undefined,
+        company: ((fd.get("company") as string) || "").trim() || undefined,
+        message: (fd.get("message") as string).trim(),
         eventDateFrom: (fd.get("eventDateFrom") as string) || undefined,
         eventDateTo: (fd.get("eventDateTo") as string) || undefined,
         services: services.length > 0 ? services : undefined,
@@ -45,8 +45,28 @@ export function ContactForm() {
       e.currentTarget.reset();
     } catch (e) {
       if (e instanceof ApiError) {
-        if (e.status === 400) {
-          setError("Compila tutti i campi obbligatori (nome, email, messaggio).");
+        if (e.status === 400 && e.code === "VALIDATION_ERROR" && e.details) {
+          const parts = Object.entries(e.details)
+            .flatMap(([field, msgs]) =>
+              (msgs ?? []).map((m) => {
+                const label =
+                  field === "message"
+                    ? "Messaggio"
+                    : field === "name"
+                      ? "Nome"
+                      : field === "email"
+                        ? "Email"
+                        : field;
+                return `${label}: ${m}`;
+              })
+            );
+          setError(
+            parts.length > 0
+              ? parts.join(" ")
+              : "Controlla i campi obbligatori (nome, email, messaggio)."
+          );
+        } else if (e.status === 400) {
+          setError("Controlla i campi obbligatori (nome, email, messaggio).");
         } else {
           setError(e.message || "Errore invio. Riprova più tardi.");
         }

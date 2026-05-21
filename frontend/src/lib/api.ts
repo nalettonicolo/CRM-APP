@@ -4,7 +4,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public code?: string
+    public code?: string,
+    public details?: Record<string, string[] | undefined>
   ) {
     super(message);
   }
@@ -61,7 +62,12 @@ export async function api<T>(
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new ApiError(res.status, data.error || "Errore", data.code);
+    throw new ApiError(
+      res.status,
+      data.error || "Errore",
+      data.code,
+      data.details as Record<string, string[] | undefined> | undefined
+    );
   }
   return data as T;
 }
@@ -1214,7 +1220,8 @@ export const publicApi = {
         throw new ApiError(
           r.status,
           data.error || "Errore invio",
-          data.code as string | undefined
+          data.code as string | undefined,
+          data.details as Record<string, string[] | undefined> | undefined
         );
       }
       return data as {
