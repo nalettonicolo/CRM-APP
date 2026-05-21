@@ -189,12 +189,9 @@ export default function ServicesPage() {
         );
         return;
       }
-      if (
-        e.status === 404 &&
-        !/non trovato/i.test(e.message)
-      ) {
+      if (e.status === 404 && !/non trovato|risorsa non trovata/i.test(e.message)) {
         setDeleteError(
-          "L'API sul server non è aggiornata. Sul Mini PC (Mint) esegui: cd ~/CRM-APP && git pull origin main && ./backend/scripts/deploy-completo-mint.sh — poi riprova."
+          "Eliminazione non riuscita (route non trovata). Verifica NEXT_PUBLIC_API_URL su Netlify e fai Clear cache and deploy, oppure aggiorna il Mint con deploy-completo-mint.sh."
         );
         return;
       }

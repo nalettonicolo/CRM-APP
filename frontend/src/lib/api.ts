@@ -15,6 +15,20 @@ function getToken(): string | null {
   return localStorage.getItem("accessToken");
 }
 
+async function apiHealthFeatures(): Promise<{
+  serviceDelete?: boolean;
+  serviceDeletePost?: boolean;
+} | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/health`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { features?: Record<string, boolean> };
+    return data.features ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit = {}
@@ -427,26 +441,29 @@ export const inventoryApi = {
       method: "DELETE",
     }),
   deleteService: async (id: string) => {
+    const features = await apiHealthFeatures();
+    const apiSupportsDelete =
+      features?.serviceDelete === true || features?.serviceDeletePost === true;
+
     try {
       return await api<{ success: boolean; soft?: boolean }>(
         `/inventory/services/${id}/delete`,
         { method: "POST" }
       );
     } catch (e) {
-      if (e instanceof ApiError && e.status === 404) {
-        try {
-          return await api<{ success: boolean }>(`/inventory/services/${id}`, {
-            method: "DELETE",
-          });
-        } catch (e2) {
-          if (e2 instanceof ApiError && e2.status === 404) {
-            await inventoryApi.updateService(id, { isActive: false });
-            return { success: true, soft: true };
-          }
-          throw e2;
+      if (!(e instanceof ApiError) || e.status !== 404) throw e;
+      try {
+        return await api<{ success: boolean }>(`/inventory/services/${id}`, {
+          method: "DELETE",
+        });
+      } catch (e2) {
+        if (!(e2 instanceof ApiError) || e2.status !== 404) throw e2;
+        if (!apiSupportsDelete) {
+          await inventoryApi.updateService(id, { isActive: false });
+          return { success: true, soft: true };
         }
+        throw e2;
       }
-      throw e;
     }
   },
 };
