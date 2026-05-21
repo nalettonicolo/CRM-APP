@@ -27,3 +27,17 @@ export function apiUrl(path: string): string {
   const p = path.startsWith("/") ? path : `/${path}`;
   return `${base}/api${p}`;
 }
+
+/** URL diretto Mint/Tailscale (NEXT_PUBLIC_API_URL) — fallback se il proxy Netlify fallisce. */
+export function getDirectApiOrigin(): string {
+  return (
+    process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") ||
+    "http://localhost:4000"
+  );
+}
+
+export function apiUrlDirect(path: string): string {
+  const base = getDirectApiOrigin().replace(/\/$/, "");
+  const p = path.startsWith("/") ? path : `/${path}`;
+  return `${base}/api${p}`;
+}

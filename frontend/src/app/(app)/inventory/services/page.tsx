@@ -180,7 +180,11 @@ export default function ServicesPage() {
     },
     onError: (e: unknown) => {
       if (!(e instanceof ApiError)) {
-        setDeleteError("Impossibile eliminare il servizio.");
+        setDeleteError("Impossibile eliminare il servizio. Controlla la connessione.");
+        return;
+      }
+      if (e.status === 401) {
+        setDeleteError("Sessione scaduta. Esci e accedi di nuovo, poi riprova.");
         return;
       }
       if (e.status === 403) {
@@ -189,13 +193,13 @@ export default function ServicesPage() {
         );
         return;
       }
-      if (e.status === 404 && !/non trovato|risorsa non trovata/i.test(e.message)) {
-        setDeleteError(
-          `Eliminazione non riuscita (${e.message || "route non trovata"}). Ricarica la pagina (deploy Netlify recente) o contatta l'amministratore.`
-        );
+      if (/non trovato|risorsa non trovata/i.test(e.message)) {
+        setDeleteError(e.message);
         return;
       }
-      setDeleteError(e.message);
+      setDeleteError(
+        `Eliminazione non riuscita (${e.status}: ${e.message}). Se persiste, esci e rientra nel CRM.`
+      );
     },
   });
 

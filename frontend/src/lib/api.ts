@@ -1,4 +1,4 @@
-import { apiUrl, getApiOrigin } from "./api-origin";
+import { apiUrl, apiUrlDirect } from "./api-origin";
 
 /** Solo per asset statici (/uploads); le fetch API usano apiUrl(). */
 export const API_ASSET_ORIGIN =
@@ -37,7 +37,8 @@ async function apiHealthFeatures(): Promise<{
 
 export async function api<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  config?: { direct?: boolean }
 ): Promise<T> {
   const token = getToken();
   const headers: HeadersInit = {
@@ -48,7 +49,8 @@ export async function api<T>(
     (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(apiUrl(path), {
+  const url = config?.direct ? apiUrlDirect(path) : apiUrl(path);
+  const res = await fetch(url, {
     ...options,
     headers,
     credentials: "include",
@@ -57,19 +59,26 @@ export async function api<T>(
   if (res.status === 401 && path !== "/auth/login") {
     const refreshed = await refreshToken();
     if (refreshed) {
-      return api<T>(path, options);
+      return api<T>(path, options, config);
     }
     if (typeof window !== "undefined") {
       localStorage.removeItem("accessToken");
       window.location.href = "/login";
     }
+    throw new ApiError(401, "Sessione scaduta. Accedi di nuovo.", "UNAUTHORIZED");
   }
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
+    const fallback =
+      res.status === 404
+        ? "Route API non trovata"
+        : res.status >= 500
+          ? "Errore server"
+          : "Errore";
     throw new ApiError(
       res.status,
-      data.error || "Errore",
+      data.error || fallback,
       data.code,
       data.details as Record<string, string[] | undefined> | undefined
     );
@@ -452,24 +461,35 @@ export const inventoryApi = {
       method: "DELETE",
     }),
   deleteService: async (id: string) => {
-    const features = await apiHealthFeatures();
-    const apiSupportsDelete =
-      features?.serviceDelete === true || features?.serviceDeletePost === true;
+    if (!id?.trim()) {
+      throw new ApiError(400, "ID servizio non valido");
+    }
+
+    const tryDelete = (direct: boolean) =>
+      api<{ success: boolean; soft?: boolean }>(
+        `/inventory/services/${id}/delete`,
+        { method: "POST" },
+        { direct }
+      ).catch(async (e) => {
+        if (!(e instanceof ApiError) || e.status !== 404) throw e;
+        return api<{ success: boolean }>(`/inventory/services/${id}`, {
+          method: "DELETE",
+        }, { direct });
+      });
 
     try {
-      return await api<{ success: boolean; soft?: boolean }>(
-        `/inventory/services/${id}/delete`,
-        { method: "POST" }
-      );
+      return await tryDelete(false);
     } catch (e) {
       if (!(e instanceof ApiError) || e.status !== 404) throw e;
       try {
-        return await api<{ success: boolean }>(`/inventory/services/${id}`, {
-          method: "DELETE",
-        });
+        return await tryDelete(true);
       } catch (e2) {
         if (!(e2 instanceof ApiError) || e2.status !== 404) throw e2;
-        if (!apiSupportsDelete) {
+        const features = await apiHealthFeatures();
+        if (
+          !features?.serviceDelete &&
+          !features?.serviceDeletePost
+        ) {
           await inventoryApi.updateService(id, { isActive: false });
           return { success: true, soft: true };
         }
