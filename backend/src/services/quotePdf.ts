@@ -6,6 +6,7 @@ import type {
   QuotePaymentTerm,
 } from "@prisma/client";
 import {
+  drawPdfBankDetails,
   drawPdfLetterhead,
   drawPdfSignatureBlock,
   loadCompanySettings,
@@ -204,6 +205,8 @@ export async function generateQuotePdf(
       doc.fontSize(9).fillColor("#52525b").text("Note", { underline: true });
       doc.fillColor("#000000").text(quote.notes);
     }
+
+    drawPdfBankDetails(doc, companyInfo);
 
     drawPdfSignatureBlock(doc, {
       clientSignature: quote.clientSignature,

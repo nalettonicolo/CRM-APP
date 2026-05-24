@@ -2,6 +2,7 @@ import PDFDocument from "pdfkit";
 import type { Client, InvoicePreview, Quote } from "@prisma/client";
 import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "../constants/documentCopy.js";
 import {
+  drawPdfBankDetails,
   drawPdfLetterhead,
   loadCompanySettings,
   loadLogoFilePath,
@@ -78,6 +79,8 @@ export async function generateInvoicePdf(
       addTotalLine("Acconto", `€ ${money(invoice.depositAmount)}`);
       addTotalLine("Saldo", `€ ${money(invoice.balanceDue)}`, true);
     }
+
+    drawPdfBankDetails(doc, companyInfo);
 
     doc.moveDown();
     doc

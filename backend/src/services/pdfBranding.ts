@@ -14,6 +14,9 @@ export type CompanyInfo = {
   email?: string;
   phone?: string;
   website?: string;
+  bankName?: string;
+  iban?: string;
+  bic?: string;
 };
 
 export async function loadCompanySettings(): Promise<CompanyInfo> {
@@ -151,4 +154,21 @@ function drawEmptySignatureLines(doc: PdfDoc): void {
   doc.text(DOCUMENT_COPY.quote.paperSignLine, 50);
   doc.moveDown(0.5);
   doc.fontSize(8).text(DOCUMENT_COPY.quote.paperNote, 50, doc.y, { width: 480 });
+}
+
+export function drawPdfBankDetails(doc: PdfDoc, company: CompanyInfo): void {
+  const iban = company.iban?.trim();
+  const bankName = company.bankName?.trim();
+  const bic = company.bic?.trim();
+  if (!iban && !bankName && !bic) return;
+
+  doc.moveDown();
+  doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
+  doc.text("Coordinate bancarie", 50, doc.y, { underline: true });
+  doc.moveDown(0.3);
+  doc.font("Helvetica").fontSize(9).fillColor("#52525b");
+  if (bankName) doc.text(`Banca: ${bankName}`, 50);
+  if (iban) doc.text(`IBAN: ${iban}`, 50);
+  if (bic) doc.text(`BIC/SWIFT: ${bic}`, 50);
+  doc.fillColor("#000000");
 }

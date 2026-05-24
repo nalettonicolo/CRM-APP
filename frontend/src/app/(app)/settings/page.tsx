@@ -46,6 +46,9 @@ export default function SettingsPage() {
     email: "",
     phone: "",
     website: "",
+    bankName: "",
+    iban: "",
+    bic: "",
   });
   const [quoteDefaults, setQuoteDefaults] = useState({
     withholdingTaxPercent: "20",
@@ -82,6 +85,9 @@ export default function SettingsPage() {
       email: co.email || "",
       phone: co.phone || "",
       website: co.website || "",
+      bankName: co.bankName || "",
+      iban: co.iban || "",
+      bic: co.bic || "",
     });
     const qd = (data.quote_defaults as Record<string, number>) || {};
     setQuoteDefaults({
@@ -477,6 +483,23 @@ export default function SettingsPage() {
               onChange={(e) =>
                 setCompany((c) => ({ ...c, website: e.target.value }))
               }
+            />
+            <Input
+              placeholder="Banca (opzionale)"
+              value={company.bankName}
+              onChange={(e) =>
+                setCompany((c) => ({ ...c, bankName: e.target.value }))
+              }
+            />
+            <Input
+              placeholder="IBAN (opzionale)"
+              value={company.iban}
+              onChange={(e) => setCompany((c) => ({ ...c, iban: e.target.value }))}
+            />
+            <Input
+              placeholder="BIC/SWIFT (opzionale)"
+              value={company.bic}
+              onChange={(e) => setCompany((c) => ({ ...c, bic: e.target.value }))}
             />
             <p className="text-xs text-muted-foreground">
               L&apos;email azienda riceve le notifiche del form contatto sul sito.
