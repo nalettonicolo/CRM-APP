@@ -310,7 +310,7 @@ e **non** a `localhost`.
 | Documento | Contenuto |
 |-----------|-----------|
 | [`COSA-FARE.md`](./COSA-FARE.md) | Flusso operativo giornaliero |
-| [`guida-deploy-mint-netlify-cloudflare.md`](./guida-deploy-mint-netlify-cloudflare.md) | Deploy dettagliato + Gmail + backup |
+| [`COSA-FARE.md`](./COSA-FARE.md), [`guida-email-smtp-completa.md`](./guida-email-smtp-completa.md) | Deploy Mint + Gmail + backup |
 | [`ripristino-pm2-tunnel-1033.md`](./ripristino-pm2-tunnel-1033.md) | Emergenza tunnel / PM2 |
 | [`netlify-guida-completa.md`](./netlify-guida-completa.md) | Solo Netlify |
 | [`guida-tunnel-permanente-pm2.md`](./guida-tunnel-permanente-pm2.md) | Tunnel con dominio Cloudflare |

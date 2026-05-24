@@ -687,7 +687,7 @@ export default function SettingsPage() {
             <CardTitle>Backup database</CardTitle>
             <p className="text-sm text-muted-foreground">
               Manuale da qui; automatico ogni 5 giorni su Mint + Google Drive (vedi
-              docs/gmail-e-backup-automatico.md).
+              docs/guida-email-smtp-completa.md).
             </p>
           </CardHeader>
           <CardContent>

@@ -364,8 +364,8 @@ Stampa o segna questa lista:
 | Password per le app | https://myaccount.google.com/apppasswords |
 | Sicurezza Google | https://myaccount.google.com/security |
 | Template variabili `.env` | `backend/.env.example` |
-| Guida backup (stesso file storico) | `docs/gmail-e-backup-automatico.md` |
-| Deploy Mint + Netlify | `docs/guida-deploy-mint-netlify-cloudflare.md` |
+| Backup (questa guida, sezione backup) | sotto in questo file |
+| Deploy Mint + Netlify | `docs/COSA-FARE.md`, `docs/andare-online-ora.md` |
 
 ---
 

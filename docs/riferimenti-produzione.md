@@ -87,5 +87,7 @@ Funnel: `sudo tailscale funnel status`
 
 ## Guide correlate
 
-- [guida-tailscale-funnel.md](./guida-tailscale-funnel.md)
+- [guida-vpn-privata-tailscale.md](./guida-vpn-privata-tailscale.md) — SSH / deploy da fuori casa
+- [guida-tailscale-funnel.md](./guida-tailscale-funnel.md) — API pubblica
 - [guida-api-stabile-senza-dominio.md](./guida-api-stabile-senza-dominio.md)
+- [README.md](./README.md) — indice documentazione

@@ -4,6 +4,8 @@
 
 **Tailscale Funnel (consigliato, URL `.ts.net` fisso):** **[`guida-tailscale-funnel.md`](guida-tailscale-funnel.md)**.
 
+**VPN privata (SSH al Mint da fuori casa):** **[`guida-vpn-privata-tailscale.md`](guida-vpn-privata-tailscale.md)**.
+
 **Deploy autonomo (Mint + dominio, senza Netlify):** **[`guida-deploy-autonomo-mint-dominio.md`](guida-deploy-autonomo-mint-dominio.md)**.
 
 Guida Netlify (opzionale): **[`netlify-guida-completa.md`](netlify-guida-completa.md)**.

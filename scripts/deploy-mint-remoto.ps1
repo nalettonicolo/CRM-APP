@@ -1,6 +1,7 @@
-# Apre SSH sul Mini PC e lancia il deploy API.
+# Apre SSH sul Mint e lancia il deploy API.
 # Uso: .\scripts\deploy-mint-remoto.ps1
-# Richiede: OpenSSH client (ssh) e accesso a nicolo@192.168.1.53
+# Richiede: OpenSSH client (ssh)
+# In casa: nicolo@192.168.1.53 — da fuori: IP Tailscale (100.x.x.x), vedi docs/guida-vpn-privata-tailscale.md
 
 $HostMint = $env:MINT_SSH_HOST
 if (-not $HostMint) { $HostMint = "nicolo@192.168.1.53" }

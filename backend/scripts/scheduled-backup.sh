@@ -40,7 +40,7 @@ if command -v rclone >/dev/null 2>&1; then
       --log-level INFO
     echo "→ Upload Drive completato."
   else
-    echo "⚠ rclone installato ma remote '${RCLONE_REMOTE}' non configurato. Vedi docs/gmail-e-backup-automatico.md"
+    echo "⚠ rclone installato ma remote '${RCLONE_REMOTE}' non configurato. Vedi docs/guida-email-smtp-completa.md"
   fi
 else
   echo "⚠ rclone non installato — backup solo locale in $BACKUP_DIR"

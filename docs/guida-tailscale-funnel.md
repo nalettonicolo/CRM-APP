@@ -1,5 +1,7 @@
 # Tailscale Funnel — API stabile senza dominio (Netlify + Mint)
 
+> Per **SSH e accesso amministrativo al Mint da fuori casa** (VPN privata, non API pubblica): [`guida-vpn-privata-tailscale.md`](./guida-vpn-privata-tailscale.md).
+
 Espone l’API CRM (`crm-api` su porta **4100**) con un URL HTTPS **fisso** tipo:
 
 `https://server-casa.tailxxxxx.ts.net`

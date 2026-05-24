@@ -74,7 +74,7 @@ ALLOW_NETLIFY_PREVIEWS=true
 
 Dopo ogni **nuovo** URL tunnel: stesso valore su Netlify `NEXT_PUBLIC_API_URL` → **Clear cache and deploy**.
 
-Guide: [`ripristino-pm2-tunnel-1033.md`](./ripristino-pm2-tunnel-1033.md), [`guida-email-smtp-completa.md`](./guida-email-smtp-completa.md).
+Guide: [`guida-vpn-privata-tailscale.md`](./guida-vpn-privata-tailscale.md) (SSH da remoto), [`guida-tailscale-funnel.md`](./guida-tailscale-funnel.md) (API), [`guida-email-smtp-completa.md`](./guida-email-smtp-completa.md).
 
 ### 2.2 Deploy manuale (alternativa)
 

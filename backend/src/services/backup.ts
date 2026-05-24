@@ -89,7 +89,7 @@ function uploadBackupToGoogleDrive(dir: string): DriveUploadResult {
     return {
       uploaded: false,
       message:
-        "rclone non installato sul Mint. Vedi docs/gmail-e-backup-automatico.md",
+        "rclone non installato sul Mint. Vedi docs/guida-email-smtp-completa.md",
     };
   }
 

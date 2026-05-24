@@ -204,6 +204,9 @@ In **produzione** usa password lunghe e diverse; puoi rimuovere gli utenti di es
 
 **Checklist “voglio andare online ora”:** [`docs/andare-online-ora.md`](docs/andare-online-ora.md)  
 **Mint (API + tunnel PM2):** sul server `git pull` poi `backend/scripts/deploy-completo-mint.sh` — vedi [`docs/COSA-FARE.md`](docs/COSA-FARE.md).  
+**VPN privata (SSH/deploy da fuori casa):** [`docs/guida-vpn-privata-tailscale.md`](docs/guida-vpn-privata-tailscale.md)  
+**API pubblica (Tailscale Funnel):** [`docs/guida-tailscale-funnel.md`](docs/guida-tailscale-funnel.md)  
+Indice documentazione: [`docs/README.md`](docs/README.md)  
 Guida Netlify **completa** (monorepo, UI Package directory, variabili, troubleshooting): [`docs/netlify-guida-completa.md`](docs/netlify-guida-completa.md).
 
 Template variabili:
