@@ -2,21 +2,77 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
-import { Receipt } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Download, Receipt, Save } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
-import { invoicesApi } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { downloadInvoicePdf, invoicesApi } from "@/lib/api";
 import { paymentStatusLabels } from "@/lib/labels";
 import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "@/lib/document-copy";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
+const textareaClass =
+  "flex min-h-[96px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
+
 export default function InvoiceDetailPage() {
   const id = useParams().id as string;
+  const qc = useQueryClient();
+  const [form, setForm] = useState({
+    subtotal: "",
+    vatAmount: "",
+    total: "",
+    depositAmount: "",
+    balanceDue: "",
+    paymentStatus: "UNPAID",
+    dueDate: "",
+    notes: "",
+    disclaimer: INVOICE_COURTESY_DISCLAIMER,
+  });
+  const [banner, setBanner] = useState("");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["invoice", id],
     queryFn: () => invoicesApi.get(id),
+  });
+
+  useEffect(() => {
+    if (!data) return;
+    setForm({
+      subtotal: String(Number(data.subtotal)),
+      vatAmount: String(Number(data.vatAmount)),
+      total: String(Number(data.total)),
+      depositAmount: String(Number(data.depositAmount ?? 0)),
+      balanceDue: String(Number(data.balanceDue)),
+      paymentStatus: data.paymentStatus || "UNPAID",
+      dueDate: data.dueDate ? data.dueDate.slice(0, 10) : "",
+      notes: data.notes || "",
+      disclaimer: data.disclaimer || INVOICE_COURTESY_DISCLAIMER,
+    });
+  }, [data]);
+
+  const update = useMutation({
+    mutationFn: () =>
+      invoicesApi.update(id, {
+        subtotal: Number(form.subtotal) || 0,
+        vatAmount: Number(form.vatAmount) || 0,
+        total: Number(form.total) || 0,
+        depositAmount: Number(form.depositAmount) || 0,
+        balanceDue: Number(form.balanceDue) || 0,
+        paymentStatus: form.paymentStatus,
+        dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+        notes: form.notes.trim() || null,
+        disclaimer: form.disclaimer.trim() || INVOICE_COURTESY_DISCLAIMER,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      setBanner("Documento aggiornato.");
+      setTimeout(() => setBanner(""), 2500);
+    },
+    onError: () => setBanner("Errore durante il salvataggio."),
   });
 
   return (
@@ -31,6 +87,11 @@ export default function InvoiceDetailPage() {
           <p className="text-destructive">{DOCUMENT_COPY.invoice.notFound}</p>
         ) : (
           <div className="space-y-6">
+            {banner && (
+              <p className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm">
+                {banner}
+              </p>
+            )}
             <div className="flex flex-wrap items-start gap-4 rounded-xl border border-border bg-card p-6">
               <div className="rounded-xl bg-primary/10 p-3">
                 <Receipt className="h-8 w-8 text-primary" />
@@ -54,6 +115,15 @@ export default function InvoiceDetailPage() {
                     {DOCUMENT_COPY.invoice.fromQuotePrefix} {data.quote.number}
                   </Link>
                 )}
+              </div>
+              <div className="ml-auto flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => downloadInvoicePdf(id, `documento-${data.number}.pdf`)}
+                >
+                  <Download className="h-4 w-4" />
+                  Scarica PDF
+                </Button>
               </div>
             </div>
 
@@ -92,6 +162,110 @@ export default function InvoiceDetailPage() {
                 </p>
               </DetailSection>
             )}
+
+            <DetailSection title="Modifica documento">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Imponibile</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.subtotal}
+                    onChange={(e) => setForm((f) => ({ ...f, subtotal: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">IVA</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.vatAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, vatAmount: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Totale</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.total}
+                    onChange={(e) => setForm((f) => ({ ...f, total: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Acconto</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.depositAmount}
+                    onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Saldo</label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={form.balanceDue}
+                    onChange={(e) => setForm((f) => ({ ...f, balanceDue: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Pagamento</label>
+                  <select
+                    className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                    value={form.paymentStatus}
+                    onChange={(e) => setForm((f) => ({ ...f, paymentStatus: e.target.value }))}
+                  >
+                    {Object.entries(paymentStatusLabels).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Scadenza</label>
+                  <Input
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 grid gap-4">
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Note</label>
+                  <textarea
+                    className={textareaClass}
+                    value={form.notes}
+                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                    placeholder="Note interne o testo da mostrare nel PDF"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Disclaimer</label>
+                  <textarea
+                    className={textareaClass}
+                    value={form.disclaimer}
+                    onChange={(e) => setForm((f) => ({ ...f, disclaimer: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button disabled={update.isPending} onClick={() => update.mutate()}>
+                  <Save className="h-4 w-4" />
+                  {update.isPending ? "Salvataggio..." : "Salva modifiche"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => downloadInvoicePdf(id, `documento-${data.number}.pdf`)}
+                >
+                  <Download className="h-4 w-4" />
+                  Scarica PDF aggiornato
+                </Button>
+              </div>
+            </DetailSection>
           </div>
         )}
       </div>

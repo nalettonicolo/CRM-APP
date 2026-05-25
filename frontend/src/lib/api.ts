@@ -775,6 +775,24 @@ export const invoicesApi = {
     return { data: rows, total: rows.length };
   },
   get: (id: string) => api<Invoice>(`/invoices/${id}`),
+  update: (
+    id: string,
+    data: Partial<{
+      subtotal: number;
+      vatAmount: number;
+      total: number;
+      depositAmount: number;
+      balanceDue: number;
+      paymentStatus: string;
+      dueDate: string | null;
+      notes: string | null;
+      disclaimer: string;
+    }>
+  ) =>
+    api<Invoice>(`/invoices/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   createFromQuote: (quoteId: string) =>
     api<Invoice>("/invoices", {
       method: "POST",
@@ -782,6 +800,22 @@ export const invoicesApi = {
     }),
   fromQuote: (quoteId: string) => invoicesApi.createFromQuote(quoteId),
 };
+
+export async function downloadInvoicePdf(id: string, filename: string) {
+  const token = getToken();
+  const res = await fetch(apiUrl(`/invoices/${id}/pdf`), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, "PDF documento non disponibile");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 export interface AutomationRule {
   id: string;

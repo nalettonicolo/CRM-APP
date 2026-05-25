@@ -17,6 +17,18 @@ import { paramId } from "../utils/params.js";
 const router = Router();
 router.use(authenticate);
 
+const invoiceUpdateSchema = z.object({
+  subtotal: z.number().min(0).optional(),
+  vatAmount: z.number().min(0).optional(),
+  total: z.number().min(0).optional(),
+  depositAmount: z.number().min(0).optional(),
+  balanceDue: z.number().min(0).optional(),
+  paymentStatus: z.enum(["UNPAID", "PARTIAL", "PAID", "OVERDUE"]).optional(),
+  dueDate: z.string().datetime().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  disclaimer: z.string().min(1).optional(),
+});
+
 async function generateInvoiceNumber(): Promise<string> {
   const year = new Date().getFullYear();
   const count = await prisma.invoicePreview.count({
@@ -118,6 +130,52 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
     });
 
     res.status(201).json(invoice);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRequest, res, next) => {
+  try {
+    const data = invoiceUpdateSchema.parse(req.body);
+    const where: Record<string, unknown> = { id: paramId(req) };
+    if (req.user!.role === "CLIENT" && req.user!.clientId) {
+      where.clientId = req.user!.clientId;
+    }
+
+    const existing = await prisma.invoicePreview.findFirst({ where });
+    if (!existing) throw new NotFoundError();
+
+    const invoice = await prisma.invoicePreview.update({
+      where: { id: existing.id },
+      data: {
+        subtotal: data.subtotal != null ? toDecimal(data.subtotal) : undefined,
+        vatAmount: data.vatAmount != null ? toDecimal(data.vatAmount) : undefined,
+        total: data.total != null ? toDecimal(data.total) : undefined,
+        depositAmount:
+          data.depositAmount != null ? toDecimal(data.depositAmount) : undefined,
+        balanceDue:
+          data.balanceDue != null ? toDecimal(data.balanceDue) : undefined,
+        paymentStatus: data.paymentStatus,
+        dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate === null ? null : undefined,
+        notes: data.notes,
+        disclaimer: data.disclaimer,
+      },
+      include: {
+        client: true,
+        quote: { include: { items: { orderBy: { sortOrder: "asc" } } } },
+      },
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: invoice.clientId,
+      action: "UPDATE",
+      entityType: "invoice",
+      entityId: invoice.id,
+    });
+
+    res.json(invoice);
   } catch (e) {
     next(e);
   }
