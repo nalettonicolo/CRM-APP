@@ -68,6 +68,76 @@ function drawSignatureImage(
   doc.moveDown(0.5);
 }
 
+function ensureSpace(doc: PdfDoc, height = 90): void {
+  if (doc.y + height > 760) doc.addPage();
+}
+
+function sectionTitle(doc: PdfDoc, title: string): void {
+  ensureSpace(doc, 45);
+  doc.moveDown(0.4);
+  doc.font("Helvetica-Bold").fontSize(11).fillColor("#111827");
+  doc.text(title, 50, doc.y);
+  doc
+    .moveTo(50, doc.y + 3)
+    .lineTo(545, doc.y + 3)
+    .strokeColor("#e5e7eb")
+    .stroke();
+  doc.moveDown(0.7);
+  doc.fillColor("#000000").font("Helvetica");
+}
+
+function drawKeyValue(
+  doc: PdfDoc,
+  label: string,
+  value: string,
+  x: number,
+  y: number,
+  width: number
+): number {
+  doc.font("Helvetica-Bold").fontSize(8).fillColor("#6b7280").text(label, x, y, {
+    width,
+  });
+  doc.font("Helvetica").fontSize(10).fillColor("#111827").text(value || "—", x, y + 12, {
+    width,
+  });
+  return doc.y;
+}
+
+function drawInfoCard(
+  doc: PdfDoc,
+  title: string,
+  rows: { label: string; value?: string | null }[],
+  x: number,
+  y: number,
+  width: number
+): number {
+  const height = 38 + rows.length * 26;
+  doc
+    .roundedRect(x, y, width, height, 8)
+    .fillAndStroke("#f8fafc", "#e5e7eb");
+  doc.font("Helvetica-Bold").fontSize(10).fillColor("#111827").text(title, x + 12, y + 10, {
+    width: width - 24,
+  });
+  let rowY = y + 30;
+  for (const row of rows) {
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(7)
+      .fillColor("#6b7280")
+      .text(row.label.toUpperCase(), x + 12, rowY, { width: width - 24 });
+    doc
+      .font("Helvetica")
+      .fontSize(9)
+      .fillColor("#111827")
+      .text(row.value?.trim() || "—", x + 12, rowY + 10, {
+        width: width - 24,
+      });
+    rowY += 26;
+  }
+  doc.fillColor("#000000").font("Helvetica");
+  return y + height;
+}
+
 export async function generateReportPdf(
   report: ReportWithRelations,
   company?: CompanyInfo
@@ -104,118 +174,135 @@ export async function generateReportPdf(
         .filter(Boolean)
         .join(" ") ||
       "Cliente";
-    doc.fontSize(11).text("Cliente", { underline: true });
-    doc.fontSize(10).text(clientName);
-    if (report.client.email) doc.text(report.client.email);
-    if (report.client.phone) doc.text(report.client.phone);
-    doc.moveDown();
+    const technicianName = `${report.technician.firstName} ${report.technician.lastName}`;
+    const topY = doc.y;
+    const leftBottom = drawInfoCard(
+      doc,
+      "Cliente",
+      [
+        { label: "Nome", value: clientName },
+        { label: "Email", value: report.client.email },
+        { label: "Telefono", value: report.client.phone },
+      ],
+      50,
+      topY,
+      238
+    );
+    const rightBottom = drawInfoCard(
+      doc,
+      "Tecnico",
+      [
+        { label: "Nome", value: technicianName },
+        { label: "Email", value: report.technician.email },
+        { label: "Telefono", value: report.technician.phone },
+      ],
+      307,
+      topY,
+      238
+    );
+    doc.y = Math.max(leftBottom, rightBottom) + 12;
 
     if (report.quote) {
-      doc.fontSize(11).text("Preventivo di riferimento", { underline: true });
-      doc.fontSize(10).text(`N. ${report.quote.number}`);
-      if (report.quote.title) doc.text(report.quote.title);
-      if (report.quote.eventAt) {
-        const end = report.quote.eventEndAt
-          ? ` – ${report.quote.eventEndAt.toLocaleDateString("it-IT")}`
-          : "";
-        doc.text(
-          `Evento: ${report.quote.eventAt.toLocaleDateString("it-IT")}${end}`
-        );
-      }
-      doc.text(`Totale: € ${money(report.quote.total)}`);
-      doc.moveDown();
+      const eventPeriod = report.quote.eventAt
+        ? `${report.quote.eventAt.toLocaleDateString("it-IT")}${
+            report.quote.eventEndAt
+              ? ` – ${report.quote.eventEndAt.toLocaleDateString("it-IT")}`
+              : ""
+          }`
+        : null;
+      const quoteBottom = drawInfoCard(
+        doc,
+        "Preventivo di riferimento",
+        [
+          { label: "Numero", value: report.quote.number },
+          { label: "Oggetto", value: report.quote.title },
+          { label: "Evento", value: eventPeriod },
+          { label: "Totale", value: `€ ${money(report.quote.total)}` },
+        ],
+        50,
+        doc.y,
+        495
+      );
+      doc.y = quoteBottom + 12;
     }
-
-    doc.fontSize(11).text("Tecnico", { underline: true });
-    doc.fontSize(10).text(
-      `${report.technician.firstName} ${report.technician.lastName}`
-    );
-    if (report.technician.email) doc.text(report.technician.email);
-    doc.moveDown();
-
-    doc.fontSize(11).text("Ore lavoro", { underline: true });
-    doc.fontSize(10).text(`${money(report.workHours)} h`);
-    doc.moveDown();
 
     const km = Number(report.kmTraveled ?? 0);
-    if (km > 0) {
-      doc.fontSize(11).text("Km percorsi", { underline: true });
-      doc.fontSize(10).text(`${money(km)} km`);
-      doc.moveDown();
-    }
-
     const expenses = Number(report.expensesAmount ?? 0);
+    const metricsY = doc.y;
+    const metricWidth = 151;
+    drawKeyValue(doc, "Ore lavoro", `${money(report.workHours)} h`, 50, metricsY, metricWidth);
+    drawKeyValue(doc, "Km percorsi", km > 0 ? `${money(km)} km` : "—", 222, metricsY, metricWidth);
+    drawKeyValue(doc, "Costi sostenuti", expenses > 0 ? `€ ${money(expenses)}` : "—", 394, metricsY, metricWidth);
+    doc.y = metricsY + 44;
+
     const expensesNotes = report.expensesNotes;
-    if (expenses > 0 || expensesNotes?.trim()) {
-      doc.fontSize(11).text("Costi sostenuti", { underline: true });
-      doc.fontSize(10).text(`€ ${money(expenses)}`);
-      if (expensesNotes?.trim()) {
-        doc.text(expensesNotes.trim());
-      }
-      doc.moveDown();
+    if (expensesNotes?.trim()) {
+      sectionTitle(doc, "Dettaglio costi");
+      doc.fontSize(9).font("Helvetica").fillColor("#111827").text(expensesNotes.trim(), 50, doc.y, {
+        width: 495,
+      });
+      doc.fillColor("#000000");
     }
 
-    if (report.description) {
-      doc.fontSize(11).text("Descrizione lavori", { underline: true });
-      doc.fontSize(10).text(report.description);
-      doc.moveDown();
+    if (report.description?.trim()) {
+      sectionTitle(doc, "Descrizione attività");
+      doc
+        .fontSize(9)
+        .font("Helvetica")
+        .fillColor("#111827")
+        .text(report.description.trim(), 50, doc.y, { width: 495 });
+      doc.fillColor("#000000");
     }
 
     if (report.materials.length > 0) {
-      doc.fontSize(11).text("Materiali utilizzati", { underline: true });
-      doc.moveDown(0.3);
-      doc.font("Helvetica-Bold").fontSize(9);
-      doc.text("Materiale", 50, doc.y, { continued: true });
+      sectionTitle(doc, "Materiali utilizzati");
+      doc.font("Helvetica-Bold").fontSize(8).fillColor("#6b7280");
+      doc.text("Materiale", 50, doc.y, { width: 360, continued: true });
       doc.text("Q.tà", { align: "right" });
-      doc.font("Helvetica").moveDown(0.3);
+      doc.moveDown(0.4);
+      doc.font("Helvetica").fontSize(9).fillColor("#111827");
       for (const m of report.materials) {
-        doc
-          .fontSize(9)
-          .text(m.name, 50, doc.y, { continued: true })
-          .text(`${money(m.quantity)} ${m.unit || "pz"}`, { align: "right" });
-        doc.moveDown(0.4);
+        ensureSpace(doc, 24);
+        const rowY = doc.y;
+        doc.text(m.name, 50, rowY, { width: 360 });
+        doc.text(`${money(m.quantity)} ${m.unit || "pz"}`, 430, rowY, {
+          width: 115,
+          align: "right",
+        });
+        doc.moveDown(0.5);
       }
-      doc.moveDown();
+      doc.fillColor("#000000");
     }
 
-    if (report.checklist) {
-      doc
-        .fontSize(11)
-        .text(DOCUMENT_COPY.report.checklistHeading, { underline: true });
-      doc.moveDown(0.2);
-      const items = Array.isArray(report.checklist)
-        ? (report.checklist as { label?: string; checked?: boolean }[])
-        : [];
-      if (items.length === 0) {
-        doc.fontSize(9).font("Helvetica").text("—");
-      } else {
-        for (const item of items) {
-          const label =
-            typeof item.label === "string" ? item.label : "Voce";
-          const mark = item.checked ? "[x]" : "[ ]";
-          doc.fontSize(9).font("Helvetica").text(`${mark} ${label}`);
-          doc.moveDown(0.2);
-        }
+    const items = Array.isArray(report.checklist)
+      ? (report.checklist as { label?: string; checked?: boolean }[])
+      : [];
+    if (items.length > 0) {
+      sectionTitle(doc, DOCUMENT_COPY.report.checklistHeading);
+      for (const item of items) {
+        const label = typeof item.label === "string" ? item.label.trim() : "";
+        if (!label) continue;
+        ensureSpace(doc, 24);
+        const mark = item.checked ? "[x]" : "[-]";
+        doc.font("Helvetica").fontSize(9).fillColor("#111827").text(`${mark} ${label}`, 50, doc.y, {
+          width: 495,
+        });
+        doc.moveDown(0.25);
       }
-      doc.moveDown();
+      doc.fillColor("#000000");
     }
 
-    if (report.checkInAt || report.checkOutAt) {
-      doc.fontSize(11).text("Presenze", { underline: true });
+    if (report.checkInAt || report.checkOutAt || (report.latitude != null && report.longitude != null)) {
+      sectionTitle(doc, "Presenze e posizione");
       if (report.checkInAt) {
-        doc
-          .fontSize(10)
-          .text(`Check-in: ${report.checkInAt.toLocaleString("it-IT")}`);
+        doc.fontSize(9).text(`Check-in: ${report.checkInAt.toLocaleString("it-IT")}`);
       }
       if (report.checkOutAt) {
-        doc
-          .fontSize(10)
-          .text(`Check-out: ${report.checkOutAt.toLocaleString("it-IT")}`);
+        doc.fontSize(9).text(`Check-out: ${report.checkOutAt.toLocaleString("it-IT")}`);
       }
       if (report.latitude != null && report.longitude != null) {
-        doc.text(`GPS: ${report.latitude}, ${report.longitude}`);
+        doc.fontSize(9).text(`GPS: ${report.latitude}, ${report.longitude}`);
       }
-      doc.moveDown();
     }
 
     if (doc.y > 580) doc.addPage();

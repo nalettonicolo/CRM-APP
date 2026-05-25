@@ -29,6 +29,7 @@ router.get("/public", async (_req, res, next) => {
     "footer",
     "company",
     "site_home",
+    "report_checklist_templates",
   ];
     const settings = await prisma.setting.findMany({
       where: { key: { in: keys } },

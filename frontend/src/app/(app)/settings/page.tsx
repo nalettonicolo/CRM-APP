@@ -20,6 +20,12 @@ import { cn } from "@/lib/utils";
 const textareaClass =
   "flex min-h-[88px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
 
+const DEFAULT_REPORT_CHECKLIST_TEMPLATES = [
+  "Allestimento completato",
+  "Collaudo audio/luci",
+  "Smontaggio e ripristino area",
+];
+
 export default function SettingsPage() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -54,6 +60,9 @@ export default function SettingsPage() {
     withholdingTaxPercent: "20",
     stampDutyAmount: "2",
   });
+  const [reportChecklistTemplates, setReportChecklistTemplates] = useState<string[]>(
+    DEFAULT_REPORT_CHECKLIST_TEMPLATES
+  );
   const [smtp, setSmtp] = useState({
     host: "smtp.gmail.com",
     port: "587",
@@ -98,6 +107,12 @@ export default function SettingsPage() {
       stampDutyAmount:
         qd.stampDutyAmount != null ? String(qd.stampDutyAmount) : "2",
     });
+    const reportTemplates = data.report_checklist_templates;
+    setReportChecklistTemplates(
+      Array.isArray(reportTemplates) && reportTemplates.length > 0
+        ? reportTemplates.filter((x): x is string => typeof x === "string")
+        : DEFAULT_REPORT_CHECKLIST_TEMPLATES
+    );
     const sm = (data.smtp as Record<string, string>) || {};
     setSmtp({
       host: sm.host || "smtp.gmail.com",
@@ -775,6 +790,66 @@ export default function SettingsPage() {
             <Link href="/settings/event-gallery">
               <Button>Gestisci galleria foto</Button>
             </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Report — voci predefinite</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Crea voci riutilizzabili nella sezione &quot;Voci attività&quot; dei
+              report. Durante la compilazione potrai selezionarle e modificarle.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {reportChecklistTemplates.map((item, index) => (
+              <div key={index} className="flex gap-2">
+                <Input
+                  value={item}
+                  onChange={(e) =>
+                    setReportChecklistTemplates((rows) =>
+                      rows.map((row, i) => (i === index ? e.target.value : row))
+                    )
+                  }
+                  placeholder="Voce attività"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() =>
+                    setReportChecklistTemplates((rows) =>
+                      rows.filter((_, i) => i !== index)
+                    )
+                  }
+                >
+                  Rimuovi
+                </Button>
+              </div>
+            ))}
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  setReportChecklistTemplates((rows) => [...rows, ""])
+                }
+              >
+                Aggiungi voce
+              </Button>
+              <Button
+                disabled={saveMut.isPending}
+                onClick={() =>
+                  saveMut.mutate({
+                    key: "report_checklist_templates",
+                    value: reportChecklistTemplates
+                      .map((x) => x.trim())
+                      .filter(Boolean),
+                  })
+                }
+              >
+                Salva voci report
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

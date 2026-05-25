@@ -25,7 +25,7 @@ export const DOCUMENT_COPY = {
     detailTitle: "Verbale di intervento",
     detailBack: "Torna ai verbali",
     notFound: "Verbale non trovato.",
-    checklistTitle: "Verifiche",
+    checklistTitle: "Voci attività",
     signaturesTitle: "Firme",
     technicianSignature: "Firma tecnico",
     clientSignature: "Firma cliente",

@@ -23,7 +23,7 @@ export const DOCUMENT_COPY = {
   },
   report: {
     pdfTitlePrefix: "Verbale intervento",
-    checklistHeading: "Verifiche eseguite",
+    checklistHeading: "Voci attività",
     signaturesHeading: "Firme",
     technicianSignLabel: "Firma del tecnico",
     clientSignLabel: "Firma del cliente",

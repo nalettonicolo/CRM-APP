@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit";
-import type { Client, InvoicePreview, Quote } from "@prisma/client";
+import type { Client, InvoicePreview, Quote, QuoteItem } from "@prisma/client";
 import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "../constants/documentCopy.js";
 import {
   drawPdfBankDetails,
@@ -11,7 +11,7 @@ import {
 
 type InvoiceWithRelations = InvoicePreview & {
   client: Client;
-  quote?: Quote | null;
+  quote?: (Quote & { items?: QuoteItem[] }) | null;
 };
 
 function money(n: number | { toString(): string }) {
@@ -61,8 +61,77 @@ export async function generateInvoicePdf(
       "Cliente";
     doc.fontSize(11).text("Cliente", { underline: true });
     doc.fontSize(10).text(clientName);
+    if (invoice.client.address) {
+      const addr = [
+        invoice.client.address,
+        invoice.client.postalCode,
+        invoice.client.city,
+        invoice.client.province,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      doc.text(addr);
+    }
     if (invoice.client.email) doc.text(invoice.client.email);
+    if (invoice.client.phone) doc.text(invoice.client.phone);
     doc.moveDown();
+
+    if (invoice.quote) {
+      doc.fontSize(11).text("Riferimenti documento", { underline: true });
+      doc.fontSize(10).text(`Da preventivo: ${invoice.quote.number}`);
+      if (invoice.quote.title?.trim()) {
+        doc.text(`Oggetto: ${invoice.quote.title.trim()}`);
+      }
+      if (invoice.quote.eventAt) {
+        const end = invoice.quote.eventEndAt ?? invoice.quote.eventAt;
+        const sameDay =
+          invoice.quote.eventAt.toDateString() === end.toDateString();
+        const period = sameDay
+          ? invoice.quote.eventAt.toLocaleDateString("it-IT")
+          : `${invoice.quote.eventAt.toLocaleDateString("it-IT")} – ${end.toLocaleDateString("it-IT")}`;
+        doc.text(`Periodo di servizio: ${period}`);
+      }
+      doc.moveDown();
+    }
+
+    const items = invoice.quote?.items ?? [];
+    if (items.length > 0) {
+      const tableTop = doc.y;
+      const colDesc = 50;
+      const colQty = 320;
+      const colPrice = 380;
+      const colTotal = 480;
+
+      doc.fontSize(10).font("Helvetica-Bold");
+      doc.text("Descrizione", colDesc, tableTop);
+      doc.text("Q.tà", colQty, tableTop, { width: 50, align: "right" });
+      doc.text("Prezzo", colPrice, tableTop, { width: 70, align: "right" });
+      doc.text("Totale", colTotal, tableTop, { width: 70, align: "right" });
+      doc.font("Helvetica");
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#e4e4e7").stroke();
+      doc.moveDown(0.3);
+
+      for (const item of items) {
+        if (doc.y > 700) doc.addPage();
+        const y = doc.y;
+        doc.fontSize(9).text(item.description, colDesc, y, { width: 250 });
+        const qtyText = item.unit
+          ? `${money(item.quantity)} ${item.unit}`
+          : money(item.quantity);
+        doc.text(qtyText, colQty, y, { width: 50, align: "right" });
+        doc.text(`€ ${money(item.unitPrice)}`, colPrice, y, {
+          width: 70,
+          align: "right",
+        });
+        doc.text(`€ ${money(item.total)}`, colTotal, y, {
+          width: 70,
+          align: "right",
+        });
+        doc.moveDown(0.8);
+      }
+      doc.moveDown();
+    }
 
     const totalsX = 380;
     const addTotalLine = (label: string, value: string, bold = false) => {

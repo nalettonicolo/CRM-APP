@@ -55,7 +55,10 @@ router.get("/:id", requirePermission("invoices", "READ"), async (req: AuthReques
 
     const invoice = await prisma.invoicePreview.findFirst({
       where,
-      include: { client: true, quote: true },
+      include: {
+        client: true,
+        quote: { include: { items: { orderBy: { sortOrder: "asc" } } } },
+      },
     });
     if (!invoice) throw new NotFoundError();
     res.json(invoice);
@@ -132,7 +135,10 @@ router.get(
 
       const invoice = await prisma.invoicePreview.findFirst({
         where,
-        include: { client: true, quote: true },
+        include: {
+          client: true,
+          quote: { include: { items: { orderBy: { sortOrder: "asc" } } } },
+        },
       });
       if (!invoice) throw new NotFoundError();
 

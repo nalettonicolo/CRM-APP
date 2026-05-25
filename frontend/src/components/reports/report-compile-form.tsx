@@ -14,6 +14,7 @@ import {
   interventionsApi,
   quotesApi,
   reportsApi,
+  settingsApi,
   type Quote,
   type ReportDetail,
   type ReportPayload,
@@ -30,6 +31,12 @@ const textareaClass =
 type CheckItem = { label: string; checked: boolean };
 type MaterialRow = { name: string; quantity: string; unit: string };
 type Step = "form" | "preview" | "sign";
+
+const DEFAULT_REPORT_CHECKLIST_TEMPLATES = [
+  "Allestimento completato",
+  "Collaudo audio/luci",
+  "Smontaggio e ripristino area",
+];
 
 export function ReportCompileForm({
   reportId: initialReportId,
@@ -65,11 +72,9 @@ export function ReportCompileForm({
   );
   const [expensesNotes, setExpensesNotes] = useState(initial?.expensesNotes || "");
   const [checklist, setChecklist] = useState<CheckItem[]>(
-    (initial?.checklist as CheckItem[]) || [
-      { label: "Impianto verificato", checked: false },
-      { label: "Sicurezza OK", checked: false },
-    ]
+    (initial?.checklist as CheckItem[]) || []
   );
+  const [selectedTemplate, setSelectedTemplate] = useState("");
   const [materials, setMaterials] = useState<MaterialRow[]>(
     initial?.materials?.map((m) => ({
       name: m.name,
@@ -148,6 +153,26 @@ export function ReportCompileForm({
     enabled: Boolean(quoteId),
   });
 
+  const { data: publicSettings } = useQuery({
+    queryKey: ["settings", "public"],
+    queryFn: settingsApi.public,
+  });
+
+  const reportTemplatesSetting = publicSettings?.report_checklist_templates;
+  const reportChecklistTemplates =
+    Array.isArray(reportTemplatesSetting) && reportTemplatesSetting.length > 0
+      ? reportTemplatesSetting.filter(
+          (x): x is string => typeof x === "string" && x.trim().length > 0
+        )
+      : DEFAULT_REPORT_CHECKLIST_TEMPLATES;
+
+  useEffect(() => {
+    if (initial || checklist.length > 0) return;
+    setChecklist(
+      reportChecklistTemplates.map((label) => ({ label, checked: false }))
+    );
+  }, [checklist.length, initial, reportChecklistTemplates]);
+
   const selectedQuote =
     selectedQuoteFull ||
     clientQuotes?.data?.find((q) => q.id === quoteId) ||
@@ -223,6 +248,13 @@ export function ReportCompileForm({
       },
       () => setError("Impossibile ottenere la posizione.")
     );
+  }
+
+  function addChecklistTemplate(label: string) {
+    const value = label.trim();
+    if (!value) return;
+    setChecklist((list) => [...list, { label: value, checked: false }]);
+    setSelectedTemplate("");
   }
 
   if (step === "preview" && savedReport) {
@@ -400,7 +432,7 @@ export function ReportCompileForm({
 
       <div>
         <div className="mb-2 flex items-center justify-between">
-          <label className="text-sm font-medium">Checklist</label>
+          <label className="text-sm font-medium">Voci attività</label>
           <Button
             type="button"
             variant="outline"
@@ -409,7 +441,29 @@ export function ReportCompileForm({
               setChecklist((c) => [...c, { label: "", checked: false }])
             }
           >
-            <Plus className="h-3.5 w-3.5" /> Voce
+            <Plus className="h-3.5 w-3.5" /> Voce libera
+          </Button>
+        </div>
+        <div className="mb-3 flex gap-2">
+          <select
+            className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm"
+            value={selectedTemplate}
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+          >
+            <option value="">Seleziona voce predefinita…</option>
+            {reportChecklistTemplates.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!selectedTemplate}
+            onClick={() => addChecklistTemplate(selectedTemplate)}
+          >
+            Aggiungi
           </Button>
         </div>
         <ul className="space-y-2">
@@ -436,7 +490,7 @@ export function ReportCompileForm({
                     )
                   )
                 }
-                placeholder="Voce checklist"
+                placeholder="Voce attività"
                 className="flex-1"
               />
               <Button
