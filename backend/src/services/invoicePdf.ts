@@ -14,6 +14,46 @@ type InvoiceWithRelations = InvoicePreview & {
   quote?: (Quote & { items?: QuoteItem[] }) | null;
 };
 
+type MoneyLike = number | string | { toString(): string };
+
+type InvoiceLineItem = {
+  description: string;
+  quantity: MoneyLike;
+  unit?: string | null;
+  unitPrice: MoneyLike;
+  vatRate?: MoneyLike;
+  total: MoneyLike;
+};
+
+function invoiceItems(invoice: InvoiceWithRelations): InvoiceLineItem[] {
+  if (Array.isArray(invoice.items)) {
+    return invoice.items
+      .filter((item) => item && typeof item === "object" && "description" in item)
+      .map((item) => {
+        const row = item as Record<string, unknown>;
+        return {
+          description: String(row.description || ""),
+          quantity: Number(row.quantity) || 0,
+          unit: typeof row.unit === "string" ? row.unit : null,
+          unitPrice: Number(row.unitPrice) || 0,
+          vatRate: Number(row.vatRate) || 0,
+          total: Number(row.total) || 0,
+        };
+      })
+      .filter((item) => item.description.trim());
+  }
+  return (
+    invoice.quote?.items?.map((item) => ({
+      description: item.description,
+      quantity: item.quantity,
+      unit: item.unit,
+      unitPrice: item.unitPrice,
+      vatRate: item.vatRate,
+      total: item.total,
+    })) ?? []
+  );
+}
+
 function money(n: number | { toString(): string }) {
   return Number(n).toLocaleString("it-IT", {
     minimumFractionDigits: 2,
@@ -94,7 +134,7 @@ export async function generateInvoicePdf(
       doc.moveDown();
     }
 
-    const items = invoice.quote?.items ?? [];
+    const items = invoiceItems(invoice);
     if (items.length > 0) {
       const tableTop = doc.y;
       const colDesc = 50;

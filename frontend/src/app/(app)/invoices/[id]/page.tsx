@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Receipt, Save } from "lucide-react";
+import { Download, Plus, Receipt, Save, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { downloadInvoicePdf, invoicesApi } from "@/lib/api";
+import {
+  downloadInvoicePdf,
+  interventionsApi,
+  invoicesApi,
+  type InvoiceLineItem,
+  type Report,
+} from "@/lib/api";
 import { paymentStatusLabels } from "@/lib/labels";
 import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "@/lib/document-copy";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -19,6 +25,78 @@ const textareaClass =
 
 function dateInputToIso(value: string): string | undefined {
   return value ? `${value}T12:00:00.000Z` : undefined;
+}
+
+function lineTotal(item: InvoiceLineItem): number {
+  return (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+}
+
+function emptyLine(): InvoiceLineItem {
+  return {
+    description: "",
+    quantity: 1,
+    unit: "",
+    unitPrice: 0,
+    vatRate: 0,
+    total: 0,
+  };
+}
+
+function linesFromQuote(items?: InvoiceLineItem[]): InvoiceLineItem[] {
+  return (items ?? []).map((item) => ({
+    description: item.description,
+    quantity: Number(item.quantity) || 0,
+    unit: item.unit || "",
+    unitPrice: Number(item.unitPrice) || 0,
+    vatRate: Number(item.vatRate ?? 0) || 0,
+    total: Number(item.total) || lineTotal(item),
+  }));
+}
+
+function linesFromReport(report: Report): InvoiceLineItem[] {
+  const rows: InvoiceLineItem[] = [];
+  if (report.description?.trim()) {
+    rows.push({
+      description: `Report ${report.number} — ${report.description.trim()}`,
+      quantity: 1,
+      unit: "",
+      unitPrice: 0,
+      vatRate: 0,
+      total: 0,
+    });
+  }
+  for (const item of report.checklist ?? []) {
+    if (!item.label?.trim()) continue;
+    rows.push({
+      description: `Report ${report.number} — ${item.label.trim()}`,
+      quantity: 1,
+      unit: "",
+      unitPrice: 0,
+      vatRate: 0,
+      total: 0,
+    });
+  }
+  for (const material of report.materials ?? []) {
+    rows.push({
+      description: `Materiale report ${report.number} — ${material.name}`,
+      quantity: Number(material.quantity) || 0,
+      unit: material.unit || "pz",
+      unitPrice: 0,
+      vatRate: 0,
+      total: 0,
+    });
+  }
+  if (Number(report.expensesAmount ?? 0) > 0 || report.expensesNotes?.trim()) {
+    rows.push({
+      description: `Costi report ${report.number}${report.expensesNotes ? ` — ${report.expensesNotes}` : ""}`,
+      quantity: 1,
+      unit: "",
+      unitPrice: Number(report.expensesAmount ?? 0) || 0,
+      vatRate: 0,
+      total: Number(report.expensesAmount ?? 0) || 0,
+    });
+  }
+  return rows;
 }
 
 export default function InvoiceDetailPage() {
@@ -36,12 +114,41 @@ export default function InvoiceDetailPage() {
     notes: "",
     disclaimer: INVOICE_COURTESY_DISCLAIMER,
   });
+  const [items, setItems] = useState<InvoiceLineItem[]>([]);
+  const [reportId, setReportId] = useState("");
   const [banner, setBanner] = useState("");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["invoice", id],
     queryFn: () => invoicesApi.get(id),
   });
+
+  const { data: reports } = useQuery({
+    queryKey: ["reports", "for-invoice", data?.quoteId, data?.clientId],
+    queryFn: interventionsApi.reports,
+    enabled: Boolean(data),
+  });
+
+  const relatedReports =
+    reports?.filter((report) =>
+      data?.quoteId ? report.quoteId === data.quoteId : report.clientId === data?.clientId
+    ) ?? [];
+
+  const calculatedTotals = useMemo(() => {
+    const subtotal = items.reduce((sum, item) => sum + lineTotal(item), 0);
+    const vatAmount = items.reduce(
+      (sum, item) => sum + (lineTotal(item) * (Number(item.vatRate ?? 0) || 0)) / 100,
+      0
+    );
+    const total = subtotal + vatAmount;
+    const depositAmount = Number(form.depositAmount) || 0;
+    return {
+      subtotal,
+      vatAmount,
+      total,
+      balanceDue: Math.max(total - depositAmount, 0),
+    };
+  }, [form.depositAmount, items]);
 
   useEffect(() => {
     if (!data) return;
@@ -57,6 +164,11 @@ export default function InvoiceDetailPage() {
       notes: data.notes || "",
       disclaimer: data.disclaimer || INVOICE_COURTESY_DISCLAIMER,
     });
+    setItems(
+      data.items?.length
+        ? linesFromQuote(data.items)
+        : linesFromQuote(data.quote?.items)
+    );
   }, [data]);
 
   const update = useMutation({
@@ -70,6 +182,15 @@ export default function InvoiceDetailPage() {
         paymentStatus: form.paymentStatus,
         createdAt: dateInputToIso(form.createdAt),
         dueDate: form.dueDate ? `${form.dueDate}T12:00:00.000Z` : null,
+        items: items
+          .filter((item) => item.description.trim())
+          .map((item) => ({
+            ...item,
+            quantity: Number(item.quantity) || 0,
+            unitPrice: Number(item.unitPrice) || 0,
+            vatRate: Number(item.vatRate ?? 0) || 0,
+            total: lineTotal(item),
+          })),
         notes: form.notes.trim() || null,
         disclaimer: form.disclaimer.trim() || INVOICE_COURTESY_DISCLAIMER,
       }),
@@ -81,6 +202,49 @@ export default function InvoiceDetailPage() {
     },
     onError: () => setBanner("Errore durante il salvataggio."),
   });
+
+  function updateItem(index: number, patch: Partial<InvoiceLineItem>) {
+    setItems((rows) =>
+      rows.map((row, i) => {
+        if (i !== index) return row;
+        const next = { ...row, ...patch };
+        return { ...next, total: lineTotal(next) };
+      })
+    );
+  }
+
+  function applyCalculatedTotals() {
+    setForm((f) => ({
+      ...f,
+      subtotal: calculatedTotals.subtotal.toFixed(2),
+      vatAmount: calculatedTotals.vatAmount.toFixed(2),
+      total: calculatedTotals.total.toFixed(2),
+      balanceDue: calculatedTotals.balanceDue.toFixed(2),
+    }));
+  }
+
+  function importQuoteItems() {
+    const rows = linesFromQuote(data?.quote?.items);
+    if (rows.length === 0) {
+      setBanner("Il preventivo non contiene voci importabili.");
+      return;
+    }
+    setItems(rows);
+    setBanner("Voci preventivo importate.");
+  }
+
+  function importReportItems() {
+    const report = relatedReports.find((r) => r.id === reportId);
+    if (!report) return;
+    const rows = linesFromReport(report);
+    if (rows.length === 0) {
+      setBanner("Il report selezionato non contiene voci importabili.");
+      return;
+    }
+    setItems((current) => [...current, ...rows]);
+    setReportId("");
+    setBanner("Voci report aggiunte.");
+  }
 
   return (
     <>
@@ -246,6 +410,133 @@ export default function InvoiceDetailPage() {
                     value={form.createdAt}
                     onChange={(e) => setForm((f) => ({ ...f, createdAt: e.target.value }))}
                   />
+                </div>
+              </div>
+              <div className="mt-6 rounded-xl border border-border">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
+                  <div>
+                    <h3 className="font-semibold">Voci documento</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Modifica le righe senza cambiare il preventivo originale.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={importQuoteItems}>
+                      Importa preventivo
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setItems((rows) => [...rows, emptyLine()])}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Riga
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-3 p-4">
+                  <div className="flex flex-wrap gap-2">
+                    <select
+                      className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm"
+                      value={reportId}
+                      onChange={(e) => setReportId(e.target.value)}
+                    >
+                      <option value="">Importa voci da report…</option>
+                      {relatedReports.map((report) => (
+                        <option key={report.id} value={report.id}>
+                          {report.number} — {formatDate(report.createdAt)}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!reportId}
+                      onClick={importReportItems}
+                    >
+                      Aggiungi da report
+                    </Button>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[860px] space-y-2">
+                      <div className="grid grid-cols-[1fr_90px_90px_110px_90px_110px_44px] gap-2 px-1 text-xs font-medium uppercase text-muted-foreground">
+                        <span>Descrizione</span>
+                        <span>Q.tà</span>
+                        <span>Unità</span>
+                        <span>Prezzo</span>
+                        <span>IVA %</span>
+                        <span>Totale</span>
+                        <span />
+                      </div>
+                      {items.map((item, index) => (
+                        <div
+                          key={index}
+                          className="grid grid-cols-[1fr_90px_90px_110px_90px_110px_44px] gap-2"
+                        >
+                          <Input
+                            value={item.description}
+                            onChange={(e) =>
+                              updateItem(index, { description: e.target.value })
+                            }
+                            placeholder="Descrizione voce"
+                          />
+                          <Input
+                            type="number"
+                            step="0.001"
+                            min="0"
+                            value={String(item.quantity)}
+                            onChange={(e) =>
+                              updateItem(index, { quantity: e.target.value })
+                            }
+                          />
+                          <Input
+                            value={item.unit || ""}
+                            onChange={(e) => updateItem(index, { unit: e.target.value })}
+                            placeholder="pz"
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={String(item.unitPrice)}
+                            onChange={(e) =>
+                              updateItem(index, { unitPrice: e.target.value })
+                            }
+                          />
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={String(item.vatRate ?? 0)}
+                            onChange={(e) =>
+                              updateItem(index, { vatRate: e.target.value })
+                            }
+                          />
+                          <Input value={lineTotal(item).toFixed(2)} readOnly />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() =>
+                              setItems((rows) => rows.filter((_, i) => i !== index))
+                            }
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 p-3 text-sm">
+                    <span>
+                      Righe: {items.length} · Imponibile{" "}
+                      {formatCurrency(calculatedTotals.subtotal)} · IVA{" "}
+                      {formatCurrency(calculatedTotals.vatAmount)} · Totale{" "}
+                      {formatCurrency(calculatedTotals.total)}
+                    </span>
+                    <Button type="button" variant="outline" onClick={applyCalculatedTotals}>
+                      Ricalcola importi dalle righe
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="mt-4 grid gap-4">

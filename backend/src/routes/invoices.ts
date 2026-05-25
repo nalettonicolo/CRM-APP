@@ -17,6 +17,15 @@ import { paramId } from "../utils/params.js";
 const router = Router();
 router.use(authenticate);
 
+const invoiceItemSchema = z.object({
+  description: z.string().min(1),
+  quantity: z.number().min(0),
+  unit: z.string().nullable().optional(),
+  unitPrice: z.number(),
+  vatRate: z.number().min(0).optional(),
+  total: z.number().min(0),
+});
+
 const invoiceUpdateSchema = z.object({
   subtotal: z.number().min(0).optional(),
   vatAmount: z.number().min(0).optional(),
@@ -26,6 +35,7 @@ const invoiceUpdateSchema = z.object({
   paymentStatus: z.enum(["UNPAID", "PARTIAL", "PAID", "OVERDUE"]).optional(),
   createdAt: z.string().datetime().optional(),
   dueDate: z.string().datetime().nullable().optional(),
+  items: z.array(invoiceItemSchema).optional(),
   notes: z.string().nullable().optional(),
   disclaimer: z.string().min(1).optional(),
 });
@@ -86,7 +96,7 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
 
     const quote = await prisma.quote.findUnique({
       where: { id: quoteId },
-      include: { client: true },
+      include: { client: true, items: { orderBy: { sortOrder: "asc" } } },
     });
     if (!quote) throw new NotFoundError("Preventivo non trovato");
     if (quote.status !== "ACCEPTED") {
@@ -116,6 +126,14 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
         depositAmount: quote.depositAmount,
         balanceDue: quote.balanceDue,
         paymentStatus: quote.paymentStatus,
+        items: quote.items.map((item) => ({
+          description: item.description,
+          quantity: Number(item.quantity),
+          unit: item.unit,
+          unitPrice: Number(item.unitPrice),
+          vatRate: Number(item.vatRate),
+          total: Number(item.total),
+        })),
         disclaimer: INVOICE_COURTESY_DISCLAIMER,
       },
       include: { client: true, quote: true },
@@ -160,6 +178,7 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
         paymentStatus: data.paymentStatus,
         createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
         dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate === null ? null : undefined,
+        items: data.items,
         notes: data.notes,
         disclaimer: data.disclaimer,
       },

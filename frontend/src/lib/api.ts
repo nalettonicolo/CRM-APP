@@ -609,6 +609,13 @@ export interface Report {
   number: string;
   status: string;
   workHours: number | string;
+  quoteId?: string | null;
+  clientId?: string;
+  description?: string;
+  expensesAmount?: number | string;
+  expensesNotes?: string;
+  checklist?: { label: string; checked: boolean }[];
+  materials?: { name: string; quantity: number | string; unit?: string }[];
   createdAt: string;
   client?: { companyName?: string; contactName?: string };
 }
@@ -761,11 +768,21 @@ export interface Invoice {
   balanceDue: number | string;
   paymentStatus: string;
   dueDate?: string;
+  items?: InvoiceLineItem[];
   notes?: string;
   disclaimer?: string;
   createdAt: string;
   client?: Client;
-  quote?: QuoteSummary;
+  quote?: QuoteSummary & { items?: QuoteItem[] };
+}
+
+export interface InvoiceLineItem {
+  description: string;
+  quantity: number | string;
+  unit?: string | null;
+  unitPrice: number | string;
+  vatRate?: number | string;
+  total: number | string;
 }
 
 export const invoicesApi = {
@@ -786,6 +803,7 @@ export const invoicesApi = {
       paymentStatus: string;
       createdAt: string;
       dueDate: string | null;
+      items: InvoiceLineItem[];
       notes: string | null;
       disclaimer: string;
     }>
