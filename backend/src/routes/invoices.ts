@@ -24,6 +24,7 @@ const invoiceUpdateSchema = z.object({
   depositAmount: z.number().min(0).optional(),
   balanceDue: z.number().min(0).optional(),
   paymentStatus: z.enum(["UNPAID", "PARTIAL", "PAID", "OVERDUE"]).optional(),
+  createdAt: z.string().datetime().optional(),
   dueDate: z.string().datetime().nullable().optional(),
   notes: z.string().nullable().optional(),
   disclaimer: z.string().min(1).optional(),
@@ -157,6 +158,7 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
         balanceDue:
           data.balanceDue != null ? toDecimal(data.balanceDue) : undefined,
         paymentStatus: data.paymentStatus,
+        createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
         dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate === null ? null : undefined,
         notes: data.notes,
         disclaimer: data.disclaimer,

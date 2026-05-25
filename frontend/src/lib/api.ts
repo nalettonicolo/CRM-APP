@@ -784,6 +784,7 @@ export const invoicesApi = {
       depositAmount: number;
       balanceDue: number;
       paymentStatus: string;
+      createdAt: string;
       dueDate: string | null;
       notes: string | null;
       disclaimer: string;

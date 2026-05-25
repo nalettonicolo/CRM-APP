@@ -17,6 +17,10 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 const textareaClass =
   "flex min-h-[96px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
 
+function dateInputToIso(value: string): string | undefined {
+  return value ? `${value}T12:00:00.000Z` : undefined;
+}
+
 export default function InvoiceDetailPage() {
   const id = useParams().id as string;
   const qc = useQueryClient();
@@ -27,6 +31,7 @@ export default function InvoiceDetailPage() {
     depositAmount: "",
     balanceDue: "",
     paymentStatus: "UNPAID",
+    createdAt: "",
     dueDate: "",
     notes: "",
     disclaimer: INVOICE_COURTESY_DISCLAIMER,
@@ -47,6 +52,7 @@ export default function InvoiceDetailPage() {
       depositAmount: String(Number(data.depositAmount ?? 0)),
       balanceDue: String(Number(data.balanceDue)),
       paymentStatus: data.paymentStatus || "UNPAID",
+      createdAt: data.createdAt ? data.createdAt.slice(0, 10) : "",
       dueDate: data.dueDate ? data.dueDate.slice(0, 10) : "",
       notes: data.notes || "",
       disclaimer: data.disclaimer || INVOICE_COURTESY_DISCLAIMER,
@@ -62,7 +68,8 @@ export default function InvoiceDetailPage() {
         depositAmount: Number(form.depositAmount) || 0,
         balanceDue: Number(form.balanceDue) || 0,
         paymentStatus: form.paymentStatus,
-        dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
+        createdAt: dateInputToIso(form.createdAt),
+        dueDate: form.dueDate ? `${form.dueDate}T12:00:00.000Z` : null,
         notes: form.notes.trim() || null,
         disclaimer: form.disclaimer.trim() || INVOICE_COURTESY_DISCLAIMER,
       }),
@@ -149,7 +156,7 @@ export default function InvoiceDetailPage() {
                   value={data.dueDate ? formatDate(data.dueDate) : "—"}
                 />
                 <DetailField
-                  label="Creato"
+                  label="Data emissione"
                   value={formatDate(data.createdAt)}
                 />
               </div>
@@ -230,6 +237,14 @@ export default function InvoiceDetailPage() {
                     type="date"
                     value={form.dueDate}
                     onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Data emissione</label>
+                  <Input
+                    type="date"
+                    value={form.createdAt}
+                    onChange={(e) => setForm((f) => ({ ...f, createdAt: e.target.value }))}
                   />
                 </div>
               </div>
