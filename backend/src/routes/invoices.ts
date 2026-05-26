@@ -1,5 +1,8 @@
 import { Router } from "express";
+import fs from "fs";
+import path from "path";
 import { z } from "zod";
+import { config } from "../config/index.js";
 import { prisma } from "../lib/prisma.js";
 import {
   authenticate,
@@ -42,10 +45,35 @@ const invoiceUpdateSchema = z.object({
 
 async function generateInvoiceNumber(): Promise<string> {
   const year = new Date().getFullYear();
-  const count = await prisma.invoicePreview.count({
-    where: { createdAt: { gte: new Date(`${year}-01-01`) } },
-  });
-  return `FPR-${year}-${String(count + 1).padStart(4, "0")}`;
+  const prefix = `FPR-${year}-`;
+  const [existing, deletedLogs] = await Promise.all([
+    prisma.invoicePreview.findMany({
+      where: { number: { startsWith: prefix } },
+      select: { number: true },
+    }),
+    prisma.activityLog.findMany({
+      where: { entityType: "invoice", action: "DELETE" },
+      select: { details: true },
+    }),
+  ]);
+  const numbers = [
+    ...existing.map((row) => row.number),
+    ...deletedLogs
+      .map((log) =>
+        log.details &&
+        typeof log.details === "object" &&
+        !Array.isArray(log.details) &&
+        "number" in log.details
+          ? String(log.details.number)
+          : ""
+      )
+      .filter((number) => number.startsWith(prefix)),
+  ];
+  const max = numbers.reduce((highest, number) => {
+    const match = number.match(/^FPR-\d{4}-(\d+)$/);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+  return `${prefix}${String(max + 1).padStart(4, "0")}`;
 }
 
 router.get("/", requirePermission("invoices", "READ"), async (req: AuthRequest, res, next) => {
@@ -197,6 +225,49 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
     });
 
     res.json(invoice);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/:id", requirePermission("invoices", "DELETE"), async (req: AuthRequest, res, next) => {
+  try {
+    const where: Record<string, unknown> = { id: paramId(req) };
+    if (req.user!.role === "CLIENT" && req.user!.clientId) {
+      where.clientId = req.user!.clientId;
+    }
+
+    const invoice = await prisma.invoicePreview.findFirst({
+      where,
+      include: { attachments: true },
+    });
+    if (!invoice) throw new NotFoundError();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.attachment.deleteMany({ where: { invoiceId: invoice.id } });
+      await tx.invoicePreview.delete({ where: { id: invoice.id } });
+    });
+
+    for (const attachment of invoice.attachments) {
+      const filePath = path.join(
+        config.upload.dir,
+        attachment.path.replace(/^\/uploads\//, "")
+      );
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: invoice.clientId,
+      action: "DELETE",
+      entityType: "invoice",
+      entityId: invoice.id,
+      details: { number: invoice.number, quoteId: invoice.quoteId },
+    });
+
+    res.json({ success: true });
   } catch (e) {
     next(e);
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Plus, Receipt, Save, Trash2 } from "lucide-react";
@@ -16,7 +16,7 @@ import {
   type InvoiceLineItem,
   type Report,
 } from "@/lib/api";
-import { paymentStatusLabels } from "@/lib/labels";
+import { paymentStatusLabels, SERVICE_UNIT_OPTIONS } from "@/lib/labels";
 import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "@/lib/document-copy";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -27,8 +27,20 @@ function dateInputToIso(value: string): string | undefined {
   return value ? `${value}T12:00:00.000Z` : undefined;
 }
 
+function parseDecimal(value: number | string | undefined | null): number {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (!value) return 0;
+  const normalized = value.replace(",", ".").trim();
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatDecimal(value: number | string | undefined | null): string {
+  return parseDecimal(value).toFixed(2).replace(".", ",");
+}
+
 function lineTotal(item: InvoiceLineItem): number {
-  return (Number(item.quantity) || 0) * (Number(item.unitPrice) || 0);
+  return parseDecimal(item.quantity) * parseDecimal(item.unitPrice);
 }
 
 function emptyLine(): InvoiceLineItem {
@@ -36,9 +48,9 @@ function emptyLine(): InvoiceLineItem {
     description: "",
     quantity: 1,
     unit: "",
-    unitPrice: 0,
-    vatRate: 0,
-    total: 0,
+    unitPrice: "0,00",
+    vatRate: "0,00",
+    total: "0,00",
   };
 }
 
@@ -47,9 +59,9 @@ function linesFromQuote(items?: InvoiceLineItem[]): InvoiceLineItem[] {
     description: item.description,
     quantity: Number(item.quantity) || 0,
     unit: item.unit || "",
-    unitPrice: Number(item.unitPrice) || 0,
-    vatRate: Number(item.vatRate ?? 0) || 0,
-    total: Number(item.total) || lineTotal(item),
+    unitPrice: formatDecimal(item.unitPrice),
+    vatRate: formatDecimal(item.vatRate ?? 0),
+    total: formatDecimal(Number(item.total) || lineTotal(item)),
   }));
 }
 
@@ -60,9 +72,9 @@ function linesFromReport(report: Report): InvoiceLineItem[] {
       description: `Report ${report.number} — ${report.description.trim()}`,
       quantity: 1,
       unit: "",
-      unitPrice: 0,
-      vatRate: 0,
-      total: 0,
+      unitPrice: "0,00",
+      vatRate: "0,00",
+      total: "0,00",
     });
   }
   for (const item of report.checklist ?? []) {
@@ -71,9 +83,9 @@ function linesFromReport(report: Report): InvoiceLineItem[] {
       description: `Report ${report.number} — ${item.label.trim()}`,
       quantity: 1,
       unit: "",
-      unitPrice: 0,
-      vatRate: 0,
-      total: 0,
+      unitPrice: "0,00",
+      vatRate: "0,00",
+      total: "0,00",
     });
   }
   for (const material of report.materials ?? []) {
@@ -81,9 +93,9 @@ function linesFromReport(report: Report): InvoiceLineItem[] {
       description: `Materiale report ${report.number} — ${material.name}`,
       quantity: Number(material.quantity) || 0,
       unit: material.unit || "pz",
-      unitPrice: 0,
-      vatRate: 0,
-      total: 0,
+      unitPrice: "0,00",
+      vatRate: "0,00",
+      total: "0,00",
     });
   }
   if (Number(report.expensesAmount ?? 0) > 0 || report.expensesNotes?.trim()) {
@@ -91,9 +103,9 @@ function linesFromReport(report: Report): InvoiceLineItem[] {
       description: `Costi report ${report.number}${report.expensesNotes ? ` — ${report.expensesNotes}` : ""}`,
       quantity: 1,
       unit: "",
-      unitPrice: Number(report.expensesAmount ?? 0) || 0,
-      vatRate: 0,
-      total: Number(report.expensesAmount ?? 0) || 0,
+      unitPrice: formatDecimal(report.expensesAmount ?? 0),
+      vatRate: "0,00",
+      total: formatDecimal(report.expensesAmount ?? 0),
     });
   }
   return rows;
@@ -101,6 +113,7 @@ function linesFromReport(report: Report): InvoiceLineItem[] {
 
 export default function InvoiceDetailPage() {
   const id = useParams().id as string;
+  const router = useRouter();
   const qc = useQueryClient();
   const [form, setForm] = useState({
     subtotal: "",
@@ -137,7 +150,7 @@ export default function InvoiceDetailPage() {
   const calculatedTotals = useMemo(() => {
     const subtotal = items.reduce((sum, item) => sum + lineTotal(item), 0);
     const vatAmount = items.reduce(
-      (sum, item) => sum + (lineTotal(item) * (Number(item.vatRate ?? 0) || 0)) / 100,
+      (sum, item) => sum + (lineTotal(item) * parseDecimal(item.vatRate)) / 100,
       0
     );
     const total = subtotal + vatAmount;
@@ -187,8 +200,8 @@ export default function InvoiceDetailPage() {
           .map((item) => ({
             ...item,
             quantity: Number(item.quantity) || 0,
-            unitPrice: Number(item.unitPrice) || 0,
-            vatRate: Number(item.vatRate ?? 0) || 0,
+            unitPrice: parseDecimal(item.unitPrice),
+            vatRate: parseDecimal(item.vatRate),
             total: lineTotal(item),
           })),
         notes: form.notes.trim() || null,
@@ -201,6 +214,17 @@ export default function InvoiceDetailPage() {
       setTimeout(() => setBanner(""), 2500);
     },
     onError: () => setBanner("Errore durante il salvataggio."),
+  });
+
+  const deleteInvoice = useMutation({
+    mutationFn: () => invoicesApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      router.push("/invoices");
+    },
+    onError: (e: Error) =>
+      setBanner(e.message || "Errore durante l'eliminazione del documento."),
   });
 
   function updateItem(index: number, patch: Partial<InvoiceLineItem>) {
@@ -294,6 +318,25 @@ export default function InvoiceDetailPage() {
                 >
                   <Download className="h-4 w-4" />
                   Scarica PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  className="border-destructive/40 text-destructive hover:text-destructive"
+                  disabled={deleteInvoice.isPending}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `Eliminare il documento ${data.number}? Il prossimo documento manterrà la numerazione progressiva.`
+                      )
+                    ) {
+                      return;
+                    }
+                    setBanner("");
+                    deleteInvoice.mutate();
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {deleteInvoice.isPending ? "Elimino..." : "Elimina"}
                 </Button>
               </div>
             </div>
@@ -489,29 +532,47 @@ export default function InvoiceDetailPage() {
                               updateItem(index, { quantity: e.target.value })
                             }
                           />
-                          <Input
+                          <select
+                            className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
                             value={item.unit || ""}
-                            onChange={(e) => updateItem(index, { unit: e.target.value })}
-                            placeholder="pz"
-                          />
+                            onChange={(e) =>
+                              updateItem(index, { unit: e.target.value || "" })
+                            }
+                          >
+                            <option value="">—</option>
+                            {SERVICE_UNIT_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.value}
+                              </option>
+                            ))}
+                            {item.unit &&
+                              !SERVICE_UNIT_OPTIONS.some(
+                                (option) => option.value === item.unit
+                              ) && <option value={item.unit}>{item.unit}</option>}
+                          </select>
                           <Input
-                            type="number"
-                            step="0.01"
+                            inputMode="decimal"
                             value={String(item.unitPrice)}
+                            onBlur={() =>
+                              updateItem(index, {
+                                unitPrice: formatDecimal(item.unitPrice),
+                              })
+                            }
                             onChange={(e) =>
                               updateItem(index, { unitPrice: e.target.value })
                             }
                           />
                           <Input
-                            type="number"
-                            step="0.01"
-                            min="0"
-                            value={String(item.vatRate ?? 0)}
+                            inputMode="decimal"
+                            value={String(item.vatRate ?? "0,00")}
+                            onBlur={() =>
+                              updateItem(index, { vatRate: formatDecimal(item.vatRate) })
+                            }
                             onChange={(e) =>
                               updateItem(index, { vatRate: e.target.value })
                             }
                           />
-                          <Input value={lineTotal(item).toFixed(2)} readOnly />
+                          <Input value={formatDecimal(lineTotal(item))} readOnly />
                           <Button
                             type="button"
                             variant="ghost"

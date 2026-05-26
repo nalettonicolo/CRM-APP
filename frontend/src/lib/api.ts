@@ -814,6 +814,8 @@ export const invoicesApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/invoices/${id}`, { method: "DELETE" }),
   createFromQuote: (quoteId: string) =>
     api<Invoice>("/invoices", {
       method: "POST",
