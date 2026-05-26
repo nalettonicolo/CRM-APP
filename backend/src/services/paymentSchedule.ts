@@ -318,27 +318,8 @@ function buildClientPaymentOverview(
           status: rowStatus(amount, paidAmount, due),
         };
       });
-      const quoteRemaining = round2(
-        quoteRows.reduce((sum, row) => sum + row.remaining, 0)
-      );
-
-      if (quoteRemaining > 0.01) {
-        open.push({
-          id: q.id,
-          kind: "quote",
-          number: q.number,
-          title:
-            acceptanceTerms.length === 1
-              ? acceptanceTerms[0].label
-              : "Acconto all'accettazione",
-          total: round2(quoteRows.reduce((sum, row) => sum + row.amount, 0)),
-          balanceDue: quoteRemaining,
-          paymentStatus: q.paymentStatus,
-          href: `/quotes/${q.id}`,
-        });
-      }
-
       for (const row of quoteRows) {
+        if (row.remaining <= 0.01) continue;
         schedule.push({
           id: row.term.id,
           quoteId: q.id,
@@ -358,29 +339,19 @@ function buildClientPaymentOverview(
       const due = defaultDueDate(q);
       const remaining = round2(Math.max(0, deposit - paidTotal));
       if (remaining > 0.01) {
-        open.push({
-          id: q.id,
-          kind: "quote",
-          number: q.number,
-          title: "Acconto all'accettazione",
-          total: deposit,
-          balanceDue: remaining,
-          paymentStatus: q.paymentStatus,
-          href: `/quotes/${q.id}`,
+        schedule.push({
+          id: `quote-${q.id}`,
+          quoteId: q.id,
+          quoteNumber: q.number,
+          quoteTitle: q.title,
+          label: "Acconto all'accettazione",
+          amount: deposit,
+          paidAmount: round2(paidTotal),
+          remaining,
+          dueDate: due.toISOString(),
+          status: rowStatus(deposit, paidTotal, due),
         });
       }
-      schedule.push({
-        id: `quote-${q.id}`,
-        quoteId: q.id,
-        quoteNumber: q.number,
-        quoteTitle: q.title,
-        label: "Acconto all'accettazione",
-        amount: deposit,
-        paidAmount: round2(paidTotal),
-        remaining,
-        dueDate: due.toISOString(),
-        status: rowStatus(deposit, paidTotal, due),
-      });
     }
   }
 
