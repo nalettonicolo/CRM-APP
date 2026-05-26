@@ -1,5 +1,8 @@
 import { Router } from "express";
+import fs from "fs";
+import path from "path";
 import { z } from "zod";
+import { config } from "../config/index.js";
 import { prisma } from "../lib/prisma.js";
 import {
   authenticate,
@@ -638,6 +641,74 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
     }
 
     res.json(quote);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/:id", requirePermission("quotes", "DELETE"), async (req: AuthRequest, res, next) => {
+  try {
+    const id = paramId(req);
+    const quote = await prisma.quote.findUnique({
+      where: { id },
+      include: {
+        attachments: true,
+        _count: {
+          select: {
+            invoicePreviews: true,
+            payments: true,
+            reports: true,
+          },
+        },
+      },
+    });
+    if (!quote) throw new NotFoundError();
+    if (req.user!.role === "CLIENT" && quote.clientId !== req.user!.clientId) {
+      throw new NotFoundError();
+    }
+
+    if (quote._count.invoicePreviews > 0) {
+      throw new ValidationError(
+        "Impossibile eliminare: esiste un documento di cortesia collegato"
+      );
+    }
+    if (quote._count.payments > 0) {
+      throw new ValidationError(
+        "Impossibile eliminare: esistono pagamenti registrati su questo preventivo"
+      );
+    }
+    if (quote._count.reports > 0) {
+      throw new ValidationError(
+        "Impossibile eliminare: esistono report collegati a questo preventivo"
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.event.deleteMany({ where: { quoteId: quote.id } });
+      await tx.attachment.deleteMany({ where: { quoteId: quote.id } });
+      await tx.quote.delete({ where: { id: quote.id } });
+    });
+
+    for (const attachment of quote.attachments) {
+      const filePath = path.join(
+        config.upload.dir,
+        attachment.path.replace(/^\/uploads\//, "")
+      );
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: quote.clientId,
+      action: "DELETE",
+      entityType: "quote",
+      entityId: quote.id,
+      details: { number: quote.number },
+    });
+
+    res.json({ success: true });
   } catch (e) {
     next(e);
   }

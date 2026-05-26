@@ -67,6 +67,15 @@ type ClientNameFields = {
   lastName: string | null;
 };
 
+type QuotePaymentTermLike = {
+  id: string;
+  label: string;
+  note: string | null;
+  amount: unknown;
+  isBalance: boolean;
+  dueDate: Date | null;
+};
+
 function clientDisplayName(c: ClientNameFields): string {
   return (
     c.companyName ||
@@ -112,6 +121,19 @@ function defaultDueDate(quote: {
   );
 }
 
+function normalizedText(value: string | null | undefined): string {
+  return (value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function isAcceptanceDepositTerm(term: QuotePaymentTermLike): boolean {
+  if (term.isBalance || Number(term.amount) <= 0) return false;
+  const text = normalizedText(`${term.label} ${term.note ?? ""}`);
+  return text.includes("accettazione") || text.includes("accettaz");
+}
+
 function allocatePaymentsToTerms(
   terms: { id: string; amount: number }[],
   payments: { id: string; quotePaymentTermId: string | null; amount: unknown }[]
@@ -152,7 +174,7 @@ export async function getOpenPaymentsOverview(
     prisma.quote.findMany({
       where: {
         ...clientWhere,
-        status: { in: ["SENT", "ACCEPTED"] },
+        status: "ACCEPTED",
       },
       include: {
         client: {
@@ -166,6 +188,7 @@ export async function getOpenPaymentsOverview(
         },
         paymentTerms: { orderBy: { sortOrder: "asc" } },
         payments: true,
+        invoicePreviews: true,
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -232,11 +255,12 @@ export async function getClientPaymentOverview(
     prisma.quote.findMany({
       where: {
         clientId,
-        status: { in: ["SENT", "ACCEPTED"] },
+        status: "ACCEPTED",
       },
       include: {
         paymentTerms: { orderBy: { sortOrder: "asc" } },
         payments: true,
+        invoicePreviews: true,
       },
       orderBy: { createdAt: "desc" },
     }),
@@ -256,6 +280,7 @@ function buildClientPaymentOverview(
         include: {
           paymentTerms: true;
           payments: true;
+          invoicePreviews: true;
         };
       }>
     >
@@ -270,58 +295,91 @@ function buildClientPaymentOverview(
   const schedule: PaymentScheduleRow[] = [];
 
   for (const q of quotes) {
-    const total = Number(q.total);
-    const balance = Number(q.balanceDue);
-    const row: ClientDocumentRow = {
-      id: q.id,
-      kind: "quote",
-      number: q.number,
-      title: q.title,
-      total,
-      balanceDue: balance,
-      paymentStatus: q.paymentStatus,
-      href: `/quotes/${q.id}`,
-    };
-    if (q.paymentStatus === "PAID") closed.push(row);
-    else open.push(row);
+    if (q.status !== "ACCEPTED" || q.invoicePreviews.length > 0) continue;
 
     const termPaid = allocatePaymentsToTerms(
       q.paymentTerms.map((t) => ({ id: t.id, amount: Number(t.amount) })),
       q.payments
     );
 
-    if (q.paymentTerms.length > 0) {
-      for (const term of q.paymentTerms) {
+    const acceptanceTerms = q.paymentTerms.filter(isAcceptanceDepositTerm);
+    if (acceptanceTerms.length > 0) {
+      const quoteRows = acceptanceTerms.map((term) => {
         const amount = Number(term.amount);
         const paidAmount = termPaid.get(term.id) ?? 0;
+        const remaining = round2(Math.max(0, amount - paidAmount));
         const due = term.dueDate ?? defaultDueDate(q);
+        return {
+          term,
+          amount,
+          paidAmount,
+          remaining,
+          due,
+          status: rowStatus(amount, paidAmount, due),
+        };
+      });
+      const quoteRemaining = round2(
+        quoteRows.reduce((sum, row) => sum + row.remaining, 0)
+      );
+
+      if (quoteRemaining > 0.01) {
+        open.push({
+          id: q.id,
+          kind: "quote",
+          number: q.number,
+          title:
+            acceptanceTerms.length === 1
+              ? acceptanceTerms[0].label
+              : "Acconto all'accettazione",
+          total: round2(quoteRows.reduce((sum, row) => sum + row.amount, 0)),
+          balanceDue: quoteRemaining,
+          paymentStatus: q.paymentStatus,
+          href: `/quotes/${q.id}`,
+        });
+      }
+
+      for (const row of quoteRows) {
         schedule.push({
-          id: term.id,
+          id: row.term.id,
           quoteId: q.id,
           quoteNumber: q.number,
           quoteTitle: q.title,
-          label: term.label,
-          amount,
-          paidAmount,
-          remaining: round2(Math.max(0, amount - paidAmount)),
-          dueDate: due.toISOString(),
-          status: rowStatus(amount, paidAmount, due),
+          label: row.term.label,
+          amount: row.amount,
+          paidAmount: row.paidAmount,
+          remaining: row.remaining,
+          dueDate: row.due.toISOString(),
+          status: row.status,
         });
       }
-    } else if (total > 0) {
+    } else if (Number(q.depositAmount) > 0) {
+      const deposit = Number(q.depositAmount);
       const paidTotal = q.payments.reduce((s, p) => s + Number(p.amount), 0);
       const due = defaultDueDate(q);
+      const remaining = round2(Math.max(0, deposit - paidTotal));
+      if (remaining > 0.01) {
+        open.push({
+          id: q.id,
+          kind: "quote",
+          number: q.number,
+          title: "Acconto all'accettazione",
+          total: deposit,
+          balanceDue: remaining,
+          paymentStatus: q.paymentStatus,
+          href: `/quotes/${q.id}`,
+        });
+      }
       schedule.push({
         id: `quote-${q.id}`,
         quoteId: q.id,
         quoteNumber: q.number,
         quoteTitle: q.title,
-        label: "Saldo preventivo",
-        amount: total,
+        label: "Acconto all'accettazione",
+        amount: deposit,
         paidAmount: round2(paidTotal),
-        remaining: round2(Math.max(0, total - paidTotal)),
+        remaining,
         dueDate: due.toISOString(),
-        status: rowStatus(total, paidTotal, due),
+        status: rowStatus(deposit, paidTotal, due),
       });
     }
   }

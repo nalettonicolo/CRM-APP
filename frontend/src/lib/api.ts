@@ -230,6 +230,8 @@ export const quotesApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/quotes/${id}`, { method: "DELETE" }),
   sendEmail: (id: string) =>
     api<{ success: boolean }>(`/quotes/${id}/send-email`, { method: "POST" }),
   sign: (id: string, signature: string) =>

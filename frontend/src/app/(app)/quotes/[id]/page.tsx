@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { FileText, User, Pencil, Download, Mail, Receipt, Check, X } from "lucide-react";
+import { FileText, User, Pencil, Download, Mail, Receipt, Check, X, Trash2 } from "lucide-react";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/header";
@@ -40,6 +40,7 @@ export default function QuoteDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const getSignatureRef = useRef<() => string | undefined>(() => undefined);
 
   const fromQuote = useMutation({
@@ -58,6 +59,18 @@ export default function QuoteDetailPage() {
       qc.invalidateQueries({ queryKey: ["quote", id] });
       qc.invalidateQueries({ queryKey: ["events"] });
     },
+  });
+
+  const deleteQuote = useMutation({
+    mutationFn: () => quotesApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      router.push("/quotes");
+    },
+    onError: (e: Error) =>
+      setDeleteError(e.message || "Impossibile eliminare il preventivo."),
   });
 
   const signQuote = useMutation({
@@ -90,6 +103,11 @@ export default function QuoteDetailPage() {
           <p className="text-destructive">Preventivo non trovato.</p>
         ) : (
           <div className="space-y-6">
+            {deleteError && (
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                {deleteError}
+              </p>
+            )}
             <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
               <div className="flex items-start gap-4">
                 <div className="rounded-xl bg-primary/10 p-3">
@@ -145,6 +163,26 @@ export default function QuoteDetailPage() {
                     <Link href={`/quotes/${id}/edit`}>
                       <Pencil className="h-4 w-4" /> Modifica
                     </Link>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-destructive/40 text-destructive hover:text-destructive"
+                    disabled={deleteQuote.isPending}
+                    onClick={() => {
+                      if (
+                        !window.confirm(
+                          `Eliminare il preventivo ${quote.number}? L'operazione non è reversibile.`
+                        )
+                      ) {
+                        return;
+                      }
+                      setDeleteError("");
+                      deleteQuote.mutate();
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {deleteQuote.isPending ? "Elimino..." : "Elimina"}
                   </Button>
                   {quote.status === "ACCEPTED" && (
                     <Button
