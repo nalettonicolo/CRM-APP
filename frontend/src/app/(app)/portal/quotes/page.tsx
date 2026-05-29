@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { Download, PenLine } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export default function PortalQuotesPage() {
   const qc = useQueryClient();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [signId, setSignId] = useState<string | null>(null);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [pdfBusy, setPdfBusy] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -41,12 +43,14 @@ export default function PortalQuotesPage() {
     mutationFn: () => {
       const canvas = canvasRef.current;
       if (!canvas || !signId) throw new Error("Firma mancante");
-      return portalApi.signQuote(signId, canvas.toDataURL("image/png"));
+      if (!privacyAccepted) throw new Error("Accetta l'informativa privacy");
+      return portalApi.signQuote(signId, canvas.toDataURL("image/png"), true);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portal-dashboard"] });
       qc.invalidateQueries({ queryKey: ["events"] });
       setSignId(null);
+      setPrivacyAccepted(false);
     },
   });
 
@@ -160,11 +164,22 @@ export default function PortalQuotesPage() {
         )}
       </div>
 
-      <Dialog open={!!signId} onOpenChange={(o) => !o && setSignId(null)}>
+      <Dialog
+        open={!!signId}
+        onOpenChange={(o) => {
+          if (!o) {
+            setSignId(null);
+            setPrivacyAccepted(false);
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{DOCUMENT_COPY.portal.quoteSignTitle}</DialogTitle>
           </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {DOCUMENT_COPY.portal.quoteSignHint}
+          </p>
           <canvas
             ref={canvasRef}
             width={320}
@@ -173,11 +188,29 @@ export default function PortalQuotesPage() {
             onMouseDown={(e) => draw(e, canvasRef)}
             onMouseMove={(e) => draw(e, canvasRef, true)}
           />
+          <label className="flex cursor-pointer items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={privacyAccepted}
+              onChange={(e) => setPrivacyAccepted(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              {DOCUMENT_COPY.portal.quoteSignPrivacyPrefix}{" "}
+              <Link href="/privacy" className="text-primary hover:underline" target="_blank">
+                informativa privacy
+              </Link>{" "}
+              {DOCUMENT_COPY.portal.quoteSignPrivacySuffix}
+            </span>
+          </label>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSignId(null)}>
               Annulla
             </Button>
-            <Button disabled={signMut.isPending} onClick={() => signMut.mutate()}>
+            <Button
+              disabled={signMut.isPending || !privacyAccepted}
+              onClick={() => signMut.mutate()}
+            >
               {DOCUMENT_COPY.portal.quoteSignConfirm}
             </Button>
           </DialogFooter>

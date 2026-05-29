@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { sendEmail, emailTemplate } from "../services/email.js";
 import { getNotificationEmail } from "../services/notifyEmail.js";
 import { logActivity } from "../services/activityLog.js";
+import { PRIVACY_POLICY_VERSION } from "../constants/privacy.js";
 
 const router = Router();
 
@@ -19,6 +20,11 @@ router.post("/contact", async (req, res, next) => {
         services: z.array(z.string().min(1)).optional(),
         eventDateFrom: z.string().optional(),
         eventDateTo: z.string().optional(),
+        privacyAccepted: z.literal(true, {
+          errorMap: () => ({
+            message: "Devi accettare l'informativa privacy per inviare la richiesta",
+          }),
+        }),
       })
       .parse(req.body);
 
@@ -41,6 +47,8 @@ router.post("/contact", async (req, res, next) => {
         eventDateFrom,
         eventDateTo,
         source: "website",
+        privacyConsentAt: new Date(),
+        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
       },
     });
 

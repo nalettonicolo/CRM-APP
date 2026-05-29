@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { authenticate, type AuthRequest } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
 import { syncQuoteCalendarEvent } from "../services/quoteCalendar.js";
+import { PRIVACY_POLICY_VERSION } from "../constants/privacy.js";
 import {
   ForbiddenError,
   NotFoundError,
@@ -63,8 +64,15 @@ router.get("/dashboard", async (req: AuthRequest, res, next) => {
 router.post("/quotes/:id/sign", async (req: AuthRequest, res, next) => {
   try {
     const clientId = requireClient(req);
-    const { signature } = z
-      .object({ signature: z.string().min(20) })
+    const { signature, privacyAccepted } = z
+      .object({
+        signature: z.string().min(20),
+        privacyAccepted: z.literal(true, {
+          errorMap: () => ({
+            message: "Devi accettare l'informativa privacy per firmare",
+          }),
+        }),
+      })
       .parse(req.body);
 
     const quote = await prisma.quote.findFirst({
@@ -94,6 +102,10 @@ router.post("/quotes/:id/sign", async (req: AuthRequest, res, next) => {
       action: "SIGN",
       entityType: "quote",
       entityId: quote.id,
+      details: {
+        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+        privacyAccepted,
+      },
     });
 
     await syncQuoteCalendarEvent(updated.id);

@@ -8,6 +8,7 @@ import {
 } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
 import { deleteClientById } from "../services/deleteClient.js";
+import { exportClientData } from "../services/clientDataExport.js";
 import { NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 
@@ -91,6 +92,24 @@ router.get("/:id", requirePermission("clients", "READ"), async (req, res, next) 
     next(e);
   }
 });
+
+router.get(
+  "/:id/export",
+  requirePermission("clients", "READ"),
+  async (req, res, next) => {
+    try {
+      const payload = await exportClientData(paramId(req));
+      res.setHeader("Content-Type", "application/json; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="cliente-${paramId(req)}-export.json"`
+      );
+      res.send(JSON.stringify(payload, null, 2));
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.post("/", requirePermission("clients", "CREATE"), async (req: AuthRequest, res, next) => {
   try {

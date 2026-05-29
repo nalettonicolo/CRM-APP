@@ -7,8 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { FileText, ImageIcon } from "lucide-react";
-import { authApi, backupApi, settingsApi } from "@/lib/api";
+import { FileText, ImageIcon, Shield } from "lucide-react";
+import { authApi, backupApi, privacyApi, settingsApi } from "@/lib/api";
 import { DEFAULT_APP_NAME } from "@/lib/branding";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,22 @@ export default function SettingsPage() {
   const { data: smtpStatus } = useQuery({
     queryKey: ["settings", "smtp-status"],
     queryFn: settingsApi.smtpStatus,
+  });
+
+  const { data: privacyInfo } = useQuery({
+    queryKey: ["privacy", "version"],
+    queryFn: privacyApi.version,
+  });
+
+  const privacyMaintenance = useMutation({
+    mutationFn: privacyApi.maintenance,
+    onSuccess: (res) => {
+      setBanner(
+        `Pulizia completata: ${res.deletedLeads} lead e ${res.deletedActivityLogs} log rimossi.`
+      );
+      setTimeout(() => setBanner(""), 5000);
+    },
+    onError: () => setBanner("Errore durante la pulizia dati scaduti."),
   });
 
   const [banner, setBanner] = useState("");
@@ -242,6 +258,65 @@ export default function SettingsPage() {
             </Card>
           </Link>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-primary" />
+              Privacy e conformità
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Documenti legali, conservazione dati e diritti degli interessati
+              (GDPR). Verifica che email e ragione sociale in &quot;Contatti
+              in home&quot; siano corretti: compaiono nell&apos;informativa
+              privacy.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              <Link href="/privacy" target="_blank">
+                <Button variant="outline" size="sm">
+                  Informativa privacy
+                </Button>
+              </Link>
+              <Link href="/cookie-policy" target="_blank">
+                <Button variant="outline" size="sm">
+                  Cookie policy
+                </Button>
+              </Link>
+              <Link href="/termini" target="_blank">
+                <Button variant="outline" size="sm">
+                  Termini d&apos;uso
+                </Button>
+              </Link>
+            </div>
+            {privacyInfo && (
+              <p className="text-xs text-muted-foreground">
+                Versione informativa: {privacyInfo.privacyPolicyVersion} · Lead
+                non convertiti: {privacyInfo.leadRetentionDays} giorni · Log
+                attività: {privacyInfo.activityLogRetentionDays} giorni
+              </p>
+            )}
+            <Button
+              variant="outline"
+              disabled={privacyMaintenance.isPending}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    "Eliminare lead non convertiti e log attività oltre i termini di conservazione configurati?"
+                  )
+                ) {
+                  return;
+                }
+                privacyMaintenance.mutate();
+              }}
+            >
+              {privacyMaintenance.isPending
+                ? "Pulizia in corso..."
+                : "Pulizia dati scaduti"}
+            </Button>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>

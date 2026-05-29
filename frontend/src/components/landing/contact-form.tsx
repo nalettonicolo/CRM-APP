@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ApiError, publicApi } from "@/lib/api";
 import { CONTACT_SERVICE_OPTIONS } from "@/lib/labels";
@@ -15,6 +16,7 @@ export function ContactForm() {
   const [error, setError] = useState("");
   const [emailWarning, setEmailWarning] = useState("");
   const [services, setServices] = useState<string[]>([]);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
 
   function toggleService(label: string) {
     setServices((prev) =>
@@ -24,9 +26,13 @@ export function ContactForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setLoading(true);
     setError("");
     setEmailWarning("");
+    if (!privacyAccepted) {
+      setError("Devi accettare l'informativa privacy per inviare la richiesta.");
+      return;
+    }
+    setLoading(true);
     const fd = new FormData(e.currentTarget);
     try {
       const res = await publicApi.contact({
@@ -38,10 +44,12 @@ export function ContactForm() {
         eventDateFrom: (fd.get("eventDateFrom") as string) || undefined,
         eventDateTo: (fd.get("eventDateTo") as string) || undefined,
         services: services.length > 0 ? services : undefined,
+        privacyAccepted: true as const,
       });
       setDone(true);
       if (res.emailWarning) setEmailWarning(res.emailWarning);
       setServices([]);
+      setPrivacyAccepted(false);
       e.currentTarget.reset();
     } catch (e) {
       if (e instanceof ApiError) {
@@ -223,6 +231,23 @@ export function ContactForm() {
       {error && (
         <p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-300">{error}</p>
       )}
+      <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+        <input
+          type="checkbox"
+          checked={privacyAccepted}
+          onChange={(e) => setPrivacyAccepted(e.target.checked)}
+          className="mt-1 h-4 w-4 rounded border-white/30"
+          required
+        />
+        <span>
+          Ho letto e accetto l&apos;{" "}
+          <Link href="/privacy" className="text-violet-300 underline" target="_blank">
+            informativa privacy
+          </Link>{" "}
+          e autorizzo il trattamento dei miei dati per gestire la richiesta di
+          contatto/preventivo. *
+        </span>
+      </label>
       <Button type="submit" className="h-12 w-full text-base" disabled={loading}>
         {loading ? "Invio..." : "Invia richiesta preventivo"}
       </Button>

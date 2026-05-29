@@ -30,6 +30,7 @@ import backupRoutes from "./routes/backup.js";
 import paymentTermTemplatesRoutes from "./routes/paymentTermTemplates.js";
 import paymentsRoutes from "./routes/payments.js";
 import eventGalleryRoutes from "./routes/eventGallery.js";
+import privacyRoutes from "./routes/privacy.js";
 
 const app = express();
 
@@ -81,6 +82,13 @@ const authLimiter = rateLimit({
 });
 app.use("/api/auth/login", authLimiter);
 
+const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { error: "Troppe richieste dal form contatti. Riprova più tardi." },
+});
+app.use("/api/public/contact", contactLimiter);
+
 app.use("/uploads", express.static(path.resolve(config.upload.dir)));
 
 app.get("/api/health", (_req, res) => {
@@ -118,6 +126,7 @@ app.use("/api/backup", backupRoutes);
 app.use("/api/payment-term-templates", paymentTermTemplatesRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/event-gallery", eventGalleryRoutes);
+app.use("/api/privacy", privacyRoutes);
 
 app.use(errorHandler);
 

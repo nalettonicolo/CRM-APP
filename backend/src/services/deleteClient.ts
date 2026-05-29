@@ -80,7 +80,13 @@ export async function deleteClientById(clientId: string): Promise<void> {
     await tx.event.deleteMany({ where: { clientId } });
     await tx.attachment.deleteMany({ where: { clientId } });
     await tx.activityLog.deleteMany({ where: { clientId } });
-    await tx.lead.updateMany({ where: { clientId }, data: { clientId: null } });
+    if (client.email?.trim()) {
+      await tx.lead.deleteMany({
+        where: { email: { equals: client.email.trim(), mode: "insensitive" } },
+      });
+    } else {
+      await tx.lead.updateMany({ where: { clientId }, data: { clientId: null } });
+    }
 
     for (const user of client.users) {
       await tx.userPermission.deleteMany({ where: { userId: user.id } });

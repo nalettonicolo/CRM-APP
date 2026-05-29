@@ -13,6 +13,7 @@ import {
   getLogoPath,
   type PublicSettings,
 } from "@/lib/public-settings";
+import { LegalFooterLinks } from "@/components/legal/legal-footer-links";
 
 export function LoginForm({
   initialSettings = null,
@@ -171,6 +172,10 @@ export function LoginForm({
               ← Torna alla home
             </Link>
           </div>
+          <LegalFooterLinks
+            className="mt-4"
+            linkClassName="text-slate-500 hover:text-violet-300"
+          />
         </motion.div>
       </div>
     </motion.div>

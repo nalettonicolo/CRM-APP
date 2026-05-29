@@ -11,6 +11,7 @@ import { PublicHeader } from "@/components/landing/public-header";
 import { settingsApi } from "@/lib/api";
 import { useFadeUp } from "@/lib/motion-presets";
 import { EventGallerySection } from "@/components/landing/event-gallery-section";
+import { LegalFooterLinks } from "@/components/legal/legal-footer-links";
 import {
   getAppName,
   getLogoPath,
@@ -168,6 +169,10 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
         <p>
           © {new Date().getFullYear()} {site.footerLine}
         </p>
+        <LegalFooterLinks
+          className="mt-3"
+          linkClassName="text-slate-400 hover:text-violet-300"
+        />
       </footer>
     </motion.div>
   );

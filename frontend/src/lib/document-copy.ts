@@ -84,6 +84,10 @@ export const DOCUMENT_COPY = {
     quoteSignTitle: "Firma del preventivo",
     quoteSignHint:
       "Disegna la firma nel riquadro per accettare le condizioni del preventivo.",
+    quoteSignPrivacyPrefix:
+      "Dichiaro di aver letto l'",
+    quoteSignPrivacySuffix:
+      "e accetto il trattamento dei dati per la gestione contrattuale.",
     quoteSignConfirm: "Conferma firma e accetta",
     invoiceSection: "Documenti di cortesia",
     invoiceEmpty: "Nessun documento disponibile.",

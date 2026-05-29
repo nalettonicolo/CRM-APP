@@ -163,6 +163,8 @@ export const clientsApi = {
     }),
   delete: (id: string) =>
     api<{ success: boolean }>(`/clients/${id}`, { method: "DELETE" }),
+  exportData: (id: string) =>
+    apiUrl(`/clients/${id}/export`),
 };
 
 export interface Client {
@@ -1291,10 +1293,10 @@ export const portalApi = {
   dashboard: () => api<PortalDashboard>("/portal/dashboard"),
   documents: () =>
     api<{ invoices: Invoice[]; quotes: Quote[] }>("/portal/documents"),
-  signQuote: (id: string, signature: string) =>
+  signQuote: (id: string, signature: string, privacyAccepted = true) =>
     api<Quote>(`/portal/quotes/${id}/sign`, {
       method: "POST",
-      body: JSON.stringify({ signature }),
+      body: JSON.stringify({ signature, privacyAccepted }),
     }),
   acceptQuote: (id: string) =>
     api<Quote>(`/portal/quotes/${id}/accept`, { method: "POST" }),
@@ -1324,6 +1326,7 @@ export const publicApi = {
     services?: string[];
     eventDateFrom?: string;
     eventDateTo?: string;
+    privacyAccepted: true;
   }) =>
     fetch(apiUrl("/public/contact"), {
       method: "POST",
@@ -1347,3 +1350,34 @@ export const publicApi = {
       };
     }),
 };
+
+export const privacyApi = {
+  version: () =>
+    api<{
+      privacyPolicyVersion: string;
+      leadRetentionDays: number;
+      activityLogRetentionDays: number;
+    }>("/privacy/version"),
+  maintenance: () =>
+    api<{
+      success: boolean;
+      deletedLeads: number;
+      deletedActivityLogs: number;
+    }>("/privacy/maintenance", { method: "POST" }),
+};
+
+export async function downloadClientExport(id: string, filename: string) {
+  const token = getToken();
+  const res = await fetch(clientsApi.exportData(id), {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, "Esportazione dati non disponibile");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}

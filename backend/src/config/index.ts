@@ -69,6 +69,13 @@ export const config = {
     dir: path.resolve(process.env.BACKUP_DIR || "../backups"),
     retentionDays: parseInt(process.env.BACKUP_RETENTION_DAYS || "30", 10),
   },
+  privacy: {
+    leadRetentionDays: parseInt(process.env.LEAD_RETENTION_DAYS || "730", 10),
+    activityLogRetentionDays: parseInt(
+      process.env.ACTIVITY_LOG_RETENTION_DAYS || "1095",
+      10
+    ),
+  },
   admin: {
     email: process.env.ADMIN_EMAIL || "admin@crm.local",
     password: process.env.ADMIN_PASSWORD || "Admin123!",

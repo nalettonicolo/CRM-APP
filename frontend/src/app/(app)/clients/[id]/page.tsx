@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Building2, FileText, Wrench, ClipboardList, Pencil, Trash2 } from "lucide-react";
+import { Building2, FileText, Wrench, ClipboardList, Pencil, Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
 import { Header } from "@/components/layout/header";
@@ -14,7 +14,7 @@ import {
   DetailSection,
 } from "@/components/detail/detail-shell";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
-import { clientsApi } from "@/lib/api";
+import { clientsApi, downloadClientExport } from "@/lib/api";
 import { clientStatusLabels, quoteStatusLabels } from "@/lib/labels";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
@@ -33,6 +33,7 @@ export default function ClientDetailPage() {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [exportBusy, setExportBusy] = useState(false);
 
   const { data: client, isLoading, isError } = useQuery({
     queryKey: ["client", id],
@@ -104,6 +105,27 @@ export default function ClientDetailPage() {
                 </span>
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-4 w-4" /> Modifica
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={exportBusy}
+                  onClick={async () => {
+                    setExportBusy(true);
+                    try {
+                      await downloadClientExport(
+                        id,
+                        `cliente-${displayName.replace(/\s+/g, "-").slice(0, 40)}.json`
+                      );
+                    } catch {
+                      setDeleteError("Esportazione dati non riuscita.");
+                    } finally {
+                      setExportBusy(false);
+                    }
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                  {exportBusy ? "Esporto..." : "Esporta dati"}
                 </Button>
                 <Button
                   variant="outline"

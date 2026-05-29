@@ -309,6 +309,8 @@ model Lead {
   source      String?  @default("website")
   status      String   @default("new")
   assignedTo  String?
+  privacyConsentAt      DateTime?
+  privacyPolicyVersion  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
