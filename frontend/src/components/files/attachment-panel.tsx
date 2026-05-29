@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { attachmentsApi, type AttachmentItem } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-type EntityType = "client" | "quote" | "intervention" | "report";
+type EntityType = "client" | "quote" | "intervention" | "report" | "invoice";
 
 export function AttachmentPanel({
   entityType,

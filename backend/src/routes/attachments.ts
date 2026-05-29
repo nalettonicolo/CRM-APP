@@ -39,6 +39,7 @@ const entityTypeMap: Record<string, AttachmentEntity> = {
   quote: "QUOTE",
   intervention: "INTERVENTION",
   report: "REPORT",
+  invoice: "INVOICE_PREVIEW",
 };
 
 const router = Router();
@@ -73,6 +74,13 @@ async function assertEntityExists(
       if (!report) throw new NotFoundError();
       return report.clientId;
     }
+    case "INVOICE_PREVIEW": {
+      const invoice = await prisma.invoicePreview.findUnique({
+        where: { id: entityId },
+      });
+      if (!invoice) throw new NotFoundError();
+      return invoice.clientId;
+    }
     default:
       throw new ValidationError("Tipo entità non supportato");
   }
@@ -89,6 +97,7 @@ function attachmentData(
     clientId: entityType === "CLIENT" ? entityId : clientId,
     quoteId: entityType === "QUOTE" ? entityId : undefined,
     reportId: entityType === "REPORT" ? entityId : undefined,
+    invoiceId: entityType === "INVOICE_PREVIEW" ? entityId : undefined,
   };
 }
 
@@ -102,7 +111,7 @@ router.post(
 
       const { entityType, entityId } = z
         .object({
-          entityType: z.enum(["client", "quote", "intervention", "report"]),
+          entityType: z.enum(["client", "quote", "intervention", "report", "invoice"]),
           entityId: z.string().min(1),
         })
         .parse(req.body);
@@ -157,7 +166,7 @@ router.get("/", requirePermission("attachments", "READ"), async (req: AuthReques
   try {
     const { entityType, entityId } = z
       .object({
-        entityType: z.enum(["client", "quote", "intervention", "report"]),
+        entityType: z.enum(["client", "quote", "intervention", "report", "invoice"]),
         entityId: z.string().min(1),
       })
       .parse(req.query);

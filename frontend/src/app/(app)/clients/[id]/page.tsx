@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Building2, FileText, Wrench, ClipboardList, Pencil } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Building2, FileText, Wrench, ClipboardList, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
 import { Header } from "@/components/layout/header";
@@ -29,7 +29,10 @@ const statusColors: Record<string, string> = {
 export default function ClientDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
+  const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const { data: client, isLoading, isError } = useQuery({
     queryKey: ["client", id],
@@ -41,6 +44,16 @@ export default function ClientDetailPage() {
     client?.contactName ||
     [client?.firstName, client?.lastName].filter(Boolean).join(" ") ||
     "Cliente";
+
+  const deleteClient = useMutation({
+    mutationFn: () => clientsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      router.push("/clients");
+    },
+    onError: (e: Error) =>
+      setDeleteError(e.message || "Impossibile eliminare il cliente."),
+  });
 
   return (
     <>
@@ -54,6 +67,11 @@ export default function ClientDetailPage() {
           <p className="text-destructive">Cliente non trovato.</p>
         ) : (
           <div className="space-y-6">
+            {deleteError && (
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                {deleteError}
+              </p>
+            )}
             <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
               <div className="flex items-start gap-4">
                 <div className="rounded-xl bg-primary/10 p-3">
@@ -86,6 +104,26 @@ export default function ClientDetailPage() {
                 </span>
                 <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}>
                   <Pencil className="h-4 w-4" /> Modifica
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-destructive/40 text-destructive hover:text-destructive"
+                  disabled={deleteClient.isPending}
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        `Eliminare ${displayName} e tutti i dati collegati (preventivi, documenti, interventi, pagamenti, account portale)? L'operazione non è reversibile.`
+                      )
+                    ) {
+                      return;
+                    }
+                    setDeleteError("");
+                    deleteClient.mutate();
+                  }}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {deleteClient.isPending ? "Elimino..." : "Elimina"}
                 </Button>
               </div>
             </div>

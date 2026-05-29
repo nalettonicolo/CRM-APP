@@ -7,6 +7,7 @@ import {
   type AuthRequest,
 } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
+import { deleteClientById } from "../services/deleteClient.js";
 import { NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 
@@ -130,12 +131,24 @@ router.patch("/:id", requirePermission("clients", "UPDATE"), async (req: AuthReq
 
 router.delete("/:id", requirePermission("clients", "DELETE"), async (req: AuthRequest, res, next) => {
   try {
-    await prisma.client.delete({ where: { id: paramId(req) } });
+    const id = paramId(req);
+    const existing = await prisma.client.findUnique({
+      where: { id },
+      select: { id: true, companyName: true, contactName: true },
+    });
+    if (!existing) throw new NotFoundError("Cliente non trovato");
+
+    await deleteClientById(id);
+
     await logActivity({
       userId: req.user!.userId,
       action: "DELETE",
       entityType: "client",
-      entityId: paramId(req),
+      entityId: id,
+      details: {
+        companyName: existing.companyName,
+        contactName: existing.contactName,
+      },
     });
     res.json({ success: true });
   } catch (e) {

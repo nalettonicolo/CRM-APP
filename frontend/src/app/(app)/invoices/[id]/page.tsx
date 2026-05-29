@@ -2,133 +2,26 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Plus, Receipt, Save, Trash2 } from "lucide-react";
+import { Download, Mail, Pencil, Receipt, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/header";
+import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  downloadInvoicePdf,
-  interventionsApi,
-  invoicesApi,
-  type InvoiceLineItem,
-  type Report,
-} from "@/lib/api";
-import { paymentStatusLabels, SERVICE_UNIT_OPTIONS } from "@/lib/labels";
+import { downloadInvoicePdf, invoicesApi } from "@/lib/api";
+import { paymentStatusLabels } from "@/lib/labels";
 import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "@/lib/document-copy";
-import { formatCurrency, formatDate } from "@/lib/utils";
-
-const textareaClass =
-  "flex min-h-[96px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
-
-function dateInputToIso(value: string): string | undefined {
-  return value ? `${value}T12:00:00.000Z` : undefined;
-}
-
-function parseDecimal(value: number | string | undefined | null): number {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  if (!value) return 0;
-  const normalized = value.replace(",", ".").trim();
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatDecimal(value: number | string | undefined | null): string {
-  return parseDecimal(value).toFixed(2).replace(".", ",");
-}
-
-function lineTotal(item: InvoiceLineItem): number {
-  return parseDecimal(item.quantity) * parseDecimal(item.unitPrice);
-}
-
-function emptyLine(): InvoiceLineItem {
-  return {
-    description: "",
-    quantity: 1,
-    unit: "",
-    unitPrice: "0,00",
-    vatRate: "0,00",
-    total: "0,00",
-  };
-}
-
-function linesFromQuote(items?: InvoiceLineItem[]): InvoiceLineItem[] {
-  return (items ?? []).map((item) => ({
-    description: item.description,
-    quantity: Number(item.quantity) || 0,
-    unit: item.unit || "",
-    unitPrice: formatDecimal(item.unitPrice),
-    vatRate: formatDecimal(item.vatRate ?? 0),
-    total: formatDecimal(Number(item.total) || lineTotal(item)),
-  }));
-}
-
-function linesFromReport(report: Report): InvoiceLineItem[] {
-  const rows: InvoiceLineItem[] = [];
-  if (report.description?.trim()) {
-    rows.push({
-      description: `Report ${report.number} — ${report.description.trim()}`,
-      quantity: 1,
-      unit: "",
-      unitPrice: "0,00",
-      vatRate: "0,00",
-      total: "0,00",
-    });
-  }
-  for (const item of report.checklist ?? []) {
-    if (!item.label?.trim()) continue;
-    rows.push({
-      description: `Report ${report.number} — ${item.label.trim()}`,
-      quantity: 1,
-      unit: "",
-      unitPrice: "0,00",
-      vatRate: "0,00",
-      total: "0,00",
-    });
-  }
-  for (const material of report.materials ?? []) {
-    rows.push({
-      description: `Materiale report ${report.number} — ${material.name}`,
-      quantity: Number(material.quantity) || 0,
-      unit: material.unit || "pz",
-      unitPrice: "0,00",
-      vatRate: "0,00",
-      total: "0,00",
-    });
-  }
-  if (Number(report.expensesAmount ?? 0) > 0 || report.expensesNotes?.trim()) {
-    rows.push({
-      description: `Costi report ${report.number}${report.expensesNotes ? ` — ${report.expensesNotes}` : ""}`,
-      quantity: 1,
-      unit: "",
-      unitPrice: formatDecimal(report.expensesAmount ?? 0),
-      vatRate: "0,00",
-      total: formatDecimal(report.expensesAmount ?? 0),
-    });
-  }
-  return rows;
-}
+import {
+  discountDeduction,
+  parseInvoiceDiscounts,
+} from "@/lib/invoice-line-items";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 export default function InvoiceDetailPage() {
   const id = useParams().id as string;
   const router = useRouter();
   const qc = useQueryClient();
-  const [form, setForm] = useState({
-    subtotal: "",
-    vatAmount: "",
-    total: "",
-    depositAmount: "",
-    balanceDue: "",
-    paymentStatus: "UNPAID",
-    createdAt: "",
-    dueDate: "",
-    notes: "",
-    disclaimer: INVOICE_COURTESY_DISCLAIMER,
-  });
-  const [items, setItems] = useState<InvoiceLineItem[]>([]);
-  const [reportId, setReportId] = useState("");
   const [banner, setBanner] = useState("");
 
   const { data, isLoading, isError } = useQuery({
@@ -136,84 +29,19 @@ export default function InvoiceDetailPage() {
     queryFn: () => invoicesApi.get(id),
   });
 
-  const { data: reports } = useQuery({
-    queryKey: ["reports", "for-invoice", data?.quoteId, data?.clientId],
-    queryFn: interventionsApi.reports,
-    enabled: Boolean(data),
-  });
+  const displayItems =
+    data?.items?.length ? data.items : data?.quote?.items ?? [];
+  const discounts = parseInvoiceDiscounts(data?.discounts);
+  const grossSubtotal = Number(data?.subtotal ?? 0);
 
-  const relatedReports =
-    reports?.filter((report) =>
-      data?.quoteId ? report.quoteId === data.quoteId : report.clientId === data?.clientId
-    ) ?? [];
-
-  const calculatedTotals = useMemo(() => {
-    const subtotal = items.reduce((sum, item) => sum + lineTotal(item), 0);
-    const vatAmount = items.reduce(
-      (sum, item) => sum + (lineTotal(item) * parseDecimal(item.vatRate)) / 100,
-      0
-    );
-    const total = subtotal + vatAmount;
-    const depositAmount = Number(form.depositAmount) || 0;
-    return {
-      subtotal,
-      vatAmount,
-      total,
-      balanceDue: Math.max(total - depositAmount, 0),
-    };
-  }, [form.depositAmount, items]);
-
-  useEffect(() => {
-    if (!data) return;
-    setForm({
-      subtotal: String(Number(data.subtotal)),
-      vatAmount: String(Number(data.vatAmount)),
-      total: String(Number(data.total)),
-      depositAmount: String(Number(data.depositAmount ?? 0)),
-      balanceDue: String(Number(data.balanceDue)),
-      paymentStatus: data.paymentStatus || "UNPAID",
-      createdAt: data.createdAt ? data.createdAt.slice(0, 10) : "",
-      dueDate: data.dueDate ? data.dueDate.slice(0, 10) : "",
-      notes: data.notes || "",
-      disclaimer: data.disclaimer || INVOICE_COURTESY_DISCLAIMER,
-    });
-    setItems(
-      data.items?.length
-        ? linesFromQuote(data.items)
-        : linesFromQuote(data.quote?.items)
-    );
-  }, [data]);
-
-  const update = useMutation({
-    mutationFn: () =>
-      invoicesApi.update(id, {
-        subtotal: Number(form.subtotal) || 0,
-        vatAmount: Number(form.vatAmount) || 0,
-        total: Number(form.total) || 0,
-        depositAmount: Number(form.depositAmount) || 0,
-        balanceDue: Number(form.balanceDue) || 0,
-        paymentStatus: form.paymentStatus,
-        createdAt: dateInputToIso(form.createdAt),
-        dueDate: form.dueDate ? `${form.dueDate}T12:00:00.000Z` : null,
-        items: items
-          .filter((item) => item.description.trim())
-          .map((item) => ({
-            ...item,
-            quantity: Number(item.quantity) || 0,
-            unitPrice: parseDecimal(item.unitPrice),
-            vatRate: parseDecimal(item.vatRate),
-            total: lineTotal(item),
-          })),
-        notes: form.notes.trim() || null,
-        disclaimer: form.disclaimer.trim() || INVOICE_COURTESY_DISCLAIMER,
-      }),
+  const sendEmail = useMutation({
+    mutationFn: () => invoicesApi.sendEmail(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoice", id] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      setBanner("Documento aggiornato.");
-      setTimeout(() => setBanner(""), 2500);
+      setBanner("");
     },
-    onError: () => setBanner("Errore durante il salvataggio."),
+    onError: (e: Error) =>
+      setBanner(e.message || "Invio email non riuscito."),
   });
 
   const deleteInvoice = useMutation({
@@ -226,49 +54,6 @@ export default function InvoiceDetailPage() {
     onError: (e: Error) =>
       setBanner(e.message || "Errore durante l'eliminazione del documento."),
   });
-
-  function updateItem(index: number, patch: Partial<InvoiceLineItem>) {
-    setItems((rows) =>
-      rows.map((row, i) => {
-        if (i !== index) return row;
-        const next = { ...row, ...patch };
-        return { ...next, total: lineTotal(next) };
-      })
-    );
-  }
-
-  function applyCalculatedTotals() {
-    setForm((f) => ({
-      ...f,
-      subtotal: calculatedTotals.subtotal.toFixed(2),
-      vatAmount: calculatedTotals.vatAmount.toFixed(2),
-      total: calculatedTotals.total.toFixed(2),
-      balanceDue: calculatedTotals.balanceDue.toFixed(2),
-    }));
-  }
-
-  function importQuoteItems() {
-    const rows = linesFromQuote(data?.quote?.items);
-    if (rows.length === 0) {
-      setBanner("Il preventivo non contiene voci importabili.");
-      return;
-    }
-    setItems(rows);
-    setBanner("Voci preventivo importate.");
-  }
-
-  function importReportItems() {
-    const report = relatedReports.find((r) => r.id === reportId);
-    if (!report) return;
-    const rows = linesFromReport(report);
-    if (rows.length === 0) {
-      setBanner("Il report selezionato non contiene voci importabili.");
-      return;
-    }
-    setItems((current) => [...current, ...rows]);
-    setReportId("");
-    setBanner("Voci report aggiunte.");
-  }
 
   return (
     <>
@@ -283,37 +68,41 @@ export default function InvoiceDetailPage() {
         ) : (
           <div className="space-y-6">
             {banner && (
-              <p className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-2 text-sm">
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
                 {banner}
               </p>
             )}
-            <div className="flex flex-wrap items-start gap-4 rounded-xl border border-border bg-card p-6">
-              <div className="rounded-xl bg-primary/10 p-3">
-                <Receipt className="h-8 w-8 text-primary" />
+            <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
+              <div className="flex items-start gap-4">
+                <div className="rounded-xl bg-primary/10 p-3">
+                  <Receipt className="h-8 w-8 text-primary" />
+                </div>
+                <div>
+                  <p className="font-mono text-sm text-muted-foreground">{data.number}</p>
+                  <h1 className="text-2xl font-bold tracking-tight">Bozza fattura</h1>
+                  {data.client && (
+                    <Link
+                      href={`/clients/${data.clientId}`}
+                      className="mt-2 inline-block text-sm text-primary hover:underline"
+                    >
+                      {data.client.companyName || data.client.contactName}
+                    </Link>
+                  )}
+                  {data.quote && (
+                    <Link
+                      href={`/quotes/${data.quoteId}`}
+                      className="mt-1 block text-xs text-muted-foreground hover:text-primary"
+                    >
+                      {DOCUMENT_COPY.invoice.fromQuotePrefix} {data.quote.number}
+                    </Link>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="font-mono text-sm text-muted-foreground">{data.number}</p>
-                <h1 className="text-2xl font-bold">Bozza fattura</h1>
-                {data.client && (
-                  <Link
-                    href={`/clients/${data.clientId}`}
-                    className="mt-2 inline-block text-sm text-primary hover:underline"
-                  >
-                    {data.client.companyName || data.client.contactName}
-                  </Link>
-                )}
-                {data.quote && (
-                  <Link
-                    href={`/quotes/${data.quoteId}`}
-                    className="mt-1 block text-xs text-muted-foreground hover:text-primary"
-                  >
-                    {DOCUMENT_COPY.invoice.fromQuotePrefix} {data.quote.number}
-                  </Link>
-                )}
-              </div>
-              <div className="ml-auto flex flex-wrap gap-2">
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-wrap justify-end gap-2">
                 <Button
                   variant="outline"
+                  size="sm"
                   onClick={() => downloadInvoicePdf(id, `documento-${data.number}.pdf`)}
                 >
                   <Download className="h-4 w-4" />
@@ -321,6 +110,23 @@ export default function InvoiceDetailPage() {
                 </Button>
                 <Button
                   variant="outline"
+                  size="sm"
+                  disabled={sendEmail.isPending || !data.client?.email}
+                  onClick={() => sendEmail.mutate()}
+                >
+                  <Mail className="h-4 w-4" />
+                  {sendEmail.isPending
+                    ? DOCUMENT_COPY.invoice.sendEmailPending
+                    : DOCUMENT_COPY.invoice.sendEmail}
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/invoices/${id}/edit`}>
+                    <Pencil className="h-4 w-4" /> Modifica
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="border-destructive/40 text-destructive hover:text-destructive"
                   disabled={deleteInvoice.isPending}
                   onClick={() => {
@@ -338,6 +144,19 @@ export default function InvoiceDetailPage() {
                   <Trash2 className="h-4 w-4" />
                   {deleteInvoice.isPending ? "Elimino..." : "Elimina"}
                 </Button>
+                </div>
+                <span
+                  className={cn(
+                    "rounded-full px-3 py-1 text-xs font-medium",
+                    data.sentAt
+                      ? "bg-green-500/15 text-green-700 dark:text-green-400"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {data.sentAt
+                    ? `${DOCUMENT_COPY.invoice.sentPrefix} ${formatDate(data.sentAt)}`
+                    : DOCUMENT_COPY.invoice.notSent}
+                </span>
               </div>
             </div>
 
@@ -366,7 +185,109 @@ export default function InvoiceDetailPage() {
                   label="Data emissione"
                   value={formatDate(data.createdAt)}
                 />
+                {Number(data.depositAmount) > 0 && (
+                  <DetailField
+                    label="Acconto"
+                    value={formatCurrency(Number(data.depositAmount))}
+                  />
+                )}
               </div>
+            </DetailSection>
+
+            {discounts.length > 0 && (
+              <DetailSection title="Sconti">
+                <ul className="space-y-2 text-sm">
+                  {discounts.map((discount, index) => (
+                    <li
+                      key={index}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
+                    >
+                      <span>
+                        <span className="font-medium">{discount.description}</span>
+                        {discount.mode === "PERCENT" ? (
+                          <span className="text-muted-foreground"> · {discount.value}%</span>
+                        ) : null}
+                      </span>
+                      <span className="tabular-nums font-medium text-destructive">
+                        -{formatCurrency(discountDeduction(grossSubtotal, discount))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </DetailSection>
+            )}
+
+            <DetailSection title="Voci documento">
+              {displayItems.length > 0 ? (
+                <>
+                  <div className="space-y-3 md:hidden">
+                    {displayItems.map((item, index) => (
+                      <div
+                        key={index}
+                        className="rounded-lg border border-border bg-muted/20 p-3 text-sm"
+                      >
+                        <p className="font-medium">{item.description}</p>
+                        <dl className="mt-2 grid grid-cols-2 gap-1 text-xs">
+                          <dt className="text-muted-foreground">Q.tà</dt>
+                          <dd className="text-right tabular-nums">{Number(item.quantity)}</dd>
+                          {item.unit ? (
+                            <>
+                              <dt className="text-muted-foreground">Unità</dt>
+                              <dd className="text-right">{item.unit}</dd>
+                            </>
+                          ) : null}
+                          <dt className="text-muted-foreground">Prezzo</dt>
+                          <dd className="text-right tabular-nums">
+                            {formatCurrency(Number(item.unitPrice))}
+                          </dd>
+                          <dt className="text-muted-foreground">IVA</dt>
+                          <dd className="text-right tabular-nums">{Number(item.vatRate)}%</dd>
+                          <dt className="text-muted-foreground">Totale</dt>
+                          <dd className="text-right font-medium tabular-nums">
+                            {formatCurrency(Number(item.total))}
+                          </dd>
+                        </dl>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="hidden overflow-x-auto md:block">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-border text-left text-muted-foreground">
+                          <th className="pb-2 font-medium">Descrizione</th>
+                          <th className="pb-2 font-medium text-right">Q.tà</th>
+                          <th className="pb-2 font-medium text-right">Unità</th>
+                          <th className="pb-2 font-medium text-right">Prezzo</th>
+                          <th className="pb-2 font-medium text-right">IVA %</th>
+                          <th className="pb-2 font-medium text-right">Totale</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayItems.map((item, index) => (
+                          <tr key={index} className="border-b border-border/60">
+                            <td className="py-3 pr-4">{item.description}</td>
+                            <td className="py-3 text-right tabular-nums">
+                              {Number(item.quantity)}
+                            </td>
+                            <td className="py-3 text-right">{item.unit || "—"}</td>
+                            <td className="py-3 text-right tabular-nums">
+                              {formatCurrency(Number(item.unitPrice))}
+                            </td>
+                            <td className="py-3 text-right tabular-nums">
+                              {Number(item.vatRate)}%
+                            </td>
+                            <td className="py-3 text-right font-medium tabular-nums">
+                              {formatCurrency(Number(item.total))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">Nessuna voce.</p>
+              )}
             </DetailSection>
 
             {data.notes && (
@@ -377,261 +298,11 @@ export default function InvoiceDetailPage() {
               </DetailSection>
             )}
 
-            <DetailSection title="Modifica documento">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Imponibile</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.subtotal}
-                    onChange={(e) => setForm((f) => ({ ...f, subtotal: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">IVA</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.vatAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, vatAmount: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Totale</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.total}
-                    onChange={(e) => setForm((f) => ({ ...f, total: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Acconto</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.depositAmount}
-                    onChange={(e) => setForm((f) => ({ ...f, depositAmount: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Saldo</label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    value={form.balanceDue}
-                    onChange={(e) => setForm((f) => ({ ...f, balanceDue: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Pagamento</label>
-                  <select
-                    className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
-                    value={form.paymentStatus}
-                    onChange={(e) => setForm((f) => ({ ...f, paymentStatus: e.target.value }))}
-                  >
-                    {Object.entries(paymentStatusLabels).map(([value, label]) => (
-                      <option key={value} value={value}>
-                        {label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Scadenza</label>
-                  <Input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Data emissione</label>
-                  <Input
-                    type="date"
-                    value={form.createdAt}
-                    onChange={(e) => setForm((f) => ({ ...f, createdAt: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className="mt-6 rounded-xl border border-border">
-                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border p-4">
-                  <div>
-                    <h3 className="font-semibold">Voci documento</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Modifica le righe senza cambiare il preventivo originale.
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="outline" onClick={importQuoteItems}>
-                      Importa preventivo
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setItems((rows) => [...rows, emptyLine()])}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Riga
-                    </Button>
-                  </div>
-                </div>
-                <div className="space-y-3 p-4">
-                  <div className="flex flex-wrap gap-2">
-                    <select
-                      className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-card px-3 text-sm"
-                      value={reportId}
-                      onChange={(e) => setReportId(e.target.value)}
-                    >
-                      <option value="">Importa voci da report…</option>
-                      {relatedReports.map((report) => (
-                        <option key={report.id} value={report.id}>
-                          {report.number} — {formatDate(report.createdAt)}
-                        </option>
-                      ))}
-                    </select>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={!reportId}
-                      onClick={importReportItems}
-                    >
-                      Aggiungi da report
-                    </Button>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <div className="min-w-[860px] space-y-2">
-                      <div className="grid grid-cols-[1fr_90px_90px_110px_90px_110px_44px] gap-2 px-1 text-xs font-medium uppercase text-muted-foreground">
-                        <span>Descrizione</span>
-                        <span>Q.tà</span>
-                        <span>Unità</span>
-                        <span>Prezzo</span>
-                        <span>IVA %</span>
-                        <span>Totale</span>
-                        <span />
-                      </div>
-                      {items.map((item, index) => (
-                        <div
-                          key={index}
-                          className="grid grid-cols-[1fr_90px_90px_110px_90px_110px_44px] gap-2"
-                        >
-                          <Input
-                            value={item.description}
-                            onChange={(e) =>
-                              updateItem(index, { description: e.target.value })
-                            }
-                            placeholder="Descrizione voce"
-                          />
-                          <Input
-                            type="number"
-                            step="0.001"
-                            min="0"
-                            value={String(item.quantity)}
-                            onChange={(e) =>
-                              updateItem(index, { quantity: e.target.value })
-                            }
-                          />
-                          <select
-                            className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
-                            value={item.unit || ""}
-                            onChange={(e) =>
-                              updateItem(index, { unit: e.target.value || "" })
-                            }
-                          >
-                            <option value="">—</option>
-                            {SERVICE_UNIT_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.value}
-                              </option>
-                            ))}
-                            {item.unit &&
-                              !SERVICE_UNIT_OPTIONS.some(
-                                (option) => option.value === item.unit
-                              ) && <option value={item.unit}>{item.unit}</option>}
-                          </select>
-                          <Input
-                            inputMode="decimal"
-                            value={String(item.unitPrice)}
-                            onBlur={() =>
-                              updateItem(index, {
-                                unitPrice: formatDecimal(item.unitPrice),
-                              })
-                            }
-                            onChange={(e) =>
-                              updateItem(index, { unitPrice: e.target.value })
-                            }
-                          />
-                          <Input
-                            inputMode="decimal"
-                            value={String(item.vatRate ?? "0,00")}
-                            onBlur={() =>
-                              updateItem(index, { vatRate: formatDecimal(item.vatRate) })
-                            }
-                            onChange={(e) =>
-                              updateItem(index, { vatRate: e.target.value })
-                            }
-                          />
-                          <Input value={formatDecimal(lineTotal(item))} readOnly />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              setItems((rows) => rows.filter((_, i) => i !== index))
-                            }
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/40 p-3 text-sm">
-                    <span>
-                      Righe: {items.length} · Imponibile{" "}
-                      {formatCurrency(calculatedTotals.subtotal)} · IVA{" "}
-                      {formatCurrency(calculatedTotals.vatAmount)} · Totale{" "}
-                      {formatCurrency(calculatedTotals.total)}
-                    </span>
-                    <Button type="button" variant="outline" onClick={applyCalculatedTotals}>
-                      Ricalcola importi dalle righe
-                    </Button>
-                  </div>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-4">
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Note</label>
-                  <textarea
-                    className={textareaClass}
-                    value={form.notes}
-                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                    placeholder="Note interne o testo da mostrare nel PDF"
-                  />
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium">Disclaimer</label>
-                  <textarea
-                    className={textareaClass}
-                    value={form.disclaimer}
-                    onChange={(e) => setForm((f) => ({ ...f, disclaimer: e.target.value }))}
-                  />
-                </div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Button disabled={update.isPending} onClick={() => update.mutate()}>
-                  <Save className="h-4 w-4" />
-                  {update.isPending ? "Salvataggio..." : "Salva modifiche"}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => downloadInvoicePdf(id, `documento-${data.number}.pdf`)}
-                >
-                  <Download className="h-4 w-4" />
-                  Scarica PDF aggiornato
-                </Button>
-              </div>
+            <DetailSection title={DOCUMENT_COPY.invoice.attachmentsTitle}>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {DOCUMENT_COPY.invoice.attachmentsHint}
+              </p>
+              <AttachmentPanel entityType="invoice" entityId={id} />
             </DetailSection>
           </div>
         )}

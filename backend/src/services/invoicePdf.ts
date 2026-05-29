@@ -1,6 +1,11 @@
 import PDFDocument from "pdfkit";
-import type { Client, InvoicePreview, Quote, QuoteItem } from "@prisma/client";
+import type { Attachment, Client, InvoicePreview, Quote, QuoteItem } from "@prisma/client";
+import { appendAttachmentsToInvoicePdf } from "./invoicePdfAttachments.js";
 import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "../constants/documentCopy.js";
+import {
+  discountDeduction,
+  parseInvoiceDiscounts,
+} from "./invoiceDiscounts.js";
 import {
   drawPdfBankDetails,
   drawPdfLetterhead,
@@ -12,6 +17,7 @@ import {
 type InvoiceWithRelations = InvoicePreview & {
   client: Client;
   quote?: (Quote & { items?: QuoteItem[] }) | null;
+  attachments?: Attachment[];
 };
 
 type MoneyLike = number | string | { toString(): string };
@@ -61,7 +67,7 @@ function money(n: number | { toString(): string }) {
   });
 }
 
-export async function generateInvoicePdf(
+async function generateInvoiceReceiptPdf(
   invoice: InvoiceWithRelations,
   company?: CompanyInfo
 ): Promise<Buffer> {
@@ -181,7 +187,17 @@ export async function generateInvoicePdf(
       if (bold) doc.font("Helvetica");
     };
 
-    addTotalLine("Imponibile", `€ ${money(invoice.subtotal)}`);
+    const discounts = parseInvoiceDiscounts(invoice.discounts);
+    const grossSubtotal = Number(invoice.subtotal);
+    addTotalLine("Imponibile", `€ ${money(grossSubtotal)}`);
+    for (const discount of discounts) {
+      const deduction = discountDeduction(grossSubtotal, discount);
+      const label =
+        discount.mode === "PERCENT"
+          ? `${discount.description} (${discount.value}%)`
+          : discount.description;
+      addTotalLine(label, `- € ${money(deduction)}`);
+    }
     addTotalLine("IVA", `€ ${money(invoice.vatAmount)}`);
     addTotalLine("Totale", `€ ${money(invoice.total)}`, true);
     if (Number(invoice.depositAmount) > 0) {
@@ -207,4 +223,15 @@ export async function generateInvoicePdf(
 
     doc.end();
   });
+}
+
+export async function generateInvoicePdf(
+  invoice: InvoiceWithRelations,
+  company?: CompanyInfo
+): Promise<Buffer> {
+  const receipt = await generateInvoiceReceiptPdf(invoice, company);
+  const attachments = [...(invoice.attachments ?? [])].sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+  );
+  return appendAttachmentsToInvoicePdf(receipt, attachments);
 }

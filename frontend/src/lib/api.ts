@@ -161,6 +161,8 @@ export const clientsApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/clients/${id}`, { method: "DELETE" }),
 };
 
 export interface Client {
@@ -771,8 +773,10 @@ export interface Invoice {
   paymentStatus: string;
   dueDate?: string;
   items?: InvoiceLineItem[];
+  discounts?: InvoiceDiscount[];
   notes?: string;
   disclaimer?: string;
+  sentAt?: string | null;
   createdAt: string;
   client?: Client;
   quote?: QuoteSummary & { items?: QuoteItem[] };
@@ -785,6 +789,12 @@ export interface InvoiceLineItem {
   unitPrice: number | string;
   vatRate?: number | string;
   total: number | string;
+}
+
+export interface InvoiceDiscount {
+  description: string;
+  mode: "PERCENT" | "AMOUNT";
+  value: number;
 }
 
 export const invoicesApi = {
@@ -806,6 +816,7 @@ export const invoicesApi = {
       createdAt: string;
       dueDate: string | null;
       items: InvoiceLineItem[];
+      discounts: InvoiceDiscount[];
       notes: string | null;
       disclaimer: string;
     }>
@@ -822,6 +833,10 @@ export const invoicesApi = {
       body: JSON.stringify({ quoteId }),
     }),
   fromQuote: (quoteId: string) => invoicesApi.createFromQuote(quoteId),
+  sendEmail: (id: string) =>
+    api<{ success: boolean; invoice: Invoice }>(`/invoices/${id}/send-email`, {
+      method: "POST",
+    }),
 };
 
 export async function downloadInvoicePdf(id: string, filename: string) {

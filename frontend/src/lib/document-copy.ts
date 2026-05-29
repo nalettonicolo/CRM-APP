@@ -49,6 +49,13 @@ export const DOCUMENT_COPY = {
     createSubmit: "Crea documento",
     listEmpty:
       "Nessun documento. Crea da un preventivo accettato con il pulsante sopra.",
+    attachmentsTitle: "Allegati",
+    attachmentsHint:
+      "Foto e PDF caricati qui vengono aggiunti in coda al documento PDF, dal primo foglio dopo il testo della ricevuta.",
+    sendEmail: "Invia email",
+    sendEmailPending: "Invio...",
+    notSent: "Non inviato",
+    sentPrefix: "Inviato il",
   },
   portal: {
     quoteSignTitle: "Firma del preventivo",

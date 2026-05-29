@@ -2,6 +2,7 @@ import { Router } from "express";
 import fs from "fs";
 import path from "path";
 import { z } from "zod";
+import { sendEmail, emailTemplate } from "../services/email.js";
 import { config } from "../config/index.js";
 import { prisma } from "../lib/prisma.js";
 import {
@@ -9,10 +10,17 @@ import {
   requirePermission,
   type AuthRequest,
 } from "../middleware/auth.js";
-import { INVOICE_COURTESY_DISCLAIMER } from "../constants/documentCopy.js";
+import {
+  DOCUMENT_COPY,
+  INVOICE_COURTESY_DISCLAIMER,
+} from "../constants/documentCopy.js";
 import { logActivity } from "../services/activityLog.js";
 import { generateInvoicePdf } from "../services/invoicePdf.js";
 import { loadCompanySettings } from "../services/quotePdf.js";
+import {
+  discountsFromQuote,
+  invoiceDiscountSchema,
+} from "../services/invoiceDiscounts.js";
 import { toDecimal } from "../services/quoteCalculator.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
@@ -39,6 +47,7 @@ const invoiceUpdateSchema = z.object({
   createdAt: z.string().datetime().optional(),
   dueDate: z.string().datetime().nullable().optional(),
   items: z.array(invoiceItemSchema).optional(),
+  discounts: z.array(invoiceDiscountSchema).optional(),
   notes: z.string().nullable().optional(),
   disclaimer: z.string().min(1).optional(),
 });
@@ -97,6 +106,12 @@ router.get("/", requirePermission("invoices", "READ"), async (req: AuthRequest, 
   }
 });
 
+const invoiceInclude = {
+  client: true,
+  quote: { include: { items: { orderBy: { sortOrder: "asc" as const } } } },
+  attachments: { orderBy: { createdAt: "asc" as const } },
+};
+
 router.get("/:id", requirePermission("invoices", "READ"), async (req: AuthRequest, res, next) => {
   try {
     const where: Record<string, unknown> = { id: paramId(req) };
@@ -106,10 +121,7 @@ router.get("/:id", requirePermission("invoices", "READ"), async (req: AuthReques
 
     const invoice = await prisma.invoicePreview.findFirst({
       where,
-      include: {
-        client: true,
-        quote: { include: { items: { orderBy: { sortOrder: "asc" } } } },
-      },
+      include: invoiceInclude,
     });
     if (!invoice) throw new NotFoundError();
     res.json(invoice);
@@ -162,6 +174,7 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
           vatRate: Number(item.vatRate),
           total: Number(item.total),
         })),
+        discounts: discountsFromQuote(quote),
         disclaimer: INVOICE_COURTESY_DISCLAIMER,
       },
       include: { client: true, quote: true },
@@ -207,6 +220,7 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
         createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
         dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate === null ? null : undefined,
         items: data.items,
+        discounts: data.discounts,
         notes: data.notes,
         disclaimer: data.disclaimer,
       },
@@ -273,6 +287,78 @@ router.delete("/:id", requirePermission("invoices", "DELETE"), async (req: AuthR
   }
 });
 
+router.post(
+  "/:id/send-email",
+  requirePermission("invoices", "UPDATE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const where: Record<string, unknown> = { id: paramId(req) };
+      if (req.user!.role === "CLIENT" && req.user!.clientId) {
+        where.clientId = req.user!.clientId;
+      }
+
+      const invoice = await prisma.invoicePreview.findFirst({
+        where,
+        include: invoiceInclude,
+      });
+      if (!invoice) throw new NotFoundError();
+
+      const email = invoice.client.email?.trim();
+      if (!email) {
+        throw new ValidationError("Il cliente non ha un indirizzo email");
+      }
+      const parsedEmail = z.string().email().safeParse(email);
+      if (!parsedEmail.success) {
+        throw new ValidationError(
+          "Email cliente non valida — aggiorna la scheda cliente"
+        );
+      }
+
+      const company = await loadCompanySettings();
+      const pdf = await generateInvoicePdf(invoice, company);
+      const brandName =
+        typeof company.name === "string" ? company.name : "CRM";
+
+      await sendEmail({
+        to: email,
+        subject: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
+        html: emailTemplate(
+          `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
+          `<p>In allegato trovi il documento <strong>${invoice.number}</strong>.</p>
+           <p>Totale: <strong>€ ${Number(invoice.total).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>
+           ${invoice.notes ? `<p>${invoice.notes}</p>` : ""}`,
+          brandName
+        ),
+        attachments: [
+          {
+            filename: `documento-${invoice.number}.pdf`,
+            content: pdf,
+          },
+        ],
+      });
+
+      const updated = await prisma.invoicePreview.update({
+        where: { id: invoice.id },
+        data: { sentAt: new Date() },
+        include: invoiceInclude,
+      });
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: invoice.clientId,
+        action: "SEND_EMAIL",
+        entityType: "invoice",
+        entityId: invoice.id,
+        details: { to: email },
+      });
+
+      res.json({ success: true, invoice: updated });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 router.get(
   "/:id/pdf",
   requirePermission("invoices", "READ"),
@@ -285,10 +371,7 @@ router.get(
 
       const invoice = await prisma.invoicePreview.findFirst({
         where,
-        include: {
-          client: true,
-          quote: { include: { items: { orderBy: { sortOrder: "asc" } } } },
-        },
+        include: invoiceInclude,
       });
       if (!invoice) throw new NotFoundError();
 
