@@ -7,25 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { ImageIcon } from "lucide-react";
-import { authApi, backupApi, settingsApi, uploadBrandingAsset } from "@/lib/api";
-import {
-  DEFAULT_APP_NAME,
-  mergeSiteHome,
-  publicAssetUrl,
-  type SiteHomeSettings,
-} from "@/lib/branding";
+import { FileText, ImageIcon } from "lucide-react";
+import { authApi, backupApi, settingsApi } from "@/lib/api";
+import { DEFAULT_APP_NAME } from "@/lib/branding";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { cn } from "@/lib/utils";
 
 const textareaClass =
   "flex min-h-[88px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
-
-const DEFAULT_REPORT_CHECKLIST_TEMPLATES = [
-  "Allestimento completato",
-  "Collaudo audio/luci",
-  "Smontaggio e ripristino area",
-];
 
 export default function SettingsPage() {
   const qc = useQueryClient();
@@ -43,9 +32,6 @@ export default function SettingsPage() {
   const [appName, setAppName] = useState(DEFAULT_APP_NAME);
   const [tagline, setTagline] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#6366f1");
-  const [siteHome, setSiteHome] = useState<SiteHomeSettings>(() =>
-    mergeSiteHome(undefined)
-  );
   const [company, setCompany] = useState({
     name: "",
     vat: "",
@@ -61,9 +47,6 @@ export default function SettingsPage() {
     withholdingTaxPercent: "20",
     stampDutyAmount: "2",
   });
-  const [reportChecklistTemplates, setReportChecklistTemplates] = useState<string[]>(
-    DEFAULT_REPORT_CHECKLIST_TEMPLATES
-  );
   const [smtp, setSmtp] = useState({
     host: "smtp.gmail.com",
     port: "587",
@@ -86,7 +69,6 @@ export default function SettingsPage() {
     setAppName(an?.name?.trim() || DEFAULT_APP_NAME);
     setTagline(an?.tagline?.trim() || "");
     setPrimaryColor((data.colors as { primary?: string })?.primary || "#6366f1");
-    setSiteHome(mergeSiteHome(data.site_home));
     const co = (data.company as Record<string, string>) || {};
     setCompany({
       name: co.name || "",
@@ -108,12 +90,6 @@ export default function SettingsPage() {
       stampDutyAmount:
         qd.stampDutyAmount != null ? String(qd.stampDutyAmount) : "2",
     });
-    const reportTemplates = data.report_checklist_templates;
-    setReportChecklistTemplates(
-      Array.isArray(reportTemplates) && reportTemplates.length > 0
-        ? reportTemplates.filter((x): x is string => typeof x === "string")
-        : DEFAULT_REPORT_CHECKLIST_TEMPLATES
-    );
     const sm = (data.smtp as Record<string, string>) || {};
     setSmtp({
       host: sm.host || "smtp.gmail.com",
@@ -211,33 +187,6 @@ export default function SettingsPage() {
     onError: () => setBanner("Errore durante il salvataggio."),
   });
 
-  const logoUrl = publicAssetUrl((data?.logo as { url?: string })?.url);
-  const favUrl = publicAssetUrl((data?.favicon as { url?: string })?.url);
-
-  async function applyUpload(file: File | undefined, kind: "logo" | "favicon") {
-    if (!file) return;
-    setBanner("");
-    try {
-      const { relativeUrl } = await uploadBrandingAsset(file, kind);
-      await settingsApi.update(kind, { url: relativeUrl });
-      qc.invalidateQueries({ queryKey: ["settings"] });
-      qc.invalidateQueries({ queryKey: ["settings", "public"] });
-      setBanner(kind === "logo" ? "Logo aggiornato." : "Favicon aggiornata.");
-      setTimeout(() => setBanner(""), 2500);
-    } catch {
-      setBanner("Upload non riuscito.");
-    }
-  }
-
-  function updateFeature(i: number, field: "title" | "description", value: string) {
-    setSiteHome((prev) => {
-      const features = prev.features.map((f, j) =>
-        j === i ? { ...f, [field]: value } : f
-      );
-      return { ...prev, features };
-    });
-  }
-
   if (isLoading && !data) {
     return (
       <>
@@ -264,92 +213,35 @@ export default function SettingsPage() {
           </p>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Testi sito pubblico (servizi audio/luci)</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Hero, tre servizi in evidenza, testo sopra il modulo contatti e riga
-              del footer. Non è una pagina di vendita software.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="mb-1 block text-sm font-medium">Badge</label>
-              <Input
-                value={siteHome.badge}
-                onChange={(e) => setSiteHome((s) => ({ ...s, badge: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Titolo principale</label>
-              <Input
-                value={siteHome.headline}
-                onChange={(e) =>
-                  setSiteHome((s) => ({ ...s, headline: e.target.value }))
-                }
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Sottotitolo</label>
-              <textarea
-                className={textareaClass}
-                value={siteHome.subheadline}
-                onChange={(e) =>
-                  setSiteHome((s) => ({ ...s, subheadline: e.target.value }))
-                }
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">
-                Testo sopra il modulo contatti
-              </label>
-              <textarea
-                className={textareaClass}
-                value={siteHome.accessIntro}
-                onChange={(e) =>
-                  setSiteHome((s) => ({ ...s, accessIntro: e.target.value }))
-                }
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">
-                Riga piè di pagina (dopo © ann)
-              </label>
-              <Input
-                value={siteHome.footerLine}
-                onChange={(e) =>
-                  setSiteHome((s) => ({ ...s, footerLine: e.target.value }))
-                }
-              />
-            </div>
-
-            <p className="pt-2 text-sm font-medium">Tre punti di forza</p>
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="space-y-2 rounded-lg border border-border p-3">
-                <Input
-                  placeholder="Titolo"
-                  value={siteHome.features[i]?.title ?? ""}
-                  onChange={(e) => updateFeature(i, "title", e.target.value)}
-                />
-                <textarea
-                  className={textareaClass}
-                  placeholder="Descrizione"
-                  value={siteHome.features[i]?.description ?? ""}
-                  onChange={(e) => updateFeature(i, "description", e.target.value)}
-                />
-              </div>
-            ))}
-
-            <Button
-              disabled={saveMut.isPending}
-              onClick={() =>
-                saveMut.mutate({ key: "site_home", value: siteHome })
-              }
-            >
-              Salva testi sito
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link href="/settings/testi">
+            <Card className="h-full transition-colors hover:border-primary/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-5 w-5 text-primary" />
+                  Testi
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Homepage pubblica, descrizioni servizi, voci report e altri
+                  testi configurabili.
+                </p>
+              </CardHeader>
+            </Card>
+          </Link>
+          <Link href="/settings/immagini">
+            <Card className="h-full transition-colors hover:border-primary/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  Immagini
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Logo, favicon e galleria foto eventi mostrata in homepage.
+                </p>
+              </CardHeader>
+            </Card>
+          </Link>
+        </div>
 
         <Card>
           <CardHeader>
@@ -403,67 +295,6 @@ export default function SettingsPage() {
             >
               Salva nome e colori
             </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Logo e favicon</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Carica il logo aziendale (PNG o SVG, sfondo trasparente consigliato):
-              apparirà in home, login e PDF. Dopo il caricamento verifica la
-              anteprima qui sotto.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex flex-wrap items-end gap-4">
-              {logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={logoUrl}
-                  alt="Logo"
-                  className="h-16 max-w-[200px] rounded-lg border border-border object-contain p-1"
-                />
-              ) : (
-                <span className="text-sm text-muted-foreground">Nessun logo</span>
-              )}
-              <div>
-                <label className="mb-1 block text-sm font-medium">Carica logo</label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  className="max-w-xs"
-                  onChange={(e) =>
-                    applyUpload(e.target.files?.[0], "logo")
-                  }
-                />
-              </div>
-            </div>
-            <div className="flex flex-wrap items-end gap-4">
-              {favUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={favUrl}
-                  alt="Favicon"
-                  className="h-10 w-10 rounded border border-border object-contain"
-                />
-              ) : (
-                <span className="text-sm text-muted-foreground">Nessuna favicon</span>
-              )}
-              <div>
-                <label className="mb-1 block text-sm font-medium">
-                  Carica favicon
-                </label>
-                <Input
-                  type="file"
-                  accept="image/*,.ico"
-                  className="max-w-xs"
-                  onChange={(e) =>
-                    applyUpload(e.target.files?.[0], "favicon")
-                  }
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
 
@@ -799,85 +630,6 @@ export default function SettingsPage() {
                 onClick={() => disable2faMut.mutate()}
               >
                 Disattiva
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-primary" />
-              Foto lavori in homepage
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Carica le foto dei tuoi eventi con una breve descrizione: compaiono
-              nella sezione &quot;I nostri eventi&quot; del sito pubblico. Senza
-              foto resta il messaggio &quot;Presto pubblicheremo…&quot;.
-            </p>
-            <Link href="/settings/event-gallery">
-              <Button>Gestisci galleria foto</Button>
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Report — voci predefinite</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Crea voci riutilizzabili nella sezione &quot;Voci attività&quot; dei
-              report. Durante la compilazione potrai selezionarle e modificarle.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {reportChecklistTemplates.map((item, index) => (
-              <div key={index} className="flex gap-2">
-                <Input
-                  value={item}
-                  onChange={(e) =>
-                    setReportChecklistTemplates((rows) =>
-                      rows.map((row, i) => (i === index ? e.target.value : row))
-                    )
-                  }
-                  placeholder="Voce attività"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() =>
-                    setReportChecklistTemplates((rows) =>
-                      rows.filter((_, i) => i !== index)
-                    )
-                  }
-                >
-                  Rimuovi
-                </Button>
-              </div>
-            ))}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() =>
-                  setReportChecklistTemplates((rows) => [...rows, ""])
-                }
-              >
-                Aggiungi voce
-              </Button>
-              <Button
-                disabled={saveMut.isPending}
-                onClick={() =>
-                  saveMut.mutate({
-                    key: "report_checklist_templates",
-                    value: reportChecklistTemplates
-                      .map((x) => x.trim())
-                      .filter(Boolean),
-                  })
-                }
-              >
-                Salva voci report
               </Button>
             </div>
           </CardContent>
