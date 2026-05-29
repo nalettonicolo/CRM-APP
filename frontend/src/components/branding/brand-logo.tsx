@@ -28,7 +28,7 @@ export function BrandLogo({
     "object-contain",
     variant === "nav" && "h-11 w-auto max-w-[180px]",
     variant === "hero" &&
-      "mx-auto h-auto w-[min(72vw,11rem)] max-w-none object-contain sm:max-w-xs md:max-w-sm lg:max-w-md",
+      "mx-auto h-auto w-[min(52vw,7.5rem)] max-w-[7.5rem] object-contain sm:max-w-[8.5rem] md:max-w-[9.5rem] lg:max-w-[11rem]",
     animated && variant === "hero" && "logo-hero-img",
     !animated && variant === "hero" && "drop-shadow-md"
   );
@@ -42,14 +42,16 @@ export function BrandLogo({
             className
           )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={src}
-            alt={appName}
-            referrerPolicy="no-referrer"
-            onError={() => setFailed(true)}
-            className={imgClass}
-          />
+          <div className="logo-hero-frame">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt={appName}
+              referrerPolicy="no-referrer"
+              onError={() => setFailed(true)}
+              className={imgClass}
+            />
+          </div>
           <span className="logo-hero-shine" aria-hidden />
           <span className="logo-hero-rays" aria-hidden />
         </div>
