@@ -105,6 +105,8 @@ export default function InvoiceEditPage() {
     setDiscounts(parseInvoiceDiscounts(data.discounts));
   }, [data]);
 
+  const canEditCreatedAt = data?.canEditCreatedAt !== false;
+
   const update = useMutation({
     mutationFn: () =>
       invoicesApi.update(id, {
@@ -114,7 +116,9 @@ export default function InvoiceEditPage() {
         depositAmount: Number(form.depositAmount) || 0,
         balanceDue: Number(form.balanceDue) || 0,
         paymentStatus: form.paymentStatus,
-        createdAt: dateInputToIso(form.createdAt),
+        ...(canEditCreatedAt && {
+          createdAt: dateInputToIso(form.createdAt),
+        }),
         dueDate: form.dueDate ? `${form.dueDate}T12:00:00.000Z` : null,
         items: items
           .filter((item) => item.description.trim())
@@ -293,8 +297,15 @@ export default function InvoiceEditPage() {
                   <Input
                     type="date"
                     value={form.createdAt}
+                    disabled={!canEditCreatedAt}
                     onChange={(e) => setForm((f) => ({ ...f, createdAt: e.target.value }))}
                   />
+                  {!canEditCreatedAt && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Non modificabile: esiste già un documento con numero progressivo
+                      successivo.
+                    </p>
+                  )}
                 </div>
               </div>
 

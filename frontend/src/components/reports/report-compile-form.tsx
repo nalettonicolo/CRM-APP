@@ -24,6 +24,7 @@ import {
   buildQuoteItemsBlock,
   buildQuoteReferenceBlock,
 } from "@/lib/report-quote";
+import { dateInputToIso, toDateInputValue } from "@/lib/utils";
 
 const textareaClass =
   "flex min-h-[100px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
@@ -71,6 +72,9 @@ export function ReportCompileForm({
     initial?.expensesAmount != null ? String(Number(initial.expensesAmount)) : ""
   );
   const [expensesNotes, setExpensesNotes] = useState(initial?.expensesNotes || "");
+  const [createdAt, setCreatedAt] = useState(
+    initial?.createdAt ? toDateInputValue(initial.createdAt) : ""
+  );
   const [checklist, setChecklist] = useState<CheckItem[]>(
     (initial?.checklist as CheckItem[]) || []
   );
@@ -178,8 +182,11 @@ export function ReportCompileForm({
     clientQuotes?.data?.find((q) => q.id === quoteId) ||
     initial?.quote;
 
+  const reportMeta = savedReport ?? initial;
+  const canEditCreatedAt = reportMeta?.canEditCreatedAt !== false;
+
   function buildPayload(): ReportPayload {
-    return {
+    const payload: ReportPayload = {
       clientId,
       quoteId: quoteId || null,
       interventionId: interventionId || undefined,
@@ -200,6 +207,10 @@ export function ReportCompileForm({
       longitude: coords?.lng,
       status: "DRAFT",
     };
+    if (activeReportId && canEditCreatedAt && createdAt) {
+      payload.createdAt = dateInputToIso(createdAt, 12);
+    }
+    return payload;
   }
 
   const saveMut = useMutation({
@@ -392,6 +403,23 @@ export function ReportCompileForm({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
+        {activeReportId && (
+          <div>
+            <label className="mb-1 block text-sm font-medium">Data verbale</label>
+            <Input
+              type="date"
+              value={createdAt}
+              disabled={!canEditCreatedAt}
+              onChange={(e) => setCreatedAt(e.target.value)}
+            />
+            {!canEditCreatedAt && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Non modificabile: esiste già un documento con numero progressivo
+                successivo.
+              </p>
+            )}
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium">Ore lavoro</label>
           <Input

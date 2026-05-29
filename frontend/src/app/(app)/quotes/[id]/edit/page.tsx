@@ -55,6 +55,7 @@ export default function EditQuotePage() {
                         eventAt: data.eventAt ?? null,
                         eventEndAt: data.eventEndAt ?? null,
                         eventLocation: data.eventLocation ?? null,
+                        ...(data.createdAt ? { createdAt: data.createdAt } : {}),
                         withholdingTaxPercent: data.withholdingTaxPercent,
                         withholdingTaxAmount: data.withholdingTaxAmount,
                         stampDutyAmount: data.stampDutyAmount,

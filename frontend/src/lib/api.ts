@@ -297,6 +297,7 @@ export interface Quote {
   signedAt?: string;
   signedByClient?: boolean;
   clientSignature?: string | null;
+  canEditCreatedAt?: boolean;
 }
 
 export interface QuotePaymentTerm {
@@ -591,6 +592,7 @@ export interface ReportPayload {
   latitude?: number;
   longitude?: number;
   status?: string;
+  createdAt?: string;
 }
 
 export interface Intervention {
@@ -644,6 +646,7 @@ export interface ReportDetail extends Report {
   longitude?: number | string;
   submittedAt?: string;
   updatedAt?: string;
+  canEditCreatedAt?: boolean;
   client?: Client;
   technician?: { firstName: string; lastName: string; email?: string };
   intervention?: { id: string; number: string; title: string };
@@ -787,6 +790,7 @@ export interface Invoice {
   disclaimer?: string;
   sentAt?: string | null;
   createdAt: string;
+  canEditCreatedAt?: boolean;
   client?: Client;
   quote?: QuoteSummary & { items?: QuoteItem[] };
 }

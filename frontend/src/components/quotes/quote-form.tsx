@@ -41,6 +41,7 @@ export type QuoteFormPayload = {
   eventAt?: string;
   eventEndAt?: string;
   eventLocation?: string;
+  createdAt?: string;
   depositPercent?: number;
   depositAmount?: number;
   withholdingTaxPercent?: number;
@@ -100,6 +101,7 @@ export function QuoteForm({
   const [eventAt, setEventAt] = useState("");
   const [eventEndAt, setEventEndAt] = useState("");
   const [eventLocation, setEventLocation] = useState("");
+  const [createdAt, setCreatedAt] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermDraft[]>([]);
   const [withholdingTaxPercent, setWithholdingTaxPercent] = useState("");
   const [withholdingTaxAmount, setWithholdingTaxAmount] = useState("");
@@ -157,6 +159,9 @@ export function QuoteForm({
         initial.eventEndAt ? toDateInputValue(initial.eventEndAt) : ""
       );
       setEventLocation(initial.eventLocation || "");
+      setCreatedAt(
+        initial.createdAt ? toDateInputValue(initial.createdAt) : ""
+      );
       if (Number(initial.withholdingTaxPercent) > 0) {
         setWithholdingTaxPercent(String(Number(initial.withholdingTaxPercent)));
       }
@@ -266,6 +271,9 @@ export function QuoteForm({
       eventAt: eventAt ? dateInputToIso(eventAt, 10) : undefined,
       eventEndAt: eventEndAt ? dateInputToIso(eventEndAt, 18) : undefined,
       eventLocation: eventLocation.trim() || undefined,
+      ...(initial && initial.canEditCreatedAt !== false && createdAt
+        ? { createdAt: dateInputToIso(createdAt, 12) }
+        : {}),
       paymentTerms: paymentTerms
         .filter((t) => t.label.trim())
         .map((t) => ({
@@ -335,6 +343,27 @@ export function QuoteForm({
             Scadenza accettazione del preventivo.
           </p>
         </div>
+        {initial && (
+          <div>
+            <label className="mb-1 block text-sm font-medium">Data emissione</label>
+            <Input
+              type="date"
+              value={createdAt}
+              disabled={initial.canEditCreatedAt === false}
+              onChange={(e) => setCreatedAt(e.target.value)}
+            />
+            {initial.canEditCreatedAt === false ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Non modificabile: esiste già un documento con numero progressivo
+                successivo.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Data riportata sul PDF del preventivo.
+              </p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-xl border border-border bg-muted/20 p-4">

@@ -23,6 +23,10 @@ import {
   invoiceDiscountSchema,
 } from "../services/invoiceDiscounts.js";
 import { toDecimal } from "../services/quoteCalculator.js";
+import {
+  assertCanEditDocumentCreatedAt,
+  canEditDocumentCreatedAt,
+} from "../services/documentSequence.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 
@@ -125,7 +129,10 @@ router.get("/:id", requirePermission("invoices", "READ"), async (req: AuthReques
       include: invoiceInclude,
     });
     if (!invoice) throw new NotFoundError();
-    res.json(invoice);
+    res.json({
+      ...invoice,
+      canEditCreatedAt: await canEditDocumentCreatedAt("invoice", invoice.number),
+    });
   } catch (e) {
     next(e);
   }
@@ -207,6 +214,15 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
     const existing = await prisma.invoicePreview.findFirst({ where });
     if (!existing) throw new NotFoundError();
 
+    if (data.createdAt) {
+      await assertCanEditDocumentCreatedAt(
+        "invoice",
+        existing.number,
+        existing.createdAt,
+        new Date(data.createdAt)
+      );
+    }
+
     const invoice = await prisma.invoicePreview.update({
       where: { id: existing.id },
       data: {
@@ -239,7 +255,10 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
       entityId: invoice.id,
     });
 
-    res.json(invoice);
+    res.json({
+      ...invoice,
+      canEditCreatedAt: await canEditDocumentCreatedAt("invoice", invoice.number),
+    });
   } catch (e) {
     next(e);
   }

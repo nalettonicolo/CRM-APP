@@ -16,6 +16,10 @@ import {
 } from "../services/paymentTerms.js";
 import { paymentTermInputSchema } from "./paymentTermTemplates.js";
 import { logActivity } from "../services/activityLog.js";
+import {
+  assertCanEditDocumentCreatedAt,
+  canEditDocumentCreatedAt,
+} from "../services/documentSequence.js";
 import { quoteEmailBody } from "../constants/emailBodies.js";
 import { sendEmail, emailTemplate } from "../services/email.js";
 import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
@@ -188,7 +192,10 @@ router.get("/:id", requirePermission("quotes", "READ"), async (req: AuthRequest,
     ) {
       throw new NotFoundError();
     }
-    res.json(quote);
+    res.json({
+      ...quote,
+      canEditCreatedAt: await canEditDocumentCreatedAt("quote", quote.number),
+    });
   } catch (e) {
     next(e);
   }
@@ -481,6 +488,7 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           .enum(["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED"])
           .optional(),
         signedByClient: z.boolean().optional(),
+        createdAt: z.string().datetime().optional(),
       })
       .merge(taxFieldsSchema)
       .parse(req.body);
@@ -493,6 +501,15 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
       },
     });
     if (!existing) throw new NotFoundError();
+
+    if (body.createdAt) {
+      await assertCanEditDocumentCreatedAt(
+        "quote",
+        existing.number,
+        existing.createdAt,
+        new Date(body.createdAt)
+      );
+    }
 
     const itemsForCalc = body.items
       ? body.items.map((i) => ({
@@ -573,6 +590,9 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           ...(body.eventLocation !== undefined && {
             eventLocation: body.eventLocation?.trim() || null,
           }),
+          ...(body.createdAt !== undefined && {
+            createdAt: new Date(body.createdAt),
+          }),
           ...(body.status !== undefined && { status: body.status }),
           ...(body.discountPercent !== undefined && {
             discountPercent: toDecimal(body.discountPercent),
@@ -639,7 +659,10 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
       await syncQuoteCalendarEvent(quote.id);
     }
 
-    res.json(quote);
+    res.json({
+      ...quote,
+      canEditCreatedAt: await canEditDocumentCreatedAt("quote", quote.number),
+    });
   } catch (e) {
     next(e);
   }

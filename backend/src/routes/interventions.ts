@@ -7,6 +7,10 @@ import {
   type AuthRequest,
 } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
+import {
+  assertCanEditDocumentCreatedAt,
+  canEditDocumentCreatedAt,
+} from "../services/documentSequence.js";
 import { deleteInterventionById } from "../services/deleteIntervention.js";
 import { deleteReportById } from "../services/deleteReport.js";
 import { dispatchReportEmail } from "../services/reportEmail.js";
@@ -143,6 +147,7 @@ const reportPatchSchema = z.object({
   longitude: z.number().optional(),
   checkInAt: z.string().datetime().optional(),
   checkOutAt: z.string().datetime().optional(),
+  createdAt: z.string().datetime().optional(),
   status: z.enum(["DRAFT", "SUBMITTED", "APPROVED", "ARCHIVED"]).optional(),
   materials: z
     .array(
@@ -284,7 +289,10 @@ router.get("/reports/:id", requirePermission("reports", "READ"), async (req: Aut
       },
     });
     if (!report) throw new NotFoundError();
-    res.json(report);
+    res.json({
+      ...report,
+      canEditCreatedAt: await canEditDocumentCreatedAt("report", report.number),
+    });
   } catch (e) {
     next(e);
   }
@@ -308,6 +316,15 @@ router.patch(
         if (!allowed) {
           throw new ValidationError("Solo i report in bozza sono modificabili");
         }
+      }
+
+      if (data.createdAt) {
+        await assertCanEditDocumentCreatedAt(
+          "report",
+          existing.number,
+          existing.createdAt,
+          new Date(data.createdAt)
+        );
       }
 
       const report = await prisma.$transaction(async (tx) => {
@@ -340,6 +357,9 @@ router.patch(
             longitude: data.longitude,
             checkInAt: data.checkInAt ? new Date(data.checkInAt) : undefined,
             checkOutAt: data.checkOutAt ? new Date(data.checkOutAt) : undefined,
+            ...(data.createdAt !== undefined && {
+              createdAt: new Date(data.createdAt),
+            }),
             status: data.status,
             ...(data.status === "SUBMITTED" && { submittedAt: new Date() }),
             materials: data.materials
@@ -369,7 +389,10 @@ router.patch(
         entityId: report.id,
       });
 
-      res.json(report);
+      res.json({
+        ...report,
+        canEditCreatedAt: await canEditDocumentCreatedAt("report", report.number),
+      });
     } catch (e) {
       next(e);
     }

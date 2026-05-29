@@ -1,0 +1,40 @@
+---
+description: Deploy automatico via push su GitHub (Netlify + Mint)
+alwaysApply: true
+---
+
+# Deploy automatico su GitHub
+
+Dopo aver completato modifiche al codice (feature, fix, refactor), **commit e push su `main`** salvo esplicita richiesta contraria dell'utente.
+
+## Flusso produzione
+
+Push su `main` attiva in parallelo:
+
+1. **Netlify** — build frontend (`frontend/netlify.toml`, workspace `crm-frontend`)
+2. **GitHub Actions CI** — build backend + frontend (`.github/workflows/ci.yml`)
+3. **Deploy Mint** — backend sul VPS se configurati i secret SSH (`.github/workflows/deploy-mint.yml`)
+
+Non serve push manuale su Netlify: basta `git push origin main`.
+
+## Quando fare commit + push
+
+- Al termine di un task implementato e verificato (typecheck/lint ok)
+- Non commitare segreti (`.env`, chiavi, credenziali)
+- Messaggio commit: 1–2 frasi sul *perché*, stile repo (italiano o inglese breve)
+- **Non** fare push force su `main`
+- **Non** amend se il commit precedente è già su remote
+
+## Comandi (dalla root del repo)
+
+```bash
+git status
+git add <file rilevanti>
+git commit -m "Messaggio descrittivo"
+git push origin main
+```
+
+## Verifica locale opzionale prima del push
+
+- Frontend Netlify: `npm run verify:netlify` (dalla root)
+- Backend: `npm run build --workspace=backend`

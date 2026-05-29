@@ -28,7 +28,7 @@ export function BrandLogo({
     "object-contain",
     variant === "nav" && "h-11 w-auto max-w-[180px]",
     variant === "hero" &&
-      "mx-auto h-auto w-[min(88vw,14rem)] max-w-none object-contain sm:w-full sm:max-w-md lg:max-w-xl",
+      "mx-auto h-auto w-[min(72vw,11rem)] max-w-none object-contain sm:max-w-xs md:max-w-sm lg:max-w-md",
     animated && variant === "hero" && "logo-hero-img",
     !animated && variant === "hero" && "drop-shadow-md"
   );

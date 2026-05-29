@@ -77,7 +77,7 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
               appName={appName}
               variant="hero"
               animated
-              className="mb-6 sm:mb-8"
+              className="mb-4 sm:mb-6"
             />
             <span className="mb-5 inline-block rounded-full border border-violet-400/40 bg-violet-500/15 px-4 py-1.5 text-sm font-medium text-violet-200">
               {site.badge}
