@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FilePlus, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/header";
@@ -11,6 +11,7 @@ import {
   DetailField,
   DetailSection,
 } from "@/components/detail/detail-shell";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { interventionsApi } from "@/lib/api";
 import { interventionStatusLabels } from "@/lib/labels";
 import { cn, formatDate } from "@/lib/utils";
@@ -25,6 +26,16 @@ const statusColors: Record<string, string> = {
 export default function InterventionDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const router = useRouter();
+  const qc = useQueryClient();
+
+  const deleteIntervention = useMutation({
+    mutationFn: () => interventionsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["interventions"] });
+      router.push("/interventions");
+    },
+  });
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["intervention", id],
@@ -63,14 +74,21 @@ export default function InterventionDetailPage() {
                   )}
                 </div>
               </div>
-              <span
-                className={cn(
-                  "rounded-full px-3 py-1 text-sm font-medium",
-                  statusColors[data.status] || statusColors.SCHEDULED
-                )}
-              >
-                {interventionStatusLabels[data.status] || data.status}
-              </span>
+              <div className="flex flex-col items-end gap-2">
+                <DeleteEntityButton
+                  pending={deleteIntervention.isPending}
+                  confirmMessage={`Eliminare l'intervento ${data.number} e i verbali collegati? L'operazione non è reversibile.`}
+                  onConfirm={() => deleteIntervention.mutate()}
+                />
+                <span
+                  className={cn(
+                    "rounded-full px-3 py-1 text-sm font-medium",
+                    statusColors[data.status] || statusColors.SCHEDULED
+                  )}
+                >
+                  {interventionStatusLabels[data.status] || data.status}
+                </span>
+              </div>
             </div>
 
             <DetailSection title="Pianificazione">

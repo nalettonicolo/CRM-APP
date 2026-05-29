@@ -2,6 +2,7 @@ import { Router } from "express";
 import fs from "fs";
 import path from "path";
 import { z } from "zod";
+import { invoiceEmailBody } from "../constants/emailBodies.js";
 import { sendEmail, emailTemplate } from "../services/email.js";
 import { config } from "../config/index.js";
 import { prisma } from "../lib/prisma.js";
@@ -324,9 +325,7 @@ router.post(
         subject: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
         html: emailTemplate(
           `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
-          `<p>In allegato trovi il documento <strong>${invoice.number}</strong>.</p>
-           <p>Totale: <strong>€ ${Number(invoice.total).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>
-           ${invoice.notes ? `<p>${invoice.notes}</p>` : ""}`,
+          invoiceEmailBody({ number: invoice.number }),
           brandName
         ),
         attachments: [

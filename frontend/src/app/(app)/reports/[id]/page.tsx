@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClipboardList, Download, Mail, Pencil } from "lucide-react";
@@ -14,6 +14,7 @@ import {
 } from "@/components/detail/detail-shell";
 import { ReportPreviewStep } from "@/components/reports/report-preview-step";
 import { ReportSignStep } from "@/components/reports/report-sign-step";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { downloadReportPdf, reportsApi } from "@/lib/api";
 import { reportStatusLabels } from "@/lib/labels";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
@@ -30,13 +31,29 @@ export default function ReportDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const qc = useQueryClient();
   const [pdfBusy, setPdfBusy] = useState(false);
   const [draftView, setDraftView] = useState<"detail" | "preview" | "sign">("detail");
+  const [banner, setBanner] = useState(() => searchParams.get("notice") || "");
+
+  const deleteReport = useMutation({
+    mutationFn: () => reportsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      router.push("/reports");
+    },
+    onError: (e: Error) => setBanner(e.message || "Eliminazione non riuscita."),
+  });
 
   const sendEmail = useMutation({
     mutationFn: () => reportsApi.sendEmail(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["report", id] }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["report", id] });
+      setBanner(res.message || DOCUMENT_COPY.report.emailSentSuccess);
+      setTimeout(() => setBanner(""), 5000);
+    },
+    onError: (e: Error) => setBanner(e.message || "Invio email non riuscito."),
   });
 
   const { data, isLoading, isError } = useQuery({
@@ -67,17 +84,34 @@ export default function ReportDetailPage() {
           <div className="max-w-lg">
             <ReportSignStep
               reportId={id}
+              clientEmail={data.client?.email}
               initialTechnicianSignature={data.technicianSignature}
               initialClientSignature={data.clientSignature}
               onBack={() => setDraftView("preview")}
-              onDone={() => {
+              onDone={(message) => {
                 qc.invalidateQueries({ queryKey: ["report", id] });
                 setDraftView("detail");
+                if (message) setBanner(message);
               }}
             />
           </div>
         ) : (
           <div className="space-y-6">
+            {banner && (
+              <p
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm",
+                  banner.includes("non") &&
+                    (banner.includes("email") || banner.includes("SMTP") || banner.includes("fallito"))
+                    ? "border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:text-amber-200"
+                    : banner.includes("fallito") || banner.includes("Errore")
+                      ? "border border-destructive/30 bg-destructive/10 text-destructive"
+                      : "border border-primary/30 bg-primary/10 text-foreground"
+                )}
+              >
+                {banner}
+              </p>
+            )}
             {data.status === "DRAFT" && (
               <div className="flex flex-wrap gap-2 rounded-xl border border-primary/30 bg-primary/5 p-4">
                 <p className="w-full text-sm text-muted-foreground">
@@ -150,11 +184,28 @@ export default function ReportDetailPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={sendEmail.isPending}
-                    onClick={() => sendEmail.mutate()}
+                    disabled={sendEmail.isPending || !data.client?.email}
+                    title={
+                      data.client?.email
+                        ? undefined
+                        : "Aggiungi email nella scheda cliente"
+                    }
+                    onClick={() => {
+                      if (
+                        data.submittedAt &&
+                        !window.confirm(DOCUMENT_COPY.report.resendConfirm)
+                      ) {
+                        return;
+                      }
+                      sendEmail.mutate();
+                    }}
                   >
                     <Mail className="h-4 w-4" />
-                    {sendEmail.isPending ? "Invio…" : "Invia email"}
+                    {sendEmail.isPending
+                      ? "Invio…"
+                      : data.submittedAt
+                        ? DOCUMENT_COPY.report.resendEmail
+                        : "Invia email"}
                   </Button>
                   {data.status === "DRAFT" && (
                     <Button variant="outline" size="sm" asChild>
@@ -163,6 +214,12 @@ export default function ReportDetailPage() {
                       </Link>
                     </Button>
                   )}
+                  <DeleteEntityButton
+                    size="sm"
+                    pending={deleteReport.isPending}
+                    confirmMessage={`Eliminare il verbale ${data.number}? L'operazione non è reversibile.`}
+                    onConfirm={() => deleteReport.mutate()}
+                  />
                 </div>
                 <span
                   className={cn(

@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil } from "lucide-react";
 import {
   Dialog,
@@ -11,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { clientsApi } from "@/lib/api";
 import { clientStatusLabels } from "@/lib/labels";
 import { cn, formatDate } from "@/lib/utils";
@@ -42,16 +44,30 @@ export function ClientDetailDialog({
   open,
   onOpenChange,
   onEdit,
+  onDeleted,
 }: {
   clientId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onEdit: () => void;
+  onDeleted?: () => void;
 }) {
+  const router = useRouter();
+  const qc = useQueryClient();
   const { data: client, isLoading, isError } = useQuery({
     queryKey: ["client", clientId],
     queryFn: () => clientsApi.get(clientId!),
     enabled: open && !!clientId,
+  });
+
+  const deleteClient = useMutation({
+    mutationFn: () => clientsApi.delete(clientId!),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      onOpenChange(false);
+      onDeleted?.();
+      router.push("/clients");
+    },
   });
 
   return (
@@ -185,6 +201,11 @@ export function ClientDetailDialog({
                 <Button onClick={onEdit}>
                   <Pencil className="h-4 w-4" /> Modifica
                 </Button>
+                <DeleteEntityButton
+                  pending={deleteClient.isPending}
+                  confirmMessage={`Eliminare ${displayName(client)} e tutti i dati collegati? L'operazione non è reversibile.`}
+                  onConfirm={() => deleteClient.mutate()}
+                />
               </>
             )}
           </div>

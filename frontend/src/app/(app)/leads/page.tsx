@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { leadsApi, type LeadItem } from "@/lib/api";
 import { leadStatusLabels } from "@/lib/labels";
 import { cn, formatDate } from "@/lib/utils";
@@ -40,6 +41,14 @@ export default function LeadsPage() {
     queryKey: ["lead", selectedId],
     queryFn: () => leadsApi.get(selectedId!),
     enabled: !!selectedId,
+  });
+
+  const deleteLead = useMutation({
+    mutationFn: (id: string) => leadsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      setSelectedId(null);
+    },
   });
 
   const convert = useMutation({
@@ -281,9 +290,18 @@ export default function LeadsPage() {
           )}
 
           <DialogFooter className="flex-wrap gap-2 sm:justify-between">
-            <Button variant="outline" onClick={() => setSelectedId(null)}>
-              Chiudi
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {detail && (
+                <DeleteEntityButton
+                  pending={deleteLead.isPending}
+                  confirmMessage={`Eliminare la richiesta di ${detail.name}?`}
+                  onConfirm={() => deleteLead.mutate(detail.id)}
+                />
+              )}
+              <Button variant="outline" onClick={() => setSelectedId(null)}>
+                Chiudi
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {detail && detail.status !== "CONVERTED" && (
                 <>

@@ -144,4 +144,29 @@ router.patch(
   }
 );
 
+router.delete(
+  "/:id",
+  requirePermission("leads", "DELETE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const lead = await prisma.lead.findUnique({ where: { id: paramId(req) } });
+      if (!lead) throw new NotFoundError();
+
+      await prisma.lead.delete({ where: { id: lead.id } });
+
+      await logActivity({
+        userId: req.user!.userId,
+        action: "DELETE",
+        entityType: "lead",
+        entityId: lead.id,
+        details: { name: lead.name },
+      });
+
+      res.json({ success: true });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 export default router;

@@ -272,10 +272,16 @@ export function ReportCompileForm({
     return (
       <ReportSignStep
         reportId={activeReportId}
+        clientEmail={savedReport?.client?.email}
         initialTechnicianSignature={savedReport?.technicianSignature}
         initialClientSignature={savedReport?.clientSignature}
         onBack={() => setStep("preview")}
-        onDone={() => router.push(`/reports/${activeReportId}`)}
+        onDone={(message) => {
+          const notice = message
+            ? `?notice=${encodeURIComponent(message)}`
+            : "";
+          router.push(`/reports/${activeReportId}${notice}`);
+        }}
       />
     );
   }

@@ -7,7 +7,9 @@ import {
   type AuthRequest,
 } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
-import { sendEmail, emailTemplate } from "../services/email.js";
+import { deleteInterventionById } from "../services/deleteIntervention.js";
+import { deleteReportById } from "../services/deleteReport.js";
+import { dispatchReportEmail } from "../services/reportEmail.js";
 import { generateReportPdf } from "../services/reportPdf.js";
 import { loadCompanySettings } from "../services/quotePdf.js";
 import { toDecimal } from "../services/quoteCalculator.js";
@@ -400,32 +402,7 @@ router.post(
   async (req: AuthRequest, res, next) => {
     try {
       const report = await loadReportForAction(req, paramId(req));
-      const email = report.client.email;
-      if (!email) {
-        throw new ValidationError("Il cliente non ha un indirizzo email");
-      }
-
-      const company = await loadCompanySettings();
-      const pdf = await generateReportPdf(report, company);
-      const brandName =
-        typeof company.name === "string" ? company.name : "CRM";
-
-      await sendEmail({
-        to: email,
-        subject: `Report intervento ${report.number}`,
-        html: emailTemplate(
-          `Report ${report.number}`,
-          `<p>In allegato trovi il report di intervento <strong>${report.number}</strong>.</p>
-           <p>Ore lavorate: <strong>${Number(report.workHours).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>`,
-          brandName
-        ),
-        attachments: [
-          {
-            filename: `report-${report.number}.pdf`,
-            content: pdf,
-          },
-        ],
-      });
+      const { to } = await dispatchReportEmail(report);
 
       await logActivity({
         userId: req.user!.userId,
@@ -433,9 +410,36 @@ router.post(
         action: "SEND_EMAIL",
         entityType: "report",
         entityId: report.id,
-        details: { to: email },
+        details: { to },
       });
 
+      res.json({
+        success: true,
+        mock: false,
+        message: `Email inviata a ${to}`,
+        to,
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.delete(
+  "/reports/:id",
+  requirePermission("reports", "DELETE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const report = await loadReportForAction(req, paramId(req));
+      await deleteReportById(report.id);
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: report.clientId,
+        action: "DELETE",
+        entityType: "report",
+        entityId: report.id,
+        details: { number: report.number },
+      });
       res.json({ success: true });
     } catch (e) {
       next(e);
@@ -666,5 +670,33 @@ router.post("/", requirePermission("interventions", "CREATE"), async (req: AuthR
     next(e);
   }
 });
+
+router.delete(
+  "/:id",
+  requirePermission("interventions", "DELETE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const where: Record<string, unknown> = { id: paramId(req) };
+      if (req.user!.role === "TECHNICIAN") {
+        where.technicianId = req.user!.userId;
+      }
+      const existing = await prisma.intervention.findFirst({ where });
+      if (!existing) throw new NotFoundError();
+
+      await deleteInterventionById(existing.id);
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: existing.clientId,
+        action: "DELETE",
+        entityType: "intervention",
+        entityId: existing.id,
+        details: { number: existing.number },
+      });
+      res.json({ success: true });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 export default router;

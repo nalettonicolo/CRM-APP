@@ -132,6 +132,50 @@ router.patch("/:id", async (req: AuthRequest, res, next) => {
   }
 });
 
+router.delete("/:id", async (req: AuthRequest, res, next) => {
+  try {
+    const id = paramId(req);
+    if (id === req.user!.userId) {
+      throw new ValidationError("Non puoi eliminare il tuo account");
+    }
+
+    const existing = await prisma.user.findUnique({ where: { id } });
+    if (!existing) throw new NotFoundError();
+
+    const [quotes, payments, interventions, reports, events] = await Promise.all([
+      prisma.quote.count({ where: { createdById: id } }),
+      prisma.clientPayment.count({ where: { createdById: id } }),
+      prisma.intervention.count({ where: { technicianId: id } }),
+      prisma.interventionReport.count({ where: { technicianId: id } }),
+      prisma.event.count({ where: { assigneeId: id } }),
+    ]);
+
+    if (quotes + payments + interventions + reports + events > 0) {
+      throw new ValidationError(
+        "Impossibile eliminare: l'utente ha preventivi, pagamenti, interventi, verbali o eventi collegati"
+      );
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.refreshToken.deleteMany({ where: { userId: id } });
+      await tx.userPermission.deleteMany({ where: { userId: id } });
+      await tx.user.delete({ where: { id } });
+    });
+
+    await logActivity({
+      userId: req.user!.userId,
+      action: "DELETE",
+      entityType: "user",
+      entityId: id,
+      details: { email: existing.email },
+    });
+
+    res.json({ success: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.post("/:id/reset-password", async (req: AuthRequest, res, next) => {
   try {
     const { password } = z.object({ password: z.string().min(8) }).parse(req.body);

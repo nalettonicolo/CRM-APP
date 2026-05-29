@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import {
   PageCreateBar,
@@ -9,6 +9,7 @@ import {
 } from "@/components/layout/page-create-action";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClickableRow } from "@/components/detail/detail-shell";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { interventionsApi } from "@/lib/api";
 import { interventionStatusLabels } from "@/lib/labels";
 import { SECTION_CREATE } from "@/lib/section-create";
@@ -23,6 +24,11 @@ const statusColors: Record<string, string> = {
 
 export default function InterventionsPage() {
   const router = useRouter();
+  const qc = useQueryClient();
+  const deleteIntervention = useMutation({
+    mutationFn: (id: string) => interventionsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["interventions"] }),
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["interventions"],
     queryFn: interventionsApi.list,
@@ -49,13 +55,14 @@ export default function InterventionsPage() {
                     <th className="px-4 py-3 text-left font-medium">Cliente</th>
                     <th className="px-4 py-3 text-left font-medium">Stato</th>
                     <th className="px-4 py-3 text-right font-medium">Data</th>
+                    <th className="w-24 px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-8 text-center text-muted-foreground"
                       >
                         Caricamento...
@@ -64,7 +71,7 @@ export default function InterventionsPage() {
                   ) : data?.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={5}
+                        colSpan={6}
                         className="px-4 py-8 text-center text-muted-foreground"
                       >
                         Nessun intervento.
@@ -93,6 +100,14 @@ export default function InterventionsPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">
                           {item.scheduledAt ? formatDate(item.scheduledAt) : "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <DeleteEntityButton
+                            size="icon"
+                            pending={deleteIntervention.isPending}
+                            confirmMessage={`Eliminare l'intervento ${item.number}?`}
+                            onConfirm={() => deleteIntervention.mutate(item.id)}
+                          />
                         </td>
                       </ClickableRow>
                     ))

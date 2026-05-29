@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { usersApi, type StaffUser } from "@/lib/api";
 import { userRoleLabels, userStatusLabels } from "@/lib/labels";
 import { SECTION_CREATE } from "@/lib/section-create";
@@ -101,6 +102,15 @@ export default function UsersPage() {
         phone: "",
         role: "TECHNICIAN",
       });
+    },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => usersApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      closeDetail();
     },
     onError: (err: Error) => setError(err.message),
   });
@@ -218,17 +228,27 @@ export default function UsersPage() {
                           {formatDate(u.createdAt)}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setError("");
-                              setResetUserId(u.id);
-                            }}
-                          >
-                            <KeyRound className="h-4 w-4" /> Reset password
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            {u.id !== user?.id && (
+                              <DeleteEntityButton
+                                size="icon"
+                                pending={deleteMutation.isPending}
+                                confirmMessage={`Eliminare l'utente ${userDisplayName(u)}?`}
+                                onConfirm={() => deleteMutation.mutate(u.id)}
+                              />
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setError("");
+                                setResetUserId(u.id);
+                              }}
+                            >
+                              <KeyRound className="h-4 w-4" /> Reset password
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))
@@ -381,9 +401,18 @@ export default function UsersPage() {
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <DialogFooter className="flex-wrap gap-2 sm:justify-between">
-            <Button variant="outline" onClick={closeDetail}>
-              Chiudi
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {selectedUser && !editing && selectedUser.id !== user?.id && (
+                <DeleteEntityButton
+                  pending={deleteMutation.isPending}
+                  confirmMessage={`Eliminare l'utente ${userDisplayName(selectedUser)}?`}
+                  onConfirm={() => deleteMutation.mutate(selectedUser.id)}
+                />
+              )}
+              <Button variant="outline" onClick={closeDetail}>
+                Chiudi
+              </Button>
+            </div>
             <div className="flex flex-wrap gap-2">
               {selectedUser && !editing && (
                 <>

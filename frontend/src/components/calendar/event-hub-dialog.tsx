@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { eventsApi, type EventItem } from "@/lib/api";
 import { calendarEventTypeOptions, eventTypeLabels } from "@/lib/labels";
 import { formatCurrency, formatEventDateRange } from "@/lib/utils";
@@ -144,6 +145,14 @@ export function EventHubDialog({
     },
   });
 
+  const deleteEventMut = useMutation({
+    mutationFn: () => eventsApi.delete(event!.id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      onOpenChange(false);
+    },
+  });
+
   if (!event) return null;
 
   const clientName =
@@ -237,6 +246,15 @@ export function EventHubDialog({
             Nessun collegamento rapido per questo evento.
           </p>
         )}
+
+        <div className="border-t border-border pt-3">
+          <DeleteEntityButton
+            className="w-full"
+            pending={deleteEventMut.isPending}
+            confirmMessage={`Eliminare l'evento "${event.title}"?`}
+            onConfirm={() => deleteEventMut.mutate()}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

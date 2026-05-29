@@ -1,7 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { authenticate, requirePermission } from "../middleware/auth.js";
+import {
+  authenticate,
+  requirePermission,
+  type AuthRequest,
+} from "../middleware/auth.js";
+import { logActivity } from "../services/activityLog.js";
+import { NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 import { EVENT_TYPE_VALUES } from "../constants/eventTypes.js";
 
@@ -108,6 +114,28 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req, res, nex
       include: eventInclude,
     });
     res.json(event);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete("/:id", requirePermission("events", "DELETE"), async (req: AuthRequest, res, next) => {
+  try {
+    const existing = await prisma.event.findUnique({ where: { id: paramId(req) } });
+    if (!existing) throw new NotFoundError();
+
+    await prisma.event.delete({ where: { id: existing.id } });
+
+    await logActivity({
+      userId: req.user!.userId,
+      clientId: existing.clientId ?? undefined,
+      action: "DELETE",
+      entityType: "event",
+      entityId: existing.id,
+      details: { title: existing.title },
+    });
+
+    res.json({ success: true });
   } catch (e) {
     next(e);
   }

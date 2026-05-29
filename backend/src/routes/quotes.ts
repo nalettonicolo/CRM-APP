@@ -16,6 +16,7 @@ import {
 } from "../services/paymentTerms.js";
 import { paymentTermInputSchema } from "./paymentTermTemplates.js";
 import { logActivity } from "../services/activityLog.js";
+import { quoteEmailBody } from "../constants/emailBodies.js";
 import { sendEmail, emailTemplate } from "../services/email.js";
 import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
@@ -425,9 +426,7 @@ router.post(
         subject: `Preventivo ${quote.number}`,
         html: emailTemplate(
           `Preventivo ${quote.number}`,
-          `<p>In allegato trovi il preventivo <strong>${quote.number}</strong>.</p>
-           ${quote.title ? `<p>${quote.title}</p>` : ""}
-           <p>Totale: <strong>€ ${Number(quote.total).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>`,
+          quoteEmailBody({ number: quote.number, title: quote.title }),
           brandName
         ),
         attachments: [

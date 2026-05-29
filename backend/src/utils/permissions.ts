@@ -25,6 +25,7 @@ const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     "clients:read",
     "clients:create",
     "clients:update",
+    "clients:delete",
     "quotes:*",
     "leads:*",
     "attachments:*",

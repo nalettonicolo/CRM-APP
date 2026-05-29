@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import {
   PageCreateBar,
@@ -9,6 +9,7 @@ import {
 } from "@/components/layout/page-create-action";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClickableRow } from "@/components/detail/detail-shell";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { quotesApi } from "@/lib/api";
 import { quoteStatusLabels } from "@/lib/labels";
 import {
@@ -28,6 +29,11 @@ const statusStyle: Record<string, string> = {
 
 export default function QuotesPage() {
   const router = useRouter();
+  const qc = useQueryClient();
+  const deleteQuote = useMutation({
+    mutationFn: (id: string) => quotesApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["quotes"] }),
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["quotes"],
     queryFn: () => quotesApi.list(),
@@ -59,13 +65,14 @@ export default function QuotesPage() {
                     <th className="px-4 py-3 text-left font-medium">Stato</th>
                     <th className="px-4 py-3 text-right font-medium">Importo</th>
                     <th className="px-4 py-3 text-right font-medium">Emesso il</th>
+                    <th className="px-4 py-3 text-right font-medium w-24" />
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
                       <td
-                        colSpan={8}
+                        colSpan={9}
                         className="px-4 py-8 text-center text-muted-foreground"
                       >
                         Caricamento...
@@ -112,6 +119,14 @@ export default function QuotesPage() {
                         </td>
                         <td className="px-4 py-3 text-right text-muted-foreground">
                           {formatDate(q.createdAt)}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <DeleteEntityButton
+                            size="icon"
+                            pending={deleteQuote.isPending}
+                            confirmMessage={`Eliminare il preventivo ${q.number}?`}
+                            onConfirm={() => deleteQuote.mutate(q.id)}
+                          />
                         </td>
                       </ClickableRow>
                     ))

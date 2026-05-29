@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import {
   PageCreateBar,
@@ -9,7 +9,8 @@ import {
 } from "@/components/layout/page-create-action";
 import { Card, CardContent } from "@/components/ui/card";
 import { ClickableRow } from "@/components/detail/detail-shell";
-import { interventionsApi } from "@/lib/api";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
+import { interventionsApi, reportsApi } from "@/lib/api";
 import { reportStatusLabels } from "@/lib/labels";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { SECTION_CREATE } from "@/lib/section-create";
@@ -24,6 +25,14 @@ const statusColors: Record<string, string> = {
 
 export default function ReportsPage() {
   const router = useRouter();
+  const qc = useQueryClient();
+  const deleteReport = useMutation({
+    mutationFn: (id: string) => reportsApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["intervention-reports"] });
+    },
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["reports"],
     queryFn: interventionsApi.reports,
@@ -46,12 +55,13 @@ export default function ReportsPage() {
                   <th className="px-4 py-3 text-left">Stato</th>
                   <th className="px-4 py-3 text-right">Ore</th>
                   <th className="px-4 py-3 text-right">Data</th>
+                  <th className="w-24 px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                       Caricamento...
                     </td>
                   </tr>
@@ -76,6 +86,14 @@ export default function ReportsPage() {
                       <td className="px-4 py-3 text-right">{Number(r.workHours)}h</td>
                       <td className="px-4 py-3 text-right text-muted-foreground">
                         {formatDate(r.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <DeleteEntityButton
+                          size="icon"
+                          pending={deleteReport.isPending}
+                          confirmMessage={`Eliminare il verbale ${r.number}?`}
+                          onConfirm={() => deleteReport.mutate(r.id)}
+                        />
                       </td>
                     </ClickableRow>
                   ))

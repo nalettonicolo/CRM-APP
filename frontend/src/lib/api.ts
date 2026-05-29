@@ -535,6 +535,8 @@ export interface Service {
 export const interventionsApi = {
   list: () => api<Intervention[]>("/interventions"),
   get: (id: string) => api<InterventionDetail>(`/interventions/${id}`),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/interventions/${id}`, { method: "DELETE" }),
   create: (data: {
     clientId: string;
     title: string;
@@ -563,8 +565,13 @@ export const reportsApi = {
       body: JSON.stringify(data),
     }),
   sendEmail: (id: string) =>
-    api<{ success: boolean }>(`/interventions/reports/${id}/send-email`, {
-      method: "POST",
+    api<{ success: boolean; mock?: boolean; message?: string; to?: string }>(
+      `/interventions/reports/${id}/send-email`,
+      { method: "POST" }
+    ),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/interventions/reports/${id}`, {
+      method: "DELETE",
     }),
 };
 
@@ -728,6 +735,8 @@ export const usersApi = {
       method: "POST",
       body: JSON.stringify({ password }),
     }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
 };
 
 export const eventsApi = {
@@ -1255,6 +1264,8 @@ export const leadsApi = {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/leads/${id}`, { method: "DELETE" }),
 };
 
 export interface NotificationItem {

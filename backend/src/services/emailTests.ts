@@ -1,5 +1,10 @@
 import { prisma } from "../lib/prisma.js";
 import { DOCUMENT_COPY } from "../constants/documentCopy.js";
+import {
+  invoiceEmailBodyTest,
+  quoteEmailBodyTest,
+  reportEmailBodyTest,
+} from "../constants/emailBodies.js";
 import { sendEmail, emailTemplate, verifySmtpConnection } from "./email.js";
 import { generateInvoicePdf } from "./invoicePdf.js";
 import { generateQuotePdf } from "./quotePdf.js";
@@ -71,9 +76,7 @@ export async function runEmailTest(
       subject: `[TEST] Preventivo ${quote.number}`,
       html: emailTemplate(
         `[TEST] Preventivo ${quote.number}`,
-        `<p>Email di prova del flusso <strong>preventivo</strong>.</p>
-         <p>Documento campione: <strong>${quote.number}</strong> (non inviato al cliente reale).</p>
-         <p>Totale: <strong>€ ${Number(quote.total).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>`,
+        quoteEmailBodyTest({ number: quote.number, title: quote.title }),
         brandName
       ),
       attachments: [
@@ -111,9 +114,7 @@ export async function runEmailTest(
       subject: `[TEST] Verbale ${report.number}`,
       html: emailTemplate(
         `[TEST] Verbale ${report.number}`,
-        `<p>Email di prova del flusso <strong>verbale di intervento</strong>.</p>
-         <p>Documento campione: <strong>${report.number}</strong>.</p>
-         <p>Ore: <strong>${Number(report.workHours).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>`,
+        reportEmailBodyTest({ number: report.number }),
         brandName
       ),
       attachments: [{ filename: `report-${report.number}.pdf`, content: pdf }],
@@ -142,9 +143,7 @@ export async function runEmailTest(
     subject: `[TEST] ${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
     html: emailTemplate(
       `[TEST] ${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
-      `<p>Email di prova del flusso <strong>documento di cortesia</strong>.</p>
-       <p>Documento campione: <strong>${invoice.number}</strong>.</p>
-       <p>Totale: <strong>€ ${Number(invoice.total).toLocaleString("it-IT", { minimumFractionDigits: 2 })}</strong></p>`,
+      invoiceEmailBodyTest({ number: invoice.number }),
       brandName
     ),
     attachments: [

@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Receipt } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { InvoiceCreateDialog } from "@/components/invoices/invoice-create-dialog";
 import { ClickableRow } from "@/components/detail/detail-shell";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { invoicesApi } from "@/lib/api";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { paymentStatusLabels } from "@/lib/labels";
@@ -14,6 +15,11 @@ import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 export default function InvoicesPage() {
   const router = useRouter();
+  const qc = useQueryClient();
+  const deleteInvoice = useMutation({
+    mutationFn: (id: string) => invoicesApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["invoices"] }),
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["invoices"],
     queryFn: () => invoicesApi.list(),
@@ -41,18 +47,19 @@ export default function InvoicesPage() {
                   <th className="px-4 py-3 text-left">Pagamento</th>
                   <th className="px-4 py-3 text-right">Totale</th>
                   <th className="px-4 py-3 text-right">Data</th>
+                  <th className="w-24 px-4 py-3" />
                 </tr>
               </thead>
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                       Caricamento...
                     </td>
                   </tr>
                 ) : rows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
                       <Receipt className="mx-auto mb-2 h-8 w-8 opacity-40" />
                       {DOCUMENT_COPY.invoice.listEmpty}
                     </td>
@@ -77,6 +84,14 @@ export default function InvoicesPage() {
                       </td>
                       <td className="px-4 py-3 text-right text-muted-foreground">
                         {formatDate(inv.createdAt)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <DeleteEntityButton
+                          size="icon"
+                          pending={deleteInvoice.isPending}
+                          confirmMessage={`Eliminare il documento ${inv.number}?`}
+                          onConfirm={() => deleteInvoice.mutate(inv.id)}
+                        />
                       </td>
                     </ClickableRow>
                   ))

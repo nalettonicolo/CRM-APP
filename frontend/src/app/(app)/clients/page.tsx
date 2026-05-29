@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Search } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import {
@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClientDetailDialog } from "@/components/clients/client-detail-dialog";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
+import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { clientsApi, type Client } from "@/lib/api";
 import { clientStatusLabels } from "@/lib/labels";
 import { SECTION_CREATE } from "@/lib/section-create";
@@ -40,6 +41,11 @@ function clientDisplayName(client: {
 }
 
 export default function ClientsPage() {
+  const qc = useQueryClient();
+  const deleteClient = useMutation({
+    mutationFn: (id: string) => clientsApi.delete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -101,13 +107,14 @@ export default function ClientsPage() {
                     <th className="px-4 py-3 text-right font-medium">Preventivi</th>
                     <th className="px-4 py-3 text-right font-medium">Interventi</th>
                     <th className="px-4 py-3 text-right font-medium">Aggiornato</th>
+                    <th className="w-24 px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-8 text-center text-muted-foreground"
                       >
                         Caricamento...
@@ -116,7 +123,7 @@ export default function ClientsPage() {
                   ) : data?.data.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={6}
+                        colSpan={7}
                         className="px-4 py-8 text-center text-muted-foreground"
                       >
                         Nessun cliente trovato.
@@ -158,6 +165,14 @@ export default function ClientsPage() {
                               ? formatDate(client.createdAt)
                               : "—"}
                         </td>
+                        <td className="px-4 py-3 text-right">
+                          <DeleteEntityButton
+                            size="icon"
+                            pending={deleteClient.isPending}
+                            confirmMessage={`Eliminare ${clientDisplayName(client)} e tutti i dati collegati?`}
+                            onConfirm={() => deleteClient.mutate(client.id)}
+                          />
+                        </td>
                       </tr>
                     ))
                   )}
@@ -171,6 +186,7 @@ export default function ClientsPage() {
         clientId={selectedId}
         open={!!selectedId && !editClient}
         onOpenChange={(open) => !open && setSelectedId(null)}
+        onDeleted={() => setSelectedId(null)}
         onEdit={() => {
           if (!selectedId) return;
           clientsApi.get(selectedId).then((c) => setEditClient(c));

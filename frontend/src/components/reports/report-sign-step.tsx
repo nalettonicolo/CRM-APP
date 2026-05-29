@@ -12,20 +12,23 @@ import { reportsApi } from "@/lib/api";
 
 export function ReportSignStep({
   reportId,
+  clientEmail,
   initialTechnicianSignature,
   initialClientSignature,
   onDone,
   onBack,
 }: {
   reportId: string;
+  clientEmail?: string | null;
   initialTechnicianSignature?: string | null;
   initialClientSignature?: string | null;
-  onDone: () => void;
+  onDone: (message?: string) => void;
   onBack?: () => void;
 }) {
   const techGetRef = useRef<(() => string | undefined) | undefined>(undefined);
   const clientGetRef = useRef<(() => string | undefined) | undefined>(undefined);
   const [error, setError] = useState("");
+  const [sendByEmail, setSendByEmail] = useState(Boolean(clientEmail?.trim()));
 
   const submitMut = useMutation({
     mutationFn: async () => {
@@ -34,13 +37,26 @@ export function ReportSignStep({
         throw new Error("Apponi la firma del tecnico prima di inviare.");
       }
       const clientSignature = readSignatureFromPad(clientGetRef.current);
-      return reportsApi.update(reportId, {
+      await reportsApi.update(reportId, {
         technicianSignature,
         clientSignature: clientSignature || undefined,
         status: "SUBMITTED",
       });
+
+      if (sendByEmail && clientEmail?.trim()) {
+        return reportsApi.sendEmail(reportId);
+      }
+      return null;
     },
-    onSuccess: () => onDone(),
+    onSuccess: (sendResult) => {
+      if (sendResult?.message) {
+        onDone(sendResult.message);
+      } else if (sendByEmail && !clientEmail?.trim()) {
+        onDone(DOCUMENT_COPY.report.noClientEmail);
+      } else {
+        onDone("Verbale inviato e archiviato.");
+      }
+    },
     onError: (e: Error) => setError(e.message || "Invio fallito."),
   });
 
@@ -54,6 +70,27 @@ export function ReportSignStep({
       {error && (
         <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-700">
           {error}
+        </p>
+      )}
+
+      {clientEmail?.trim() ? (
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/20 p-3 text-sm">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={sendByEmail}
+            onChange={(e) => setSendByEmail(e.target.checked)}
+          />
+          <span>
+            <span className="font-medium">{DOCUMENT_COPY.report.sendEmailOnSubmit}</span>
+            <span className="mt-1 block text-muted-foreground">
+              {DOCUMENT_COPY.report.sendEmailOnSubmitHint} ({clientEmail.trim()})
+            </span>
+          </span>
+        </label>
+      ) : (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+          {DOCUMENT_COPY.report.noClientEmail}
         </p>
       )}
 
@@ -83,12 +120,18 @@ export function ReportSignStep({
           type="button"
           className="flex-1"
           disabled={submitMut.isPending}
-          onClick={() => submitMut.mutate()}
+          onClick={() => {
+            setError("");
+            submitMut.mutate();
+          }}
         >
-          {submitMut.isPending ? "Invio…" : "Firma e invia verbale"}
+          {submitMut.isPending
+            ? "Invio…"
+            : sendByEmail && clientEmail?.trim()
+              ? "Firma e invia al cliente"
+              : "Firma e archivia verbale"}
         </Button>
       </div>
     </div>
   );
 }
-

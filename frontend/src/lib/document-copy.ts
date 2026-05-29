@@ -33,6 +33,12 @@ export const DOCUMENT_COPY = {
     technicianSignature: "Firma tecnico",
     clientSignature: "Firma cliente",
     clientSignatureMissing: "Non apposta",
+    sendEmailOnSubmit: "Invia copia al cliente via email",
+    sendEmailOnSubmitHint: "Dopo la firma, il PDF del verbale viene inviato all'email del cliente.",
+    noClientEmail: "Il cliente non ha email: il verbale verrà solo archiviato.",
+    emailSentSuccess: "Verbale inviato e email spedita al cliente.",
+    resendEmail: "Rinvia email",
+    resendConfirm: "Reinviare il verbale all'email del cliente?",
   },
   invoice: {
     pageTitle: "Documenti di cortesia",
