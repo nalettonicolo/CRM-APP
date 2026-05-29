@@ -3,12 +3,8 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { authenticate, adminOnly } from "../middleware/auth.js";
 import { paramId } from "../utils/params.js";
-import {
-  sendEmail,
-  emailTemplate,
-  clearSmtpCache,
-  verifySmtpConnection,
-} from "../services/email.js";
+import { clearSmtpCache } from "../services/email.js";
+import { runEmailTest } from "../services/emailTests.js";
 import {
   getSmtpConfig,
   isSmtpConfigured,
@@ -74,32 +70,23 @@ router.get("/smtp/status", async (_req, res, next) => {
 router.post("/smtp/test", async (req, res, next) => {
   try {
     const { to } = z.object({ to: z.string().email() }).parse(req.body);
-    const smtp = await getSmtpConfig();
-    if (!isSmtpConfigured(smtp)) {
-      throw new ValidationError(
-        "SMTP non configurato. Compila host, utente, password app e mittente."
-      );
-    }
+    const result = await runEmailTest("smtp", to);
+    res.json(result);
+  } catch (e) {
+    next(e);
+  }
+});
 
-    await verifySmtpConnection();
-
-    const result = await sendEmail({
-      to,
-      subject: "Test email — Nicolò Service CRM",
-      html: emailTemplate(
-        "Email di test",
-        "<p>Se leggi questo messaggio, l'invio SMTP (Gmail) funziona correttamente.</p>",
-        smtp.fromName
-      ),
-    });
-
-    res.json({
-      success: true,
-      mock: result.mock === true,
-      message: result.mock
-        ? "SMTP non attivo: email simulata in log server"
-        : "Email inviata",
-    });
+router.post("/email-tests", async (req, res, next) => {
+  try {
+    const { to, type } = z
+      .object({
+        to: z.string().email(),
+        type: z.enum(["smtp", "quote", "report", "invoice"]),
+      })
+      .parse(req.body);
+    const result = await runEmailTest(type, to);
+    res.json(result);
   } catch (e) {
     next(e);
   }

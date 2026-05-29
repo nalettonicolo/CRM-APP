@@ -1123,6 +1123,11 @@ export const settingsApi = {
       "/settings/smtp/test",
       { method: "POST", body: JSON.stringify({ to }) }
     ),
+  testEmail: (type: "smtp" | "quote" | "report" | "invoice", to: string) =>
+    api<{ success: boolean; mock?: boolean; message?: string }>(
+      "/settings/email-tests",
+      { method: "POST", body: JSON.stringify({ type, to }) }
+    ),
   smtpStatus: () =>
     api<{
       configured: boolean;

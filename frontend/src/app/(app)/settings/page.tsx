@@ -15,6 +15,7 @@ import {
   publicAssetUrl,
   type SiteHomeSettings,
 } from "@/lib/branding";
+import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { cn } from "@/lib/utils";
 
 const textareaClass =
@@ -128,20 +129,31 @@ export default function SettingsPage() {
     }
   }, [data]);
 
-  const testSmtpMut = useMutation({
-    mutationFn: () => settingsApi.testSmtp(testEmailTo),
-    onSuccess: (res) => {
+  const [emailTestPending, setEmailTestPending] = useState<
+    "smtp" | "quote" | "report" | "invoice" | null
+  >(null);
+
+  const runEmailTest = async (type: "smtp" | "quote" | "report" | "invoice") => {
+    if (!testEmailTo) return;
+    setEmailTestPending(type);
+    try {
+      const res =
+        type === "smtp"
+          ? await settingsApi.testSmtp(testEmailTo)
+          : await settingsApi.testEmail(type, testEmailTo);
       qc.invalidateQueries({ queryKey: ["settings", "smtp-status"] });
       setBanner(res.message || "Email di test inviata.");
-      setTimeout(() => setBanner(""), 4000);
-    },
-    onError: (err) =>
+      setTimeout(() => setBanner(""), 5000);
+    } catch (err) {
       setBanner(
         err instanceof Error
           ? err.message
           : "Invio test fallito. Controlla password app Gmail."
-      ),
-  });
+      );
+    } finally {
+      setEmailTestPending(null);
+    }
+  };
 
   const backupMut = useMutation({
     mutationFn: backupApi.trigger,
@@ -676,22 +688,40 @@ export default function SettingsPage() {
               </Button>
             </div>
             <div className="border-t border-border pt-4">
-              <p className="mb-2 text-sm font-medium">Prova invio</p>
+              <p className="mb-1 text-sm font-medium">
+                {DOCUMENT_COPY.emailTests.sectionTitle}
+              </p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                {DOCUMENT_COPY.emailTests.sectionHint}
+              </p>
+              <Input
+                type="email"
+                placeholder="Email destinazione test"
+                className="mb-3 max-w-md"
+                value={testEmailTo}
+                onChange={(e) => setTestEmailTo(e.target.value)}
+              />
               <div className="flex flex-wrap gap-2">
-                <Input
-                  type="email"
-                  placeholder="Email destinazione test"
-                  className="max-w-xs flex-1"
-                  value={testEmailTo}
-                  onChange={(e) => setTestEmailTo(e.target.value)}
-                />
-                <Button
-                  variant="outline"
-                  disabled={testSmtpMut.isPending || !testEmailTo}
-                  onClick={() => testSmtpMut.mutate()}
-                >
-                  {testSmtpMut.isPending ? "Invio…" : "Invia email di test"}
-                </Button>
+                {(
+                  [
+                    ["smtp", DOCUMENT_COPY.emailTests.smtp],
+                    ["quote", DOCUMENT_COPY.emailTests.quote],
+                    ["report", DOCUMENT_COPY.emailTests.report],
+                    ["invoice", DOCUMENT_COPY.emailTests.invoice],
+                  ] as const
+                ).map(([type, label]) => (
+                  <Button
+                    key={type}
+                    variant="outline"
+                    size="sm"
+                    disabled={!testEmailTo || emailTestPending !== null}
+                    onClick={() => runEmailTest(type)}
+                  >
+                    {emailTestPending === type
+                      ? DOCUMENT_COPY.emailTests.pending
+                      : label}
+                  </Button>
+                ))}
               </div>
             </div>
           </CardContent>

@@ -38,7 +38,6 @@ export default function InvoiceDetailPage() {
     mutationFn: () => invoicesApi.sendEmail(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoice", id] });
-      setBanner("");
     },
     onError: (e: Error) =>
       setBanner(e.message || "Invio email non riuscito."),
@@ -68,7 +67,14 @@ export default function InvoiceDetailPage() {
         ) : (
           <div className="space-y-6">
             {banner && (
-              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+              <p
+                className={cn(
+                  "rounded-lg px-4 py-2 text-sm",
+                  banner.includes("non riuscito") || banner.includes("fallito")
+                    ? "border border-destructive/30 bg-destructive/10 text-destructive"
+                    : "border border-primary/30 bg-primary/10 text-foreground"
+                )}
+              >
                 {banner}
               </p>
             )}
@@ -112,12 +118,32 @@ export default function InvoiceDetailPage() {
                   variant="outline"
                   size="sm"
                   disabled={sendEmail.isPending || !data.client?.email}
-                  onClick={() => sendEmail.mutate()}
+                  onClick={() => {
+                    if (
+                      data.sentAt &&
+                      !window.confirm(DOCUMENT_COPY.invoice.resendConfirm)
+                    ) {
+                      return;
+                    }
+                    const isResend = Boolean(data.sentAt);
+                    sendEmail.mutate(undefined, {
+                      onSuccess: () => {
+                        setBanner(
+                          isResend
+                            ? DOCUMENT_COPY.invoice.emailResentSuccess
+                            : DOCUMENT_COPY.invoice.emailSentSuccess
+                        );
+                        setTimeout(() => setBanner(""), 4000);
+                      },
+                    });
+                  }}
                 >
                   <Mail className="h-4 w-4" />
                   {sendEmail.isPending
                     ? DOCUMENT_COPY.invoice.sendEmailPending
-                    : DOCUMENT_COPY.invoice.sendEmail}
+                    : data.sentAt
+                      ? DOCUMENT_COPY.invoice.resendEmail
+                      : DOCUMENT_COPY.invoice.sendEmail}
                 </Button>
                 <Button variant="outline" size="sm" asChild>
                   <Link href={`/invoices/${id}/edit`}>

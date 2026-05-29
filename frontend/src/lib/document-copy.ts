@@ -17,6 +17,9 @@ export const DOCUMENT_COPY = {
       "Firma non ancora registrata. Puoi raccoglierla qui (come nei report) oppure attendere il portale cliente.",
     pdfNote: "La firma compare nel PDF del preventivo.",
     rejectConfirm: "Segnare il preventivo come rifiutato?",
+    resendEmail: "Rinvia email",
+    resendConfirm: "Reinviare il preventivo all'email del cliente?",
+    sentPrefix: "Inviato il",
   },
   report: {
     listTitle: "Verbali di intervento",
@@ -53,9 +56,23 @@ export const DOCUMENT_COPY = {
     attachmentsHint:
       "Foto e PDF caricati qui vengono aggiunti in coda al documento PDF, dal primo foglio dopo il testo della ricevuta.",
     sendEmail: "Invia email",
+    resendEmail: "Rinvia email",
     sendEmailPending: "Invio...",
+    resendConfirm: "Reinviare il documento all'email del cliente?",
+    emailSentSuccess: "Email inviata al cliente.",
+    emailResentSuccess: "Email reinviata al cliente.",
     notSent: "Non inviato",
     sentPrefix: "Inviato il",
+  },
+  emailTests: {
+    sectionTitle: "Prova ogni tipo di invio",
+    sectionHint:
+      "Ogni pulsante invia un'email di test all'indirizzo sotto, con PDF campione quando disponibile (ultimo documento in archivio).",
+    smtp: "Test SMTP",
+    quote: "Test preventivo",
+    report: "Test verbale",
+    invoice: "Test documento cortesia",
+    pending: "Invio…",
   },
   portal: {
     quoteSignTitle: "Firma del preventivo",

@@ -154,10 +154,22 @@ export default function QuoteDetailPage() {
                     variant="outline"
                     size="sm"
                     disabled={sendEmail.isPending || !quote.client?.email}
-                    onClick={() => sendEmail.mutate()}
+                    onClick={() => {
+                      if (
+                        quote.sentAt &&
+                        !window.confirm(DOCUMENT_COPY.quote.resendConfirm)
+                      ) {
+                        return;
+                      }
+                      sendEmail.mutate();
+                    }}
                   >
                     <Mail className="h-4 w-4" />
-                    {sendEmail.isPending ? "Invio..." : "Invia email"}
+                    {sendEmail.isPending
+                      ? "Invio..."
+                      : quote.sentAt
+                        ? DOCUMENT_COPY.quote.resendEmail
+                        : "Invia email"}
                   </Button>
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/quotes/${id}/edit`}>
