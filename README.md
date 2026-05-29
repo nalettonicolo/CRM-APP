@@ -278,10 +278,11 @@ Usa connection string nel formato:
 postgresql://user:password@host:5432/crm_gestionale?schema=public
 ```
 
-Esegui migrazioni:
+Aggiorna schema DB (produzione Mint: nessuna cartella `prisma/migrations`):
 ```bash
-npm run db:migrate:prod --workspace=backend
+npm run db:push --workspace=backend
 ```
+Oppure dalla root: `bash backend/scripts/upgrade-mint.sh`
 
 ### Backup automatico
 

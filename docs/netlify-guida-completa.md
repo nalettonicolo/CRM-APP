@@ -131,7 +131,7 @@ Non è parte di Netlify, ma è obbligatorio perché il sito funzioni:
 
 1. Clona il repo sul VPS (o deploy artefatto Docker).
 2. Copia `backend/.env.example` → `backend/.env` e compila tutti i valori (sezione Produzione).
-3. `npm ci`, `npm run db:migrate:prod --workspace=backend` (o `db:push` solo se accetti sync senza migrazioni versionate).
+3. Sul Mint: `bash backend/scripts/upgrade-mint.sh` (fa `git pull`, `prisma db push`, build API, `pm2 restart`). Non usare `db:migrate:prod` finché non esistono file in `prisma/migrations`.
 4. Avvio: `npm run start --workspace=backend` o Docker.
 5. Reverse proxy (Nginx/Caddy) con TLS verso `localhost:4000`.
 
