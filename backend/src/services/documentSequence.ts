@@ -8,12 +8,12 @@ export function parseDocumentNumber(number: string): {
   year: number;
   seq: number;
 } | null {
-  const match = number.match(/^([A-Z]+)-(\d{4})-(\d+)$/);
+  const match = number.match(/^(?:(?<prefix>[A-Z]+)-)?(?<year>\d{4})-(?<seq>\d+)$/);
   if (!match) return null;
   return {
-    prefix: match[1]!,
-    year: Number(match[2]),
-    seq: Number(match[3]),
+    prefix: match.groups?.prefix || "",
+    year: Number(match.groups?.year),
+    seq: Number(match.groups?.seq),
   };
 }
 
@@ -50,7 +50,9 @@ export async function hasSubsequentDocumentNumber(
   // Legacy/custom numbering must not block date edits.
   if (!parsed) return false;
 
-  const prefix = `${parsed.prefix}-${parsed.year}-`;
+  const prefix = parsed.prefix
+    ? `${parsed.prefix}-${parsed.year}-`
+    : `${parsed.year}-`;
   const active = await fetchActiveNumbers(entityType, prefix);
 
   return active.some((number) => {

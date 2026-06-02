@@ -61,10 +61,14 @@ const invoiceUpdateSchema = z.object({
 
 async function generateInvoiceNumber(): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = `FPR-${year}-`;
   const [existing, deletedLogs] = await Promise.all([
     prisma.invoicePreview.findMany({
-      where: { number: { startsWith: prefix } },
+      where: {
+        OR: [
+          { number: { startsWith: `${year}-` } },
+          { number: { startsWith: `FPR-${year}-` } },
+        ],
+      },
       select: { number: true },
     }),
     prisma.activityLog.findMany({
@@ -83,13 +87,18 @@ async function generateInvoiceNumber(): Promise<string> {
           ? String(log.details.number)
           : ""
       )
-      .filter((number) => number.startsWith(prefix)),
+      .filter(
+        (number) =>
+          number.startsWith(`${year}-`) || number.startsWith(`FPR-${year}-`)
+      ),
   ];
   const max = numbers.reduce((highest, number) => {
-    const match = number.match(/^FPR-\d{4}-(\d+)$/);
-    return match ? Math.max(highest, Number(match[1])) : highest;
+    const match = number.match(/^(?:FPR-)?(\d{4})-(\d+)$/);
+    if (!match) return highest;
+    if (Number(match[1]) !== year) return highest;
+    return Math.max(highest, Number(match[2]));
   }, 0);
-  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+  return `${year}-${String(max + 1).padStart(3, "0")}`;
 }
 
 router.get("/", requirePermission("invoices", "READ"), async (req: AuthRequest, res, next) => {
