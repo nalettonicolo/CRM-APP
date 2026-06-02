@@ -240,6 +240,14 @@ async function generateInvoiceReceiptPdf(
       doc.moveDown();
     }
 
+    if (invoice.notes?.trim()) {
+      doc.fillColor("#52525b").fontSize(9).text("Note", { underline: true });
+      doc.fillColor("#111827").fontSize(9).text(invoice.notes.trim(), {
+        width: 495,
+      });
+      doc.moveDown(0.6);
+    }
+
     const totalsX = 375;
     const addTotalLine = (label: string, value: string, y: number, bold = false) => {
       if (bold) doc.font("Helvetica-Bold");
@@ -252,12 +260,8 @@ async function generateInvoiceReceiptPdf(
     const discounts = parseInvoiceDiscounts(invoice.discounts);
     const grossSubtotal = Number(invoice.subtotal);
     const summaryHeight =
-      105 + discounts.length * 16 + (Number(invoice.depositAmount) > 0 ? 28 : 0);
-    let summaryY = Math.max(doc.y + 18, doc.page.height - summaryHeight - 65);
-    if (summaryY > doc.page.height - 95) {
-      doc.addPage();
-      summaryY = doc.page.height - summaryHeight - 65;
-    }
+      118 + discounts.length * 16 + (Number(invoice.depositAmount) > 0 ? 28 : 0);
+    const summaryY = Math.max(doc.y + 10, doc.page.height - summaryHeight - 52);
 
     let cursorY = summaryY;
     cursorY = addTotalLine("Imponibile", `€ ${money(grossSubtotal)}`, cursorY);
@@ -292,20 +296,14 @@ async function generateInvoiceReceiptPdf(
     const bankTop = summaryY;
     doc.y = bankTop;
     drawPdfBankDetails(doc, companyInfo);
-
-    doc.y = Math.max(doc.y + 4, cursorY + 8);
+    const footerY = Math.max(doc.y + 4, cursorY + 6);
+    doc.y = footerY;
     doc
-      .fontSize(8)
+      .fontSize(7.5)
       .fillColor("#71717a")
       .text(invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER, {
         width: 500,
       });
-
-    if (invoice.notes) {
-      doc.moveDown();
-      doc.fillColor("#52525b").fontSize(9).text("Note", { underline: true });
-      doc.fillColor("#000000").text(invoice.notes);
-    }
 
     doc.end();
   });
