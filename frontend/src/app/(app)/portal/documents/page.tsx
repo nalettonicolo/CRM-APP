@@ -6,6 +6,7 @@ import { FileText, Receipt } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { portalApi } from "@/lib/api";
+import { formatInvoiceDocumentNumber } from "@/lib/document-copy";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function PortalDocumentsPage() {
@@ -75,7 +76,7 @@ export default function PortalDocumentsPage() {
                     className="flex justify-between border-b border-border pb-2"
                   >
                     <span className="font-mono text-xs">
-                      {inv.number || "BOZZA"}
+                      {formatInvoiceDocumentNumber(inv.number)}
                     </span>
                     <span>{formatDate(inv.createdAt)}</span>
                   </li>

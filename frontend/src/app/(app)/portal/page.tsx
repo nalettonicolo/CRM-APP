@@ -6,7 +6,7 @@ import { FileText, ClipboardList, Wrench, Receipt } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { portalApi } from "@/lib/api";
-import { DOCUMENT_COPY } from "@/lib/document-copy";
+import { DOCUMENT_COPY, formatInvoiceDocumentNumber } from "@/lib/document-copy";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
 export default function PortalPage() {
@@ -111,7 +111,7 @@ export default function PortalPage() {
               {data?.invoices?.length ? (
                 <ul className="space-y-2 text-sm">
                   {(data.invoices as { id: string; number?: string | null }[]).map((inv) => (
-                    <li key={inv.id}>{inv.number || "BOZZA"}</li>
+                    <li key={inv.id}>{formatInvoiceDocumentNumber(inv.number)}</li>
                   ))}
                 </ul>
               ) : (

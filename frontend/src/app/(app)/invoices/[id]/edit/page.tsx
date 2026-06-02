@@ -17,7 +17,11 @@ import {
   type InvoiceLineItem,
 } from "@/lib/api";
 import { paymentStatusLabels, SERVICE_UNIT_OPTIONS } from "@/lib/labels";
-import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "@/lib/document-copy";
+import {
+  DOCUMENT_COPY,
+  INVOICE_COURTESY_DISCLAIMER,
+  formatInvoiceDocumentNumber,
+} from "@/lib/document-copy";
 import {
   calculateInvoiceTotals,
   dateInputToIso,
@@ -236,7 +240,8 @@ export default function InvoiceEditPage() {
               </p>
             )}
             <p className="text-sm text-muted-foreground">
-              {(data.number || "BOZZA")} · {data.client?.companyName || data.client?.contactName}
+              {formatInvoiceDocumentNumber(data.number)} ·{" "}
+              {data.client?.companyName || data.client?.contactName}
             </p>
 
             <div className="rounded-xl border border-border bg-card p-6">
@@ -640,7 +645,10 @@ export default function InvoiceEditPage() {
                 <Button
                   variant="outline"
                   onClick={() =>
-                    downloadInvoicePdf(id, `documento-${data.number || "bozza"}.pdf`)
+                    downloadInvoicePdf(
+                      id,
+                      `documento-${(data.number || "bozza").replace(/^FPR-/, "")}.pdf`
+                    )
                   }
                 >
                   <Download className="h-4 w-4" />

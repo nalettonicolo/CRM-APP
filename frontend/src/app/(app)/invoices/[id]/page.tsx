@@ -11,7 +11,11 @@ import { DetailBack, DetailField, DetailSection } from "@/components/detail/deta
 import { Button } from "@/components/ui/button";
 import { downloadInvoicePdf, invoicesApi } from "@/lib/api";
 import { paymentStatusLabels } from "@/lib/labels";
-import { DOCUMENT_COPY, INVOICE_COURTESY_DISCLAIMER } from "@/lib/document-copy";
+import {
+  DOCUMENT_COPY,
+  INVOICE_COURTESY_DISCLAIMER,
+  formatInvoiceDocumentNumber,
+} from "@/lib/document-copy";
 import {
   discountDeduction,
   parseInvoiceDiscounts,
@@ -97,7 +101,7 @@ export default function InvoiceDetailPage() {
                 </div>
                 <div>
                   <p className="font-mono text-sm text-muted-foreground">
-                    {data.number || "BOZZA"}
+                    {formatInvoiceDocumentNumber(data.number)}
                   </p>
                   <h1 className="text-2xl font-bold tracking-tight">
                     {data.status === "CONFIRMED"
@@ -128,7 +132,10 @@ export default function InvoiceDetailPage() {
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    downloadInvoicePdf(id, `documento-${data.number || "bozza"}.pdf`)
+                    downloadInvoicePdf(
+                      id,
+                      `documento-${(data.number || "bozza").replace(/^FPR-/, "")}.pdf`
+                    )
                   }
                 >
                   <Download className="h-4 w-4" />
@@ -191,7 +198,7 @@ export default function InvoiceDetailPage() {
                   onClick={() => {
                     if (
                       !window.confirm(
-                        `Eliminare il documento ${data.number || "bozza"}?`
+                        `Eliminare il documento ${formatInvoiceDocumentNumber(data.number)}?`
                       )
                     ) {
                       return;

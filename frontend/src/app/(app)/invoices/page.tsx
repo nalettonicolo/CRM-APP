@@ -9,7 +9,7 @@ import { InvoiceCreateDialog } from "@/components/invoices/invoice-create-dialog
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { invoicesApi } from "@/lib/api";
-import { DOCUMENT_COPY } from "@/lib/document-copy";
+import { DOCUMENT_COPY, formatInvoiceDocumentNumber } from "@/lib/document-copy";
 import { paymentStatusLabels } from "@/lib/labels";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
@@ -71,7 +71,7 @@ export default function InvoicesPage() {
                       onClick={() => router.push(`/invoices/${inv.id}`)}
                     >
                       <td className="px-4 py-3 font-mono text-xs">
-                        {inv.number || "BOZZA"}
+                        {formatInvoiceDocumentNumber(inv.number)}
                       </td>
                       <td className="px-4 py-3">
                         {inv.client?.companyName || inv.client?.contactName || "—"}
@@ -91,7 +91,7 @@ export default function InvoicesPage() {
                         <DeleteEntityButton
                           size="icon"
                           pending={deleteInvoice.isPending}
-                          confirmMessage={`Eliminare il documento ${inv.number || "bozza"}?`}
+                          confirmMessage={`Eliminare il documento ${formatInvoiceDocumentNumber(inv.number)}?`}
                           onConfirm={() => deleteInvoice.mutate(inv.id)}
                         />
                       </td>

@@ -95,3 +95,9 @@ export const DOCUMENT_COPY = {
       "Solo uso informativo: non sostituisce fattura elettronica.",
   },
 } as const;
+
+export function formatInvoiceDocumentNumber(number?: string | null): string {
+  if (!number) return "BOZZA";
+  const normalized = number.replace(/^FPR-/, "");
+  return `Doc. ${normalized}`;
+}
