@@ -260,23 +260,23 @@ async function generateInvoiceReceiptPdf(
 
     const totalsBottomY = cursorY;
     const paymentRowY = Math.max(totalsBottomY, bankBottomY) + 14;
-    const paymentLine = formatInvoicePaymentPdfLine(invoice);
+    const paymentLine = formatInvoicePaymentPdfLine(invoice, true);
     const dueLine = invoice.dueDate
       ? invoice.dueDate.toLocaleDateString("it-IT")
       : "—";
-    const paymentWidth = 268;
-    const scadenzaLabelX = 328;
+    const scadenzaX = totalsX;
+    const paymentWidth = scadenzaX - 50 - 28;
 
     doc.fontSize(9).font("Helvetica").text(paymentLine, 50, paymentRowY, {
       width: paymentWidth,
       lineGap: 1,
     });
 
-    doc.font("Helvetica-Bold").text("Scadenza", scadenzaLabelX, paymentRowY, {
-      width: 58,
+    doc.font("Helvetica-Bold").text("Scadenza", scadenzaX, paymentRowY, {
+      width: 62,
     });
-    doc.font("Helvetica").text(dueLine, scadenzaLabelX + 62, paymentRowY, {
-      width: 545 - (scadenzaLabelX + 62),
+    doc.font("Helvetica").text(dueLine, scadenzaX + 66, paymentRowY, {
+      width: 545 - (scadenzaX + 66),
       align: "right",
     });
 

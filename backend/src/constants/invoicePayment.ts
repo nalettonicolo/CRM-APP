@@ -29,6 +29,15 @@ const METHOD_PDF: Record<InvoicePaymentMethod, string> = {
   OTHER: "Altro metodo di pagamento",
 };
 
+/** Testo compatto per riga PDF affiancata a Scadenza */
+const METHOD_PDF_COMPACT: Record<InvoicePaymentMethod, string> = {
+  BANK_TRANSFER: "Bonifico bancario",
+  CASH: "Contanti",
+  CARD: "Carta",
+  PAYPAL: "PayPal",
+  OTHER: "Altro",
+};
+
 const TIMING_PDF: Record<InvoicePaymentTiming, string> = {
   END_OF_WORK: "a fine lavori",
   DAYS_15: "entro 15 giorni",
@@ -38,24 +47,30 @@ const TIMING_PDF: Record<InvoicePaymentTiming, string> = {
   AT_SIGNATURE: "all'accettazione del preventivo",
 };
 
-export function formatInvoicePaymentTermsPdf(input: {
-  paymentMethod?: string | null;
-  paymentTiming?: string | null;
-}): string {
-  const method =
-    METHOD_PDF[(input.paymentMethod as InvoicePaymentMethod) || "BANK_TRANSFER"] ??
-    METHOD_PDF.BANK_TRANSFER;
+export function formatInvoicePaymentTermsPdf(
+  input: {
+    paymentMethod?: string | null;
+    paymentTiming?: string | null;
+  },
+  compact = false
+): string {
+  const methods = compact ? METHOD_PDF_COMPACT : METHOD_PDF;
+  const methodKey = (input.paymentMethod as InvoicePaymentMethod) || "BANK_TRANSFER";
+  const method = methods[methodKey] ?? methods.BANK_TRANSFER;
   const timingKey = (input.paymentTiming as InvoicePaymentTiming) || "END_OF_WORK";
   const timing = TIMING_PDF[timingKey];
   return timing ? `${method} — ${timing}` : method;
 }
 
-export function formatInvoicePaymentPdfLine(input: {
-  paymentStatus?: string | null;
-  paymentMethod?: string | null;
-  paymentTiming?: string | null;
-}): string {
-  const terms = formatInvoicePaymentTermsPdf(input);
+export function formatInvoicePaymentPdfLine(
+  input: {
+    paymentStatus?: string | null;
+    paymentMethod?: string | null;
+    paymentTiming?: string | null;
+  },
+  compact = false
+): string {
+  const terms = formatInvoicePaymentTermsPdf(input, compact);
   switch (input.paymentStatus) {
     case "PAID":
       return "Pagato";
