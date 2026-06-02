@@ -125,7 +125,7 @@ export default function SettingsPage() {
       secure: String(sm.secure) === "true",
     });
     if (!testEmailTo && (sm.user || co.email)) {
-      setTestEmailTo((sm.user as string) || co.email || "");
+      setTestEmailTo(asText(sm.user) || asText(co.email) || "");
     }
   }, [data]);
 
