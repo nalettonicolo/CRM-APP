@@ -103,18 +103,7 @@ async function generateInvoiceReceiptPdf(
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const subtitleRight = [
-      `Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`,
-    ];
-    if (invoice.dueDate) {
-      subtitleRight.push(
-        `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`
-      );
-    }
     const showQuoteReferences = invoice.showQuoteRef !== false;
-    if (invoice.quote && showQuoteReferences) {
-      subtitleRight.push(`Rif. preventivo: ${invoice.quote.number}`);
-    }
 
     const headerCompany =
       invoice.showWebsite === false ? { ...companyInfo, website: "" } : companyInfo;
@@ -134,15 +123,6 @@ async function generateInvoiceReceiptPdf(
         rightHeaderTop,
         { width: rightHeaderWidth, align: "right" }
       );
-    doc.font("Helvetica").fontSize(10).fillColor("#52525b");
-    let rightHeaderY = doc.y + 2;
-    for (const line of subtitleRight) {
-      doc.text(line, rightHeaderX, rightHeaderY, {
-        width: rightHeaderWidth,
-        align: "right",
-      });
-      rightHeaderY = doc.y + 1;
-    }
     doc.fillColor("#000000");
 
     const clientName =
@@ -173,7 +153,7 @@ async function generateInvoiceReceiptPdf(
       invoice.client.phone || null,
     ].filter(Boolean) as string[];
 
-    const blockTop = Math.max(120, rightHeaderY + 10);
+    const blockTop = 120;
     const blockX = 300;
     const blockWidth = 245;
     doc.font("Helvetica-Bold").fontSize(11).text("Cliente", blockX, blockTop, {
@@ -198,6 +178,29 @@ async function generateInvoiceReceiptPdf(
       clientBottom,
       { width: 230, align: "left" }
     );
+    let leftInfoY = doc.y + 2;
+    doc.text(
+      `Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`,
+      50,
+      leftInfoY,
+      { width: 230, align: "left" }
+    );
+    leftInfoY = doc.y + 1;
+    if (invoice.dueDate) {
+      doc.text(
+        `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`,
+        50,
+        leftInfoY,
+        { width: 230, align: "left" }
+      );
+      leftInfoY = doc.y + 1;
+    }
+    if (invoice.quote && showQuoteReferences) {
+      doc.text(`Rif. preventivo: ${invoice.quote.number}`, 50, leftInfoY, {
+        width: 230,
+        align: "left",
+      });
+    }
     doc.fillColor("#000000");
     doc.y = clientBottom + 22;
 
@@ -262,6 +265,7 @@ async function generateInvoiceReceiptPdf(
     }
 
     if (invoice.notes?.trim()) {
+      doc.x = 50;
       doc.fillColor("#52525b").fontSize(9).text("Note", { underline: true });
       doc.fillColor("#111827").fontSize(9).text(invoice.notes.trim(), {
         width: 495,
