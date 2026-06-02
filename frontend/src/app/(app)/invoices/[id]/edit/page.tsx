@@ -51,6 +51,8 @@ export default function InvoiceEditPage() {
     dueDate: "",
     notes: "",
     disclaimer: INVOICE_COURTESY_DISCLAIMER,
+    showWebsite: true,
+    showQuoteRef: true,
   });
   const [items, setItems] = useState<InvoiceLineItem[]>([]);
   const [discounts, setDiscounts] = useState<InvoiceDiscount[]>([]);
@@ -96,6 +98,8 @@ export default function InvoiceEditPage() {
       dueDate: data.dueDate ? data.dueDate.slice(0, 10) : "",
       notes: data.notes || "",
       disclaimer: data.disclaimer || INVOICE_COURTESY_DISCLAIMER,
+      showWebsite: data.showWebsite !== false,
+      showQuoteRef: data.showQuoteRef !== false,
     });
     setItems(
       data.items?.length
@@ -138,6 +142,8 @@ export default function InvoiceEditPage() {
           })),
         notes: form.notes.trim() || null,
         disclaimer: form.disclaimer.trim() || INVOICE_COURTESY_DISCLAIMER,
+        showWebsite: form.showWebsite,
+        showQuoteRef: form.showQuoteRef,
       }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["invoice", id] });
@@ -306,6 +312,35 @@ export default function InvoiceEditPage() {
                       successivo.
                     </p>
                   )}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
+                <h3 className="text-sm font-semibold">Contenuto PDF</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Scegli cosa mostrare in questo documento di cortesia.
+                </p>
+                <div className="mt-3 space-y-2">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.showWebsite}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, showWebsite: e.target.checked }))
+                      }
+                    />
+                    Mostra sito internet nell'intestazione
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={form.showQuoteRef}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, showQuoteRef: e.target.checked }))
+                      }
+                    />
+                    Mostra riferimenti al preventivo
+                  </label>
                 </div>
               </div>
 

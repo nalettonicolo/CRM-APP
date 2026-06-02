@@ -59,8 +59,6 @@ export default function SettingsPage() {
     email: "",
     phone: "",
     website: "",
-    showWebsiteInDocuments: true,
-    showQuoteReferencesInDocuments: true,
     bankName: "",
     iban: "",
     bic: "",
@@ -99,8 +97,6 @@ export default function SettingsPage() {
       email: asText(co.email),
       phone: asText(co.phone),
       website: asText(co.website),
-      showWebsiteInDocuments: co.showWebsiteInDocuments !== false,
-      showQuoteReferencesInDocuments: co.showQuoteReferencesInDocuments !== false,
       bankName: asText(co.bankName),
       iban: asText(co.iban),
       bic: asText(co.bic),
@@ -425,32 +421,6 @@ export default function SettingsPage() {
                 setCompany((c) => ({ ...c, website: e.target.value }))
               }
             />
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={company.showWebsiteInDocuments}
-                onChange={(e) =>
-                  setCompany((c) => ({
-                    ...c,
-                    showWebsiteInDocuments: e.target.checked,
-                  }))
-                }
-              />
-              Mostra sito web nei documenti PDF
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={company.showQuoteReferencesInDocuments}
-                onChange={(e) =>
-                  setCompany((c) => ({
-                    ...c,
-                    showQuoteReferencesInDocuments: e.target.checked,
-                  }))
-                }
-              />
-              Mostra riferimenti al preventivo nei documenti
-            </label>
             <Input
               placeholder="Banca (opzionale)"
               value={company.bankName}

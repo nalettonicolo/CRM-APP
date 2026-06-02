@@ -55,6 +55,8 @@ const invoiceUpdateSchema = z.object({
   discounts: z.array(invoiceDiscountSchema).optional(),
   notes: z.string().nullable().optional(),
   disclaimer: z.string().min(1).optional(),
+  showWebsite: z.boolean().optional(),
+  showQuoteRef: z.boolean().optional(),
 });
 
 async function generateInvoiceNumber(): Promise<string> {
@@ -163,6 +165,24 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
     }
 
     const number = await generateInvoiceNumber();
+    const companySetting = await prisma.setting.findUnique({
+      where: { key: "company" },
+      select: { value: true },
+    });
+    const company =
+      companySetting?.value &&
+      typeof companySetting.value === "object" &&
+      !Array.isArray(companySetting.value)
+        ? (companySetting.value as Record<string, unknown>)
+        : {};
+    const showWebsite =
+      typeof company.showWebsiteInDocuments === "boolean"
+        ? company.showWebsiteInDocuments
+        : true;
+    const showQuoteRef =
+      typeof company.showQuoteReferencesInDocuments === "boolean"
+        ? company.showQuoteReferencesInDocuments
+        : true;
     const invoice = await prisma.invoicePreview.create({
       data: {
         number,
@@ -184,6 +204,8 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
         })),
         discounts: discountsFromQuote(quote),
         disclaimer: INVOICE_COURTESY_DISCLAIMER,
+        showWebsite,
+        showQuoteRef,
       },
       include: { client: true, quote: true },
     });
@@ -240,6 +262,8 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
         discounts: data.discounts,
         notes: data.notes,
         disclaimer: data.disclaimer,
+        showWebsite: data.showWebsite,
+        showQuoteRef: data.showQuoteRef,
       },
       include: {
         client: true,

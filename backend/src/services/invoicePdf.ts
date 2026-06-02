@@ -89,12 +89,15 @@ async function generateInvoiceReceiptPdf(
         `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`
       );
     }
-    const showQuoteReferences = companyInfo.showQuoteReferencesInDocuments !== false;
+    const showQuoteReferences = invoice.showQuoteRef !== false;
     if (invoice.quote && showQuoteReferences) {
       subtitleRight.push(`Rif. preventivo: ${invoice.quote.number}`);
     }
 
-    drawPdfLetterhead(doc, companyInfo, logoPath, {
+    const headerCompany =
+      invoice.showWebsite === false ? { ...companyInfo, website: "" } : companyInfo;
+
+    drawPdfLetterhead(doc, headerCompany, logoPath, {
       titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
       subtitleRight,
     });

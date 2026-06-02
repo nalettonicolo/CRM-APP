@@ -790,6 +790,8 @@ export interface Invoice {
   discounts?: InvoiceDiscount[];
   notes?: string;
   disclaimer?: string;
+  showWebsite?: boolean;
+  showQuoteRef?: boolean;
   sentAt?: string | null;
   createdAt: string;
   canEditCreatedAt?: boolean;
@@ -834,6 +836,8 @@ export const invoicesApi = {
       discounts: InvoiceDiscount[];
       notes: string | null;
       disclaimer: string;
+      showWebsite: boolean;
+      showQuoteRef: boolean;
     }>
   ) =>
     api<Invoice>(`/invoices/${id}`, {

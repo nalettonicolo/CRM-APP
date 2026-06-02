@@ -697,6 +697,8 @@ model InvoicePreview {
   discounts     Json?
   notes         String?       @db.Text
   disclaimer    String        @default("Documento emesso a solo scopo informativo e gestionale. Non costituisce fattura né documento fiscale ai sensi del D.P.R. 633/1972 e non sostituisce la fatturazione elettronica ove prevista dalla legge.")
+  showWebsite   Boolean       @default(true)
+  showQuoteRef  Boolean       @default(true)
   sentAt        DateTime?
   attachments   Attachment[]  @relation("InvoiceAttachments")
   createdAt     DateTime      @default(now())
