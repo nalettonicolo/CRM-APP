@@ -8,7 +8,7 @@ import {
 } from "./invoiceDiscounts.js";
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import {
-  drawPdfBankDetails,
+  drawPdfBankDetailsAt,
   drawPdfLetterhead,
   loadCompanySettings,
   loadLogoFilePath,
@@ -232,9 +232,14 @@ async function generateInvoiceReceiptPdf(
 
     const discounts = parseInvoiceDiscounts(invoice.discounts);
     const grossSubtotal = Number(invoice.subtotal);
-    const summaryHeight =
-      104 + discounts.length * 16 + (Number(invoice.depositAmount) > 0 ? 28 : 0);
+    const totalsLineCount =
+      3 +
+      discounts.length +
+      (Number(invoice.depositAmount) > 0 ? 2 : 0);
+    const summaryHeight = Math.max(72, totalsLineCount * 15 + 48) + 40;
     const summaryY = Math.max(doc.y + 10, doc.page.height - summaryHeight - 52);
+
+    const bankBottomY = drawPdfBankDetailsAt(doc, companyInfo, 50, summaryY);
 
     let cursorY = summaryY;
     cursorY = addTotalLine("Imponibile", `€ ${money(grossSubtotal)}`, cursorY);
@@ -253,21 +258,18 @@ async function generateInvoiceReceiptPdf(
       cursorY = addTotalLine("Saldo", `€ ${money(invoice.balanceDue)}`, cursorY, true);
     }
 
-    doc.moveTo(50, cursorY + 6).lineTo(545, cursorY + 6).strokeColor("#e4e4e7").stroke();
-    const paymentRowY = cursorY + 12;
+    const totalsBottomY = cursorY;
+    const paymentRowY = Math.max(totalsBottomY, bankBottomY) + 14;
     const paymentLine = formatInvoicePaymentPdfLine(invoice);
     const dueLine = invoice.dueDate
       ? invoice.dueDate.toLocaleDateString("it-IT")
       : "—";
-    const paymentValueX = 118;
-    const paymentValueWidth = 198;
+    const paymentWidth = 268;
     const scadenzaLabelX = 328;
 
-    doc.fontSize(9).font("Helvetica-Bold");
-    doc.text("Pagamento", 50, paymentRowY, { width: 64 });
-    doc.font("Helvetica").text(paymentLine, paymentValueX, paymentRowY, {
-      width: paymentValueWidth,
-      lineGap: 0,
+    doc.fontSize(9).font("Helvetica").text(paymentLine, 50, paymentRowY, {
+      width: paymentWidth,
+      lineGap: 1,
     });
 
     doc.font("Helvetica-Bold").text("Scadenza", scadenzaLabelX, paymentRowY, {
@@ -279,15 +281,12 @@ async function generateInvoiceReceiptPdf(
     });
 
     const paymentRowHeight = Math.max(
-      doc.heightOfString(paymentLine, { width: paymentValueWidth }),
+      doc.heightOfString(paymentLine, { width: paymentWidth }),
       11
     );
     cursorY = paymentRowY + paymentRowHeight + 4;
 
-    const bankTop = summaryY;
-    doc.y = bankTop;
-    drawPdfBankDetails(doc, companyInfo);
-    const footerY = Math.max(doc.y + 4, cursorY + 6);
+    const footerY = cursorY + 8;
     doc.y = footerY;
     doc
       .fontSize(7.5)

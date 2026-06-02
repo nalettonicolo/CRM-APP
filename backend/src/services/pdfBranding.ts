@@ -156,19 +156,38 @@ function drawEmptySignatureLines(doc: PdfDoc): void {
   doc.fontSize(8).text(DOCUMENT_COPY.quote.paperNote, 50, doc.y, { width: 480 });
 }
 
-export function drawPdfBankDetails(doc: PdfDoc, company: CompanyInfo): void {
+/** Coordinate bancarie a posizione fissa; ritorna Y sotto l’ultima riga. */
+export function drawPdfBankDetailsAt(
+  doc: PdfDoc,
+  company: CompanyInfo,
+  x: number,
+  top: number,
+  width = 280
+): number {
   const iban = company.iban?.trim();
   const bankName = company.bankName?.trim();
   const bic = company.bic?.trim();
-  if (!iban && !bankName && !bic) return;
+  if (!iban && !bankName && !bic) return top;
 
-  doc.moveDown();
+  let y = top;
   doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
-  doc.text("Coordinate bancarie", 50, doc.y, { underline: true });
-  doc.moveDown(0.3);
+  doc.text("Coordinate bancarie", x, y, { width, underline: true });
+  y += 14;
   doc.font("Helvetica").fontSize(9).fillColor("#52525b");
-  if (bankName) doc.text(`Banca: ${bankName}`, 50);
-  if (iban) doc.text(`IBAN: ${iban}`, 50);
-  if (bic) doc.text(`BIC/SWIFT: ${bic}`, 50);
+  const lines = [
+    bankName ? `Banca: ${bankName}` : null,
+    iban ? `IBAN: ${iban}` : null,
+    bic ? `BIC/SWIFT: ${bic}` : null,
+  ].filter(Boolean) as string[];
+  for (const line of lines) {
+    doc.text(line, x, y, { width });
+    y += doc.heightOfString(line, { width }) + 3;
+  }
   doc.fillColor("#000000");
+  return y;
+}
+
+export function drawPdfBankDetails(doc: PdfDoc, company: CompanyInfo): void {
+  const bottom = drawPdfBankDetailsAt(doc, company, 50, doc.y);
+  doc.y = bottom;
 }
