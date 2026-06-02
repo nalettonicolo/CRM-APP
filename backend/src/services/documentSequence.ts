@@ -17,14 +17,6 @@ export function parseDocumentNumber(number: string): {
   };
 }
 
-function extractNumberFromDeleteLog(details: unknown): string | null {
-  if (!details || typeof details !== "object" || Array.isArray(details)) {
-    return null;
-  }
-  if (!("number" in details)) return null;
-  return String(details.number);
-}
-
 async function fetchActiveNumbers(
   entityType: DocumentEntityType,
   prefix: string
@@ -50,33 +42,18 @@ async function fetchActiveNumbers(
   return rows.map((row) => row.number);
 }
 
-async function fetchDeletedNumbers(
-  entityType: DocumentEntityType,
-  prefix: string
-): Promise<string[]> {
-  const logs = await prisma.activityLog.findMany({
-    where: { entityType, action: "DELETE" },
-    select: { details: true },
-  });
-  return logs
-    .map((log) => extractNumberFromDeleteLog(log.details))
-    .filter((number): number is string => number !== null && number.startsWith(prefix));
-}
-
 export async function hasSubsequentDocumentNumber(
   entityType: DocumentEntityType,
   documentNumber: string
 ): Promise<boolean> {
   const parsed = parseDocumentNumber(documentNumber);
-  if (!parsed) return true;
+  // Legacy/custom numbering must not block date edits.
+  if (!parsed) return false;
 
   const prefix = `${parsed.prefix}-${parsed.year}-`;
-  const [active, deleted] = await Promise.all([
-    fetchActiveNumbers(entityType, prefix),
-    fetchDeletedNumbers(entityType, prefix),
-  ]);
+  const active = await fetchActiveNumbers(entityType, prefix);
 
-  return [...active, ...deleted].some((number) => {
+  return active.some((number) => {
     const candidate = parseDocumentNumber(number);
     return (
       candidate &&
