@@ -119,10 +119,31 @@ async function generateInvoiceReceiptPdf(
     const headerCompany =
       invoice.showWebsite === false ? { ...companyInfo, website: "" } : companyInfo;
 
-    drawPdfLetterhead(doc, headerCompany, logoPath, {
-      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
-      subtitleRight,
-    });
+    drawPdfLetterhead(doc, headerCompany, logoPath);
+
+    const rightHeaderX = 315;
+    const rightHeaderWidth = 230;
+    const rightHeaderTop = 52;
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(14)
+      .fillColor("#000000")
+      .text(
+        `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
+        rightHeaderX,
+        rightHeaderTop,
+        { width: rightHeaderWidth, align: "right" }
+      );
+    doc.font("Helvetica").fontSize(10).fillColor("#52525b");
+    let rightHeaderY = doc.y + 2;
+    for (const line of subtitleRight) {
+      doc.text(line, rightHeaderX, rightHeaderY, {
+        width: rightHeaderWidth,
+        align: "right",
+      });
+      rightHeaderY = doc.y + 1;
+    }
+    doc.fillColor("#000000");
 
     const clientName =
       invoice.client.companyName ||
@@ -152,7 +173,7 @@ async function generateInvoiceReceiptPdf(
       invoice.client.phone || null,
     ].filter(Boolean) as string[];
 
-    const blockTop = 145;
+    const blockTop = Math.max(120, rightHeaderY + 10);
     const blockX = 300;
     const blockWidth = 245;
     doc.font("Helvetica-Bold").fontSize(11).text("Cliente", blockX, blockTop, {
