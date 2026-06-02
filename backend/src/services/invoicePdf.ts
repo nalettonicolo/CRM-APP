@@ -259,13 +259,16 @@ async function generateInvoiceReceiptPdf(
     cursorY = paymentRowY + paymentRowHeight + 4;
 
     const footerY = cursorY + 8;
-    doc.y = footerY;
+    const disclaimerText =
+      invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER;
     doc
       .fontSize(7.5)
       .fillColor("#71717a")
-      .text(invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER, {
-        width: 500,
-      });
+      .text(disclaimerText, 50, footerY, { width: 495, align: "left" });
+    doc.fillColor("#000000");
+    doc.x = 50;
+    doc.y =
+      footerY + doc.heightOfString(disclaimerText, { width: 495 }) + 4;
 
     doc.end();
   });
