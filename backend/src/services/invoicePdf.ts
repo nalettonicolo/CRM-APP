@@ -67,6 +67,13 @@ function money(n: number | { toString(): string }) {
   });
 }
 
+function displayInvoiceNumber(number: string | null | undefined): string {
+  if (!number) return "BOZZA";
+  if (number.startsWith("BOZZA")) return number;
+  const normalized = number.replace(/^FPR-/, "");
+  return `Doc. ${normalized}`;
+}
+
 async function generateInvoiceReceiptPdf(
   invoice: InvoiceWithRelations,
   company?: CompanyInfo
@@ -99,7 +106,7 @@ async function generateInvoiceReceiptPdf(
       invoice.showWebsite === false ? { ...companyInfo, website: "" } : companyInfo;
 
     drawPdfLetterhead(doc, headerCompany, logoPath, {
-      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayNumber}`,
+      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
       subtitleRight,
     });
 
@@ -110,24 +117,47 @@ async function generateInvoiceReceiptPdf(
         .filter(Boolean)
         .join(" ") ||
       "Cliente";
-    doc.fontSize(11).text("Cliente", { underline: true });
-    doc.fontSize(10).text(clientName);
-    if (invoice.client.address) {
-      const addr = [
-        invoice.client.address,
-        invoice.client.postalCode,
-        invoice.client.city,
-        invoice.client.province,
-      ]
-        .filter(Boolean)
-        .join(" ");
-      doc.text(addr);
+    const contactName = invoice.client.contactName?.trim();
+    const referenceName =
+      invoice.client.companyName && contactName && contactName !== clientName
+        ? contactName
+        : null;
+    const clientLines = [
+      invoice.client.address
+        ? [
+            invoice.client.address,
+            invoice.client.postalCode,
+            invoice.client.city,
+            invoice.client.province,
+          ]
+            .filter(Boolean)
+            .join(" ")
+        : null,
+      referenceName ? `Referente: ${referenceName}` : null,
+      invoice.client.email || null,
+      invoice.client.phone || null,
+    ].filter(Boolean) as string[];
+
+    const blockTop = doc.y;
+    const blockX = 300;
+    const blockWidth = 245;
+    doc.font("Helvetica-Bold").fontSize(11).text("Cliente", blockX, blockTop, {
+      width: blockWidth,
+      align: "right",
+      underline: true,
+    });
+    doc.font("Helvetica-Bold").fontSize(12).text(clientName, blockX, doc.y + 2, {
+      width: blockWidth,
+      align: "right",
+    });
+    doc.font("Helvetica").fontSize(10);
+    for (const line of clientLines) {
+      doc.text(line, blockX, doc.y + 1, { width: blockWidth, align: "right" });
     }
-    if (invoice.client.email) doc.text(invoice.client.email);
-    if (invoice.client.phone) doc.text(invoice.client.phone);
-    doc.moveDown();
+    doc.y += 6;
 
     if (invoice.quote && showQuoteReferences) {
+      if (doc.y < blockTop + 86) doc.y = blockTop + 86;
       doc.fontSize(11).text("Riferimenti documento", { underline: true });
       doc.fontSize(10).text(`Da preventivo: ${invoice.quote.number}`);
       if (invoice.quote.title?.trim()) {
@@ -167,6 +197,7 @@ async function generateInvoiceReceiptPdf(
         if (doc.y > 700) doc.addPage();
         const y = doc.y;
         doc.fontSize(9).text(item.description, colDesc, y, { width: 250 });
+        const descHeight = doc.heightOfString(item.description, { width: 250 });
         const qtyText = item.unit
           ? `${money(item.quantity)} ${item.unit}`
           : money(item.quantity);
@@ -179,7 +210,8 @@ async function generateInvoiceReceiptPdf(
           width: 70,
           align: "right",
         });
-        doc.moveDown(0.8);
+        const rowHeight = Math.max(descHeight, 14);
+        doc.y = y + rowHeight + 6;
       }
       doc.moveDown();
     }
