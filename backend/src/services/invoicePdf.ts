@@ -89,7 +89,8 @@ async function generateInvoiceReceiptPdf(
         `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`
       );
     }
-    if (invoice.quote) {
+    const showQuoteReferences = companyInfo.showQuoteReferencesInDocuments !== false;
+    if (invoice.quote && showQuoteReferences) {
       subtitleRight.push(`Rif. preventivo: ${invoice.quote.number}`);
     }
 
@@ -122,7 +123,7 @@ async function generateInvoiceReceiptPdf(
     if (invoice.client.phone) doc.text(invoice.client.phone);
     doc.moveDown();
 
-    if (invoice.quote) {
+    if (invoice.quote && showQuoteReferences) {
       doc.fontSize(11).text("Riferimenti documento", { underline: true });
       doc.fontSize(10).text(`Da preventivo: ${invoice.quote.number}`);
       if (invoice.quote.title?.trim()) {

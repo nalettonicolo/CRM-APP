@@ -14,6 +14,8 @@ export type CompanyInfo = {
   email?: string;
   phone?: string;
   website?: string;
+  showWebsiteInDocuments?: boolean;
+  showQuoteReferencesInDocuments?: boolean;
   bankName?: string;
   iban?: string;
   bic?: string;
@@ -64,7 +66,7 @@ export function drawPdfLetterhead(
     company.address,
     company.vat ? `P.IVA: ${company.vat}` : null,
     [company.phone, company.email].filter(Boolean).join(" · "),
-    company.website,
+    company.showWebsiteInDocuments === false ? null : company.website,
   ].filter(Boolean) as string[];
 
   for (const line of lines) {

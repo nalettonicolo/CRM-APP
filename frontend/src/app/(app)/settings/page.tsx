@@ -16,6 +16,10 @@ import { cn } from "@/lib/utils";
 const textareaClass =
   "flex min-h-[88px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
 
+function asText(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
 export default function SettingsPage() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
@@ -55,6 +59,8 @@ export default function SettingsPage() {
     email: "",
     phone: "",
     website: "",
+    showWebsiteInDocuments: true,
+    showQuoteReferencesInDocuments: true,
     bankName: "",
     iban: "",
     bic: "",
@@ -85,17 +91,19 @@ export default function SettingsPage() {
     setAppName(an?.name?.trim() || DEFAULT_APP_NAME);
     setTagline(an?.tagline?.trim() || "");
     setPrimaryColor((data.colors as { primary?: string })?.primary || "#6366f1");
-    const co = (data.company as Record<string, string>) || {};
+    const co = (data.company as Record<string, unknown>) || {};
     setCompany({
-      name: co.name || "",
-      vat: co.vat || "",
-      address: co.address || "",
-      email: co.email || "",
-      phone: co.phone || "",
-      website: co.website || "",
-      bankName: co.bankName || "",
-      iban: co.iban || "",
-      bic: co.bic || "",
+      name: asText(co.name),
+      vat: asText(co.vat),
+      address: asText(co.address),
+      email: asText(co.email),
+      phone: asText(co.phone),
+      website: asText(co.website),
+      showWebsiteInDocuments: co.showWebsiteInDocuments !== false,
+      showQuoteReferencesInDocuments: co.showQuoteReferencesInDocuments !== false,
+      bankName: asText(co.bankName),
+      iban: asText(co.iban),
+      bic: asText(co.bic),
     });
     const qd = (data.quote_defaults as Record<string, number>) || {};
     setQuoteDefaults({
@@ -417,6 +425,32 @@ export default function SettingsPage() {
                 setCompany((c) => ({ ...c, website: e.target.value }))
               }
             />
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={company.showWebsiteInDocuments}
+                onChange={(e) =>
+                  setCompany((c) => ({
+                    ...c,
+                    showWebsiteInDocuments: e.target.checked,
+                  }))
+                }
+              />
+              Mostra sito web nei documenti PDF
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={company.showQuoteReferencesInDocuments}
+                onChange={(e) =>
+                  setCompany((c) => ({
+                    ...c,
+                    showQuoteReferencesInDocuments: e.target.checked,
+                  }))
+                }
+              />
+              Mostra riferimenti al preventivo nei documenti
+            </label>
             <Input
               placeholder="Banca (opzionale)"
               value={company.bankName}

@@ -202,7 +202,8 @@ export async function generateReportPdf(
     );
     doc.y = Math.max(leftBottom, rightBottom) + 12;
 
-    if (report.quote) {
+    const showQuoteReferences = companyInfo.showQuoteReferencesInDocuments !== false;
+    if (report.quote && showQuoteReferences) {
       const eventPeriod = report.quote.eventAt
         ? `${report.quote.eventAt.toLocaleDateString("it-IT")}${
             report.quote.eventEndAt
