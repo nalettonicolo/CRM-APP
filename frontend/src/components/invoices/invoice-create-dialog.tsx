@@ -83,7 +83,8 @@ export function InvoiceCreateDialog() {
         <DialogHeader>
           <DialogTitle>{DOCUMENT_COPY.invoice.createDialogTitle}</DialogTitle>
           <DialogDescription>
-            {DOCUMENT_COPY.invoice.createDialogHint}
+            {DOCUMENT_COPY.invoice.createDialogHint} Il documento viene creato come bozza
+            senza numero progressivo: la numerazione viene assegnata alla conferma.
           </DialogDescription>
         </DialogHeader>
 

@@ -77,7 +77,9 @@ async function generateInvoiceNumber(): Promise<string> {
     }),
   ]);
   const numbers = [
-    ...existing.map((row) => row.number),
+    ...existing
+      .map((row) => row.number)
+      .filter((number): number is string => typeof number === "string"),
     ...deletedLogs
       .map((log) =>
         log.details &&
@@ -99,6 +101,12 @@ async function generateInvoiceNumber(): Promise<string> {
     return Math.max(highest, Number(match[2]));
   }, 0);
   return `${year}-${String(max + 1).padStart(3, "0")}`;
+}
+
+function canEditInvoiceCreatedAt(invoice: { status: "DRAFT" | "CONFIRMED"; number: string | null }) {
+  if (invoice.status === "DRAFT") return Promise.resolve(true);
+  if (!invoice.number) return Promise.resolve(true);
+  return canEditDocumentCreatedAt("invoice", invoice.number);
 }
 
 router.get("/", requirePermission("invoices", "READ"), async (req: AuthRequest, res, next) => {
@@ -142,7 +150,7 @@ router.get("/:id", requirePermission("invoices", "READ"), async (req: AuthReques
     if (!invoice) throw new NotFoundError();
     res.json({
       ...invoice,
-      canEditCreatedAt: await canEditDocumentCreatedAt("invoice", invoice.number),
+      canEditCreatedAt: await canEditInvoiceCreatedAt(invoice),
     });
   } catch (e) {
     next(e);
@@ -173,7 +181,6 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
       );
     }
 
-    const number = await generateInvoiceNumber();
     const companySetting = await prisma.setting.findUnique({
       where: { key: "company" },
       select: { value: true },
@@ -194,7 +201,7 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
         : true;
     const invoice = await prisma.invoicePreview.create({
       data: {
-        number,
+        number: null,
         clientId: quote.clientId,
         quoteId: quote.id,
         subtotal: quote.subtotal,
@@ -215,6 +222,7 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
         disclaimer: INVOICE_COURTESY_DISCLAIMER,
         showWebsite,
         showQuoteRef,
+        status: "DRAFT",
       },
       include: { client: true, quote: true },
     });
@@ -245,7 +253,7 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
     const existing = await prisma.invoicePreview.findFirst({ where });
     if (!existing) throw new NotFoundError();
 
-    if (data.createdAt) {
+    if (data.createdAt && existing.status !== "DRAFT" && existing.number) {
       await assertCanEditDocumentCreatedAt(
         "invoice",
         existing.number,
@@ -290,12 +298,65 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
 
     res.json({
       ...invoice,
-      canEditCreatedAt: await canEditDocumentCreatedAt("invoice", invoice.number),
+      canEditCreatedAt: await canEditInvoiceCreatedAt(invoice),
     });
   } catch (e) {
     next(e);
   }
 });
+
+router.post(
+  "/:id/confirm",
+  requirePermission("invoices", "UPDATE"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const where: Record<string, unknown> = { id: paramId(req) };
+      if (req.user!.role === "CLIENT" && req.user!.clientId) {
+        where.clientId = req.user!.clientId;
+      }
+
+      const existing = await prisma.invoicePreview.findFirst({
+        where,
+        include: invoiceInclude,
+      });
+      if (!existing) throw new NotFoundError();
+
+      if (existing.status === "CONFIRMED" && existing.number) {
+        return res.json({
+          ...existing,
+          canEditCreatedAt: await canEditInvoiceCreatedAt(existing),
+        });
+      }
+
+      const number = await generateInvoiceNumber();
+      const invoice = await prisma.invoicePreview.update({
+        where: { id: existing.id },
+        data: {
+          number,
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+        },
+        include: invoiceInclude,
+      });
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: invoice.clientId,
+        action: "UPDATE",
+        entityType: "invoice",
+        entityId: invoice.id,
+        details: { status: "CONFIRMED", number },
+      });
+
+      res.json({
+        ...invoice,
+        canEditCreatedAt: await canEditInvoiceCreatedAt(invoice),
+      });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.delete("/:id", requirePermission("invoices", "DELETE"), async (req: AuthRequest, res, next) => {
   try {
@@ -355,6 +416,11 @@ router.post(
         include: invoiceInclude,
       });
       if (!invoice) throw new NotFoundError();
+      if (invoice.status !== "CONFIRMED" || !invoice.number) {
+        throw new ValidationError(
+          "Conferma prima la bozza per inviare il documento via email."
+        );
+      }
 
       const email = invoice.client.email?.trim();
       if (!email) {
@@ -428,10 +494,11 @@ router.get(
 
       const company = await loadCompanySettings();
       const pdf = await generateInvoicePdf(invoice, company);
+      const fileBase = invoice.number || `bozza-${invoice.id.slice(0, 8)}`;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `inline; filename="fattura-${invoice.number}.pdf"`
+        `inline; filename="documento-${fileBase}.pdf"`
       );
       res.send(pdf);
     } catch (e) {

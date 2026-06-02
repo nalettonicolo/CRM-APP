@@ -129,7 +129,8 @@ export async function runEmailTest(
   }
 
   const invoice = await prisma.invoicePreview.findFirst({
-    orderBy: { createdAt: "desc" },
+    where: { status: "CONFIRMED", number: { not: null } },
+    orderBy: { confirmedAt: "desc" },
     include: invoiceInclude,
   });
   if (!invoice) {
@@ -137,24 +138,25 @@ export async function runEmailTest(
       "Nessun documento di cortesia: creane uno per testare questo invio."
     );
   }
+  const invoiceNumber = invoice.number || "N/D";
   const pdf = await generateInvoicePdf(invoice, company);
   const result = await sendEmail({
     to,
-    subject: `[TEST] ${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
+    subject: `[TEST] ${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoiceNumber}`,
     html: emailTemplate(
-      `[TEST] ${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
-      invoiceEmailBodyTest({ number: invoice.number }),
+      `[TEST] ${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoiceNumber}`,
+      invoiceEmailBodyTest({ number: invoiceNumber }),
       brandName
     ),
     attachments: [
-      { filename: `documento-${invoice.number}.pdf`, content: pdf },
+      { filename: `documento-${invoiceNumber}.pdf`, content: pdf },
     ],
   });
   return {
     success: true,
     mock: result.mock === true,
     message: result.mock
-      ? `Test documento simulato (${invoice.number})`
-      : `Test documento inviato (${invoice.number})`,
+      ? `Test documento simulato (${invoiceNumber})`
+      : `Test documento inviato (${invoiceNumber})`,
   };
 }

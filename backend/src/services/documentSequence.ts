@@ -26,7 +26,9 @@ async function fetchActiveNumbers(
       where: { number: { startsWith: prefix } },
       select: { number: true },
     });
-    return rows.map((row) => row.number);
+    return rows
+      .map((row) => row.number)
+      .filter((number): number is string => typeof number === "string");
   }
   if (entityType === "quote") {
     const rows = await prisma.quote.findMany({

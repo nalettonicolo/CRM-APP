@@ -64,6 +64,11 @@ enum PaymentStatus {
   OVERDUE
 }
 
+enum InvoiceStatus {
+  DRAFT
+  CONFIRMED
+}
+
 enum PaymentMethod {
   BANK_TRANSFER
   CASH
@@ -681,7 +686,7 @@ model Event {
 
 model InvoicePreview {
   id            String        @id @default(cuid())
-  number        String        @unique
+  number        String?       @unique
   clientId      String
   client        Client        @relation(fields: [clientId], references: [id])
   quoteId       String?
@@ -692,6 +697,7 @@ model InvoicePreview {
   depositAmount Decimal       @default(0) @db.Decimal(12, 2)
   balanceDue    Decimal       @db.Decimal(12, 2)
   paymentStatus PaymentStatus @default(UNPAID)
+  status        InvoiceStatus @default(DRAFT)
   dueDate       DateTime?
   items         Json?
   discounts     Json?
@@ -700,6 +706,7 @@ model InvoicePreview {
   showWebsite   Boolean       @default(true)
   showQuoteRef  Boolean       @default(true)
   sentAt        DateTime?
+  confirmedAt   DateTime?
   attachments   Attachment[]  @relation("InvoiceAttachments")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt

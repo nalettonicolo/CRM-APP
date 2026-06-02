@@ -776,7 +776,7 @@ export const eventsApi = {
 
 export interface Invoice {
   id: string;
-  number: string;
+  number?: string | null;
   clientId: string;
   quoteId?: string;
   subtotal: number | string;
@@ -785,6 +785,7 @@ export interface Invoice {
   depositAmount?: number | string;
   balanceDue: number | string;
   paymentStatus: string;
+  status?: "DRAFT" | "CONFIRMED";
   dueDate?: string;
   items?: InvoiceLineItem[];
   discounts?: InvoiceDiscount[];
@@ -854,6 +855,10 @@ export const invoicesApi = {
   fromQuote: (quoteId: string) => invoicesApi.createFromQuote(quoteId),
   sendEmail: (id: string) =>
     api<{ success: boolean; invoice: Invoice }>(`/invoices/${id}/send-email`, {
+      method: "POST",
+    }),
+  confirm: (id: string) =>
+    api<Invoice>(`/invoices/${id}/confirm`, {
       method: "POST",
     }),
 };

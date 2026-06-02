@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Mail, Pencil, Receipt, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Mail, Pencil, Receipt, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
@@ -41,6 +41,18 @@ export default function InvoiceDetailPage() {
     },
     onError: (e: Error) =>
       setBanner(e.message || "Invio email non riuscito."),
+  });
+
+  const confirmInvoice = useMutation({
+    mutationFn: () => invoicesApi.confirm(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      setBanner("Documento confermato e numerato.");
+      setTimeout(() => setBanner(""), 3000);
+    },
+    onError: (e: Error) =>
+      setBanner(e.message || "Errore durante la conferma del documento."),
   });
 
   const deleteInvoice = useMutation({
@@ -84,8 +96,14 @@ export default function InvoiceDetailPage() {
                   <Receipt className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <p className="font-mono text-sm text-muted-foreground">{data.number}</p>
-                  <h1 className="text-2xl font-bold tracking-tight">Bozza fattura</h1>
+                  <p className="font-mono text-sm text-muted-foreground">
+                    {data.number || "BOZZA"}
+                  </p>
+                  <h1 className="text-2xl font-bold tracking-tight">
+                    {data.status === "CONFIRMED"
+                      ? DOCUMENT_COPY.invoice.detailTitle
+                      : "Documento in bozza"}
+                  </h1>
                   {data.client && (
                     <Link
                       href={`/clients/${data.clientId}`}
@@ -109,7 +127,9 @@ export default function InvoiceDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => downloadInvoicePdf(id, `documento-${data.number}.pdf`)}
+                  onClick={() =>
+                    downloadInvoicePdf(id, `documento-${data.number || "bozza"}.pdf`)
+                  }
                 >
                   <Download className="h-4 w-4" />
                   Scarica PDF
@@ -117,7 +137,7 @@ export default function InvoiceDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={sendEmail.isPending || !data.client?.email}
+                  disabled={sendEmail.isPending || !data.client?.email || data.status !== "CONFIRMED"}
                   onClick={() => {
                     if (
                       data.sentAt &&
@@ -153,12 +173,25 @@ export default function InvoiceDetailPage() {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={data.status === "CONFIRMED" || confirmInvoice.isPending}
+                  onClick={() => confirmInvoice.mutate()}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {data.status === "CONFIRMED"
+                    ? "Confermato"
+                    : confirmInvoice.isPending
+                      ? "Conferma..."
+                      : "Conferma documento"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   className="border-destructive/40 text-destructive hover:text-destructive"
                   disabled={deleteInvoice.isPending}
                   onClick={() => {
                     if (
                       !window.confirm(
-                        `Eliminare il documento ${data.number}? Il prossimo documento manterrà la numerazione progressiva.`
+                        `Eliminare il documento ${data.number || "bozza"}?`
                       )
                     ) {
                       return;
@@ -179,7 +212,9 @@ export default function InvoiceDetailPage() {
                       : "bg-muted text-muted-foreground"
                   )}
                 >
-                  {data.sentAt
+                  {data.status !== "CONFIRMED"
+                    ? "Bozza"
+                    : data.sentAt
                     ? `${DOCUMENT_COPY.invoice.sentPrefix} ${formatDate(data.sentAt)}`
                     : DOCUMENT_COPY.invoice.notSent}
                 </span>

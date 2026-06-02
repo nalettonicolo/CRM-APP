@@ -361,7 +361,7 @@ function buildClientPaymentOverview(
     const row: ClientDocumentRow = {
       id: inv.id,
       kind: "invoice",
-      number: inv.number,
+      number: inv.number || "BOZZA",
       title: inv.quoteId ? null : "Documento di cortesia",
       total,
       balanceDue: balance,

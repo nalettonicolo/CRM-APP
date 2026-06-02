@@ -110,8 +110,8 @@ export default function PortalPage() {
               </p>
               {data?.invoices?.length ? (
                 <ul className="space-y-2 text-sm">
-                  {(data.invoices as { id: string; number: string }[]).map((inv) => (
-                    <li key={inv.id}>{inv.number}</li>
+                  {(data.invoices as { id: string; number?: string | null }[]).map((inv) => (
+                    <li key={inv.id}>{inv.number || "BOZZA"}</li>
                   ))}
                 </ul>
               ) : (

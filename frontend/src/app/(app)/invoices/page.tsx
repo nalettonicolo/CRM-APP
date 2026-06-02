@@ -70,7 +70,9 @@ export default function InvoicesPage() {
                       key={inv.id}
                       onClick={() => router.push(`/invoices/${inv.id}`)}
                     >
-                      <td className="px-4 py-3 font-mono text-xs">{inv.number}</td>
+                      <td className="px-4 py-3 font-mono text-xs">
+                        {inv.number || "BOZZA"}
+                      </td>
                       <td className="px-4 py-3">
                         {inv.client?.companyName || inv.client?.contactName || "—"}
                       </td>
@@ -89,7 +91,7 @@ export default function InvoicesPage() {
                         <DeleteEntityButton
                           size="icon"
                           pending={deleteInvoice.isPending}
-                          confirmMessage={`Eliminare il documento ${inv.number}?`}
+                          confirmMessage={`Eliminare il documento ${inv.number || "bozza"}?`}
                           onConfirm={() => deleteInvoice.mutate(inv.id)}
                         />
                       </td>

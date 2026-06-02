@@ -74,7 +74,9 @@ export default function PortalDocumentsPage() {
                     key={inv.id}
                     className="flex justify-between border-b border-border pb-2"
                   >
-                    <span className="font-mono text-xs">{inv.number}</span>
+                    <span className="font-mono text-xs">
+                      {inv.number || "BOZZA"}
+                    </span>
                     <span>{formatDate(inv.createdAt)}</span>
                   </li>
                 ))}

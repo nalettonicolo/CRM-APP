@@ -74,6 +74,7 @@ async function generateInvoiceReceiptPdf(
   const companyInfo = company ?? (await loadCompanySettings());
   const logoPath = await loadLogoFilePath();
 
+  const displayNumber = invoice.number || `BOZZA-${invoice.id.slice(0, 6).toUpperCase()}`;
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const chunks: Buffer[] = [];
@@ -98,7 +99,7 @@ async function generateInvoiceReceiptPdf(
       invoice.showWebsite === false ? { ...companyInfo, website: "" } : companyInfo;
 
     drawPdfLetterhead(doc, headerCompany, logoPath, {
-      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${invoice.number}`,
+      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayNumber}`,
       subtitleRight,
     });
 

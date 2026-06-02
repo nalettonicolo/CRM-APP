@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Plus, Save, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Plus, Save, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack } from "@/components/detail/detail-shell";
@@ -153,6 +153,17 @@ export default function InvoiceEditPage() {
     onError: () => setBanner("Errore durante il salvataggio."),
   });
 
+  const confirmInvoice = useMutation({
+    mutationFn: () => invoicesApi.confirm(id),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["invoice", id] });
+      await qc.invalidateQueries({ queryKey: ["invoices"] });
+      setBanner("Documento confermato e numerato.");
+      setTimeout(() => setBanner(""), 2500);
+    },
+    onError: () => setBanner("Errore durante la conferma del documento."),
+  });
+
   function updateItem(index: number, patch: Partial<InvoiceLineItem>) {
     setItems((rows) =>
       rows.map((row, i) => {
@@ -225,7 +236,7 @@ export default function InvoiceEditPage() {
               </p>
             )}
             <p className="text-sm text-muted-foreground">
-              {data.number} · {data.client?.companyName || data.client?.contactName}
+              {(data.number || "BOZZA")} · {data.client?.companyName || data.client?.contactName}
             </p>
 
             <div className="rounded-xl border border-border bg-card p-6">
@@ -628,10 +639,24 @@ export default function InvoiceEditPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => downloadInvoicePdf(id, `documento-${data.number}.pdf`)}
+                  onClick={() =>
+                    downloadInvoicePdf(id, `documento-${data.number || "bozza"}.pdf`)
+                  }
                 >
                   <Download className="h-4 w-4" />
                   Scarica PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  disabled={data.status === "CONFIRMED" || confirmInvoice.isPending}
+                  onClick={() => confirmInvoice.mutate()}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {data.status === "CONFIRMED"
+                    ? "Documento confermato"
+                    : confirmInvoice.isPending
+                      ? "Conferma in corso..."
+                      : "Conferma documento"}
                 </Button>
               </div>
             </div>
