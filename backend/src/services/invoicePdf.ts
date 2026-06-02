@@ -110,20 +110,9 @@ async function generateInvoiceReceiptPdf(
 
     drawPdfLetterhead(doc, headerCompany, logoPath);
 
-    const rightHeaderX = 315;
-    const rightHeaderWidth = 230;
-    const rightHeaderTop = 52;
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(14)
-      .fillColor("#000000")
-      .text(
-        `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
-        rightHeaderX,
-        rightHeaderTop,
-        { width: rightHeaderWidth, align: "right" }
-      );
-    doc.fillColor("#000000");
+    const sectionTop = Math.max(doc.y, 118) + 6;
+    const leftX = 50;
+    const leftWidth = 280;
 
     const clientName =
       invoice.client.companyName ||
@@ -153,75 +142,47 @@ async function generateInvoiceReceiptPdf(
       invoice.client.phone || null,
     ].filter(Boolean) as string[];
 
-    const blockTop = 120;
+    const leftMetaLines = [
+      `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
+      `Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`,
+      invoice.dueDate
+        ? `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`
+        : null,
+      invoice.quote && showQuoteReferences
+        ? `Rif. preventivo: ${invoice.quote.number}`
+        : null,
+    ].filter(Boolean) as string[];
+
+    let leftY = sectionTop;
+    doc.font("Helvetica").fontSize(9).fillColor("#52525b");
+    for (const line of leftMetaLines) {
+      doc.text(line, leftX, leftY, { width: leftWidth });
+      leftY += doc.heightOfString(line, { width: leftWidth }) + 5;
+    }
+    doc.fillColor("#000000");
+
     const blockX = 300;
     const blockWidth = 245;
-    doc.font("Helvetica-Bold").fontSize(11).text("Cliente", blockX, blockTop, {
+    let clientY = sectionTop;
+    doc.font("Helvetica-Bold").fontSize(11).text("Cliente", blockX, clientY, {
       width: blockWidth,
       align: "right",
       underline: true,
     });
-    doc.font("Helvetica-Bold").fontSize(12).text(clientName, blockX, doc.y + 2, {
+    clientY += 14;
+    doc.font("Helvetica-Bold").fontSize(12).text(clientName, blockX, clientY, {
       width: blockWidth,
       align: "right",
     });
+    clientY += 14;
     doc.font("Helvetica").fontSize(10);
     for (const line of clientLines) {
-      doc.text(line, blockX, doc.y + 1, { width: blockWidth, align: "right" });
+      doc.text(line, blockX, clientY, { width: blockWidth, align: "right" });
+      clientY += doc.heightOfString(line, { width: blockWidth }) + 4;
     }
-    const clientBottom = doc.y + 2;
 
-    doc.font("Helvetica").fontSize(9).fillColor("#52525b");
-    doc.text(
-      `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
-      50,
-      clientBottom,
-      { width: 230, align: "left" }
-    );
-    let leftInfoY = doc.y + 2;
-    doc.text(
-      `Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`,
-      50,
-      leftInfoY,
-      { width: 230, align: "left" }
-    );
-    leftInfoY = doc.y + 1;
-    if (invoice.dueDate) {
-      doc.text(
-        `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`,
-        50,
-        leftInfoY,
-        { width: 230, align: "left" }
-      );
-      leftInfoY = doc.y + 1;
-    }
-    if (invoice.quote && showQuoteReferences) {
-      doc.text(`Rif. preventivo: ${invoice.quote.number}`, 50, leftInfoY, {
-        width: 230,
-        align: "left",
-      });
-    }
-    doc.fillColor("#000000");
-    doc.y = clientBottom + 22;
-
-    if (invoice.quote && showQuoteReferences) {
-      if (doc.y < blockTop + 86) doc.y = blockTop + 86;
-      doc.fontSize(11).text("Riferimenti documento", { underline: true });
-      doc.fontSize(10).text(`Da preventivo: ${invoice.quote.number}`);
-      if (invoice.quote.title?.trim()) {
-        doc.text(`Oggetto: ${invoice.quote.title.trim()}`);
-      }
-      if (invoice.quote.eventAt) {
-        const end = invoice.quote.eventEndAt ?? invoice.quote.eventAt;
-        const sameDay =
-          invoice.quote.eventAt.toDateString() === end.toDateString();
-        const period = sameDay
-          ? invoice.quote.eventAt.toLocaleDateString("it-IT")
-          : `${invoice.quote.eventAt.toLocaleDateString("it-IT")} – ${end.toLocaleDateString("it-IT")}`;
-        doc.text(`Periodo di servizio: ${period}`);
-      }
-      doc.moveDown();
-    }
+    doc.y = Math.max(leftY, clientY) + 16;
+    doc.x = 50;
 
     const items = invoiceItems(invoice);
     if (items.length > 0) {
