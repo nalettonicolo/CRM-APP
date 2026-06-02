@@ -6,6 +6,7 @@ import {
   discountDeduction,
   parseInvoiceDiscounts,
 } from "./invoiceDiscounts.js";
+import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import {
   drawPdfBankDetails,
   drawPdfLetterhead,
@@ -65,20 +66,6 @@ function money(n: number | { toString(): string }) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
-}
-
-function paymentStatusLabel(status: string | null | undefined): string {
-  switch (status) {
-    case "PAID":
-      return "Pagato";
-    case "PARTIAL":
-      return "Parziale";
-    case "OVERDUE":
-      return "Scaduto";
-    case "UNPAID":
-    default:
-      return "Non pagato";
-  }
 }
 
 function displayInvoiceNumber(number: string | null | undefined): string {
@@ -270,7 +257,7 @@ async function generateInvoiceReceiptPdf(
     cursorY += 12;
     cursorY = addTotalLine(
       "Pagamento",
-      paymentStatusLabel(invoice.paymentStatus),
+      formatInvoicePaymentPdfLine(invoice),
       cursorY
     );
     cursorY = addTotalLine(

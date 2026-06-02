@@ -10,7 +10,7 @@ import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { invoicesApi } from "@/lib/api";
 import { DOCUMENT_COPY, formatInvoiceDocumentNumber } from "@/lib/document-copy";
-import { paymentStatusLabels } from "@/lib/labels";
+import { formatInvoicePaymentDisplay } from "@/lib/labels";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 export default function InvoicesPage() {
@@ -78,7 +78,7 @@ export default function InvoicesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                          {paymentStatusLabels[inv.paymentStatus] || inv.paymentStatus}
+                          {formatInvoicePaymentDisplay(inv)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-medium tabular-nums">

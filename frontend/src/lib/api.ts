@@ -785,6 +785,8 @@ export interface Invoice {
   depositAmount?: number | string;
   balanceDue: number | string;
   paymentStatus: string;
+  paymentMethod?: string;
+  paymentTiming?: string;
   status?: "DRAFT" | "CONFIRMED";
   dueDate?: string;
   items?: InvoiceLineItem[];
@@ -831,6 +833,8 @@ export const invoicesApi = {
       depositAmount: number;
       balanceDue: number;
       paymentStatus: string;
+      paymentMethod?: string;
+      paymentTiming?: string;
       createdAt: string;
       dueDate: string | null;
       items: InvoiceLineItem[];

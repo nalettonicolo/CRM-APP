@@ -29,6 +29,10 @@ import {
 } from "../services/documentSequence.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import {
+  INVOICE_PAYMENT_METHODS,
+  INVOICE_PAYMENT_TIMINGS,
+} from "../constants/invoicePayment.js";
 
 const router = Router();
 router.use(authenticate);
@@ -49,6 +53,8 @@ const invoiceUpdateSchema = z.object({
   depositAmount: z.number().min(0).optional(),
   balanceDue: z.number().min(0).optional(),
   paymentStatus: z.enum(["UNPAID", "PARTIAL", "PAID", "OVERDUE"]).optional(),
+  paymentMethod: z.enum(INVOICE_PAYMENT_METHODS).optional(),
+  paymentTiming: z.enum(INVOICE_PAYMENT_TIMINGS).optional(),
   createdAt: z.string().datetime().optional(),
   dueDate: z.string().datetime().nullable().optional(),
   items: z.array(invoiceItemSchema).optional(),
@@ -273,6 +279,8 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
         balanceDue:
           data.balanceDue != null ? toDecimal(data.balanceDue) : undefined,
         paymentStatus: data.paymentStatus,
+        paymentMethod: data.paymentMethod,
+        paymentTiming: data.paymentTiming,
         createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
         dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate === null ? null : undefined,
         items: data.items,

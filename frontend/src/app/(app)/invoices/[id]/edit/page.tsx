@@ -16,7 +16,13 @@ import {
   type InvoiceDiscount,
   type InvoiceLineItem,
 } from "@/lib/api";
-import { paymentStatusLabels, SERVICE_UNIT_OPTIONS } from "@/lib/labels";
+import {
+  formatInvoicePaymentDisplay,
+  invoicePaymentMethodOptions,
+  invoicePaymentTimingOptions,
+  paymentStatusLabels,
+  SERVICE_UNIT_OPTIONS,
+} from "@/lib/labels";
 import {
   DOCUMENT_COPY,
   INVOICE_COURTESY_DISCLAIMER,
@@ -51,6 +57,8 @@ export default function InvoiceEditPage() {
     depositAmount: "",
     balanceDue: "",
     paymentStatus: "UNPAID",
+    paymentMethod: "BANK_TRANSFER",
+    paymentTiming: "END_OF_WORK",
     createdAt: "",
     dueDate: "",
     notes: "",
@@ -98,6 +106,8 @@ export default function InvoiceEditPage() {
       depositAmount: String(Number(data.depositAmount ?? 0)),
       balanceDue: String(Number(data.balanceDue)),
       paymentStatus: data.paymentStatus || "UNPAID",
+      paymentMethod: data.paymentMethod || "BANK_TRANSFER",
+      paymentTiming: data.paymentTiming || "END_OF_WORK",
       createdAt: data.createdAt ? data.createdAt.slice(0, 10) : "",
       dueDate: data.dueDate ? data.dueDate.slice(0, 10) : "",
       notes: data.notes || "",
@@ -124,6 +134,8 @@ export default function InvoiceEditPage() {
         depositAmount: Number(form.depositAmount) || 0,
         balanceDue: Number(form.balanceDue) || 0,
         paymentStatus: form.paymentStatus,
+        paymentMethod: form.paymentMethod,
+        paymentTiming: form.paymentTiming,
         ...(canEditCreatedAt && {
           createdAt: dateInputToIso(form.createdAt),
         }),
@@ -293,7 +305,47 @@ export default function InvoiceEditPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium">Pagamento</label>
+                  <label className="mb-1 block text-sm font-medium">Metodo di pagamento</label>
+                  <select
+                    className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                    value={form.paymentMethod}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, paymentMethod: e.target.value }))
+                    }
+                  >
+                    {invoicePaymentMethodOptions.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Termini di pagamento</label>
+                  <select
+                    className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+                    value={form.paymentTiming}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, paymentTiming: e.target.value }))
+                    }
+                  >
+                    {invoicePaymentTimingOptions.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Anteprima PDF:{" "}
+                    {formatInvoicePaymentDisplay({
+                      paymentStatus: form.paymentStatus,
+                      paymentMethod: form.paymentMethod,
+                      paymentTiming: form.paymentTiming,
+                    })}
+                  </p>
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium">Stato incasso</label>
                   <select
                     className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
                     value={form.paymentStatus}

@@ -10,7 +10,7 @@ import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
 import { Button } from "@/components/ui/button";
 import { downloadInvoicePdf, invoicesApi } from "@/lib/api";
-import { paymentStatusLabels } from "@/lib/labels";
+import { formatInvoicePaymentDisplay } from "@/lib/labels";
 import {
   DOCUMENT_COPY,
   INVOICE_COURTESY_DISCLAIMER,
@@ -243,7 +243,7 @@ export default function InvoiceDetailPage() {
                 />
                 <DetailField
                   label="Pagamento"
-                  value={paymentStatusLabels[data.paymentStatus] || data.paymentStatus}
+                  value={formatInvoicePaymentDisplay(data)}
                 />
                 <DetailField
                   label="Scadenza"

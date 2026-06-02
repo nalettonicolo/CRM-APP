@@ -30,12 +30,71 @@ export const scheduleRowStatusLabels: Record<string, string> = {
 };
 
 export const paymentMethodLabels: Record<string, string> = {
-  BANK_TRANSFER: "Bonifico",
+  BANK_TRANSFER: "Bonifico bancario",
   CASH: "Contanti",
   CARD: "Carta",
   PAYPAL: "PayPal",
   OTHER: "Altro",
 };
+
+/** Metodi di pagamento per documenti di cortesia */
+export const invoicePaymentMethodOptions = [
+  { value: "BANK_TRANSFER", label: "Bonifico bancario" },
+  { value: "CASH", label: "Contanti" },
+  { value: "CARD", label: "Carta" },
+  { value: "PAYPAL", label: "PayPal" },
+  { value: "OTHER", label: "Altro" },
+] as const;
+
+/** Termini di pagamento (PDF e modifica documento) */
+export const invoicePaymentTimingOptions = [
+  { value: "END_OF_WORK", label: "A fine lavori" },
+  { value: "DAYS_15", label: "Entro 15 giorni" },
+  { value: "DAYS_30", label: "Entro 30 giorni" },
+  { value: "DAYS_60", label: "Entro 60 giorni" },
+  { value: "ON_RECEIPT", label: "A ricevimento documento" },
+  { value: "AT_SIGNATURE", label: "All'accettazione preventivo" },
+] as const;
+
+const invoicePaymentMethodPdf: Record<string, string> = {
+  BANK_TRANSFER: "Pagamento tramite bonifico bancario",
+  CASH: "Pagamento in contanti",
+  CARD: "Pagamento con carta",
+  PAYPAL: "Pagamento tramite PayPal",
+  OTHER: "Altro metodo di pagamento",
+};
+
+const invoicePaymentTimingPdf: Record<string, string> = {
+  END_OF_WORK: "a fine lavori",
+  DAYS_15: "entro 15 giorni",
+  DAYS_30: "entro 30 giorni",
+  DAYS_60: "entro 60 giorni",
+  ON_RECEIPT: "a ricevimento del documento",
+  AT_SIGNATURE: "all'accettazione del preventivo",
+};
+
+export function formatInvoicePaymentTerms(input: {
+  paymentMethod?: string | null;
+  paymentTiming?: string | null;
+}): string {
+  const method =
+    invoicePaymentMethodPdf[input.paymentMethod || "BANK_TRANSFER"] ??
+    invoicePaymentMethodPdf.BANK_TRANSFER;
+  const timing =
+    invoicePaymentTimingPdf[input.paymentTiming || "END_OF_WORK"] ?? "";
+  return timing ? `${method} — ${timing}` : method;
+}
+
+export function formatInvoicePaymentDisplay(input: {
+  paymentStatus?: string | null;
+  paymentMethod?: string | null;
+  paymentTiming?: string | null;
+}): string {
+  const terms = formatInvoicePaymentTerms(input);
+  if (input.paymentStatus === "PAID") return "Pagato";
+  if (input.paymentStatus === "PARTIAL") return `Parzialmente pagato — ${terms}`;
+  return terms;
+}
 
 export const userRoleLabels: Record<string, string> = {
   SUPER_ADMIN: "Admin",
