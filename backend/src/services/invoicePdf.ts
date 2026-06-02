@@ -233,7 +233,7 @@ async function generateInvoiceReceiptPdf(
     const discounts = parseInvoiceDiscounts(invoice.discounts);
     const grossSubtotal = Number(invoice.subtotal);
     const summaryHeight =
-      118 + discounts.length * 16 + (Number(invoice.depositAmount) > 0 ? 28 : 0);
+      104 + discounts.length * 16 + (Number(invoice.depositAmount) > 0 ? 28 : 0);
     const summaryY = Math.max(doc.y + 10, doc.page.height - summaryHeight - 52);
 
     let cursorY = summaryY;
@@ -254,17 +254,35 @@ async function generateInvoiceReceiptPdf(
     }
 
     doc.moveTo(50, cursorY + 6).lineTo(545, cursorY + 6).strokeColor("#e4e4e7").stroke();
-    cursorY += 12;
-    cursorY = addTotalLine(
-      "Pagamento",
-      formatInvoicePaymentPdfLine(invoice),
-      cursorY
+    const paymentRowY = cursorY + 12;
+    const paymentLine = formatInvoicePaymentPdfLine(invoice);
+    const dueLine = invoice.dueDate
+      ? invoice.dueDate.toLocaleDateString("it-IT")
+      : "—";
+    const paymentValueX = 118;
+    const paymentValueWidth = 198;
+    const scadenzaLabelX = 328;
+
+    doc.fontSize(9).font("Helvetica-Bold");
+    doc.text("Pagamento", 50, paymentRowY, { width: 64 });
+    doc.font("Helvetica").text(paymentLine, paymentValueX, paymentRowY, {
+      width: paymentValueWidth,
+      lineGap: 0,
+    });
+
+    doc.font("Helvetica-Bold").text("Scadenza", scadenzaLabelX, paymentRowY, {
+      width: 58,
+    });
+    doc.font("Helvetica").text(dueLine, scadenzaLabelX + 62, paymentRowY, {
+      width: 545 - (scadenzaLabelX + 62),
+      align: "right",
+    });
+
+    const paymentRowHeight = Math.max(
+      doc.heightOfString(paymentLine, { width: paymentValueWidth }),
+      11
     );
-    cursorY = addTotalLine(
-      "Scadenza",
-      invoice.dueDate ? invoice.dueDate.toLocaleDateString("it-IT") : "—",
-      cursorY
-    );
+    cursorY = paymentRowY + paymentRowHeight + 4;
 
     const bankTop = summaryY;
     doc.y = bankTop;
