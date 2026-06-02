@@ -41,7 +41,7 @@ import {
   parseDecimal,
   parseInvoiceDiscounts,
 } from "@/lib/invoice-line-items";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatCurrency, formatDate, formatEventDateRange } from "@/lib/utils";
 
 const textareaClass =
   "flex min-h-[96px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
@@ -65,6 +65,9 @@ export default function InvoiceEditPage() {
     disclaimer: INVOICE_COURTESY_DISCLAIMER,
     showWebsite: true,
     showQuoteRef: true,
+    eventLocation: "",
+    eventAt: "",
+    eventEndAt: "",
   });
   const [items, setItems] = useState<InvoiceLineItem[]>([]);
   const [discounts, setDiscounts] = useState<InvoiceDiscount[]>([]);
@@ -114,6 +117,9 @@ export default function InvoiceEditPage() {
       disclaimer: data.disclaimer || INVOICE_COURTESY_DISCLAIMER,
       showWebsite: data.showWebsite !== false,
       showQuoteRef: data.showQuoteRef !== false,
+      eventLocation: data.eventLocation ?? data.quote?.eventLocation ?? "",
+      eventAt: (data.eventAt ?? data.quote?.eventAt)?.slice(0, 10) ?? "",
+      eventEndAt: (data.eventEndAt ?? data.quote?.eventEndAt)?.slice(0, 10) ?? "",
     });
     setItems(
       data.items?.length
@@ -140,6 +146,9 @@ export default function InvoiceEditPage() {
           createdAt: dateInputToIso(form.createdAt),
         }),
         dueDate: form.dueDate ? `${form.dueDate}T12:00:00.000Z` : null,
+        eventLocation: form.eventLocation.trim() || null,
+        eventAt: form.eventAt ? dateInputToIso(form.eventAt) ?? null : null,
+        eventEndAt: form.eventEndAt ? dateInputToIso(form.eventEndAt) ?? null : null,
         items: items
           .filter((item) => item.description.trim())
           .map((item) => ({
@@ -380,6 +389,54 @@ export default function InvoiceEditPage() {
                       successivo.
                     </p>
                   )}
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-lg border border-border bg-muted/20 p-4">
+                <h3 className="text-sm font-semibold">Date e luogo evento</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Compaiono nel PDF sopra la tabella delle voci (
+                  {formatEventDateRange(
+                    form.eventAt ? `${form.eventAt}T12:00:00.000Z` : undefined,
+                    form.eventEndAt ? `${form.eventEndAt}T12:00:00.000Z` : undefined
+                  ) || "nessuna data"}
+                  {form.eventLocation.trim() ? ` · ${form.eventLocation.trim()}` : ""}
+                  ).
+                </p>
+                <div className="mt-3">
+                  <label className="mb-1 block text-sm font-medium">Luogo</label>
+                  <Input
+                    value={form.eventLocation}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, eventLocation: e.target.value }))
+                    }
+                    placeholder="es. Teatro Comunale, Via Roma 1 — Milano"
+                  />
+                </div>
+                <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Primo giorno di servizio
+                    </label>
+                    <Input
+                      type="date"
+                      value={form.eventAt}
+                      onChange={(e) => setForm((f) => ({ ...f, eventAt: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium">
+                      Ultimo giorno (se diverso)
+                    </label>
+                    <Input
+                      type="date"
+                      value={form.eventEndAt}
+                      min={form.eventAt || undefined}
+                      onChange={(e) =>
+                        setForm((f) => ({ ...f, eventEndAt: e.target.value }))
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 

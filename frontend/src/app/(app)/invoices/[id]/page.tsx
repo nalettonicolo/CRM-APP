@@ -20,7 +20,7 @@ import {
   discountDeduction,
   parseInvoiceDiscounts,
 } from "@/lib/invoice-line-items";
-import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, formatEventDateRange } from "@/lib/utils";
 
 export default function InvoiceDetailPage() {
   const id = useParams().id as string;
@@ -231,6 +231,28 @@ export default function InvoiceDetailPage() {
             <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-200">
               {data.disclaimer || INVOICE_COURTESY_DISCLAIMER}
             </p>
+
+            <DetailSection title="Evento">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <DetailField
+                  label="Luogo"
+                  value={
+                    data.eventLocation?.trim() ||
+                    data.quote?.eventLocation?.trim() ||
+                    "—"
+                  }
+                />
+                <DetailField
+                  label="Date servizio"
+                  value={
+                    formatEventDateRange(
+                      data.eventAt ?? data.quote?.eventAt,
+                      data.eventEndAt ?? data.quote?.eventEndAt
+                    ) || "—"
+                  }
+                />
+              </div>
+            </DetailSection>
 
             <DetailSection title="Importi">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

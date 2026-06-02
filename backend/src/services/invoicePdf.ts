@@ -135,13 +135,11 @@ async function generateInvoiceReceiptPdf(
 
     doc.y = Math.max(leftY, clientBottom) + 12;
     doc.x = 50;
-    if (invoice.quote) {
-      drawPdfEventInfoRow(doc, {
-        location: invoice.quote.eventLocation,
-        eventAt: invoice.quote.eventAt,
-        eventEndAt: invoice.quote.eventEndAt,
-      });
-    }
+    drawPdfEventInfoRow(doc, {
+      location: invoice.eventLocation ?? invoice.quote?.eventLocation,
+      eventAt: invoice.eventAt ?? invoice.quote?.eventAt,
+      eventEndAt: invoice.eventEndAt ?? invoice.quote?.eventEndAt,
+    });
 
     const items = invoiceItems(invoice);
     if (items.length > 0) {

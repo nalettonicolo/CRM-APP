@@ -710,6 +710,9 @@ model InvoicePreview {
   paymentTiming InvoicePaymentTiming @default(END_OF_WORK)
   status        InvoiceStatus       @default(DRAFT)
   dueDate       DateTime?
+  eventAt       DateTime?
+  eventEndAt    DateTime?
+  eventLocation String?
   items         Json?
   discounts     Json?
   notes         String?       @db.Text

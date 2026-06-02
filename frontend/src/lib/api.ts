@@ -203,6 +203,9 @@ export interface QuoteSummary {
   status: string;
   total: number | string;
   createdAt: string;
+  eventAt?: string | null;
+  eventEndAt?: string | null;
+  eventLocation?: string | null;
 }
 
 export interface InterventionSummary {
@@ -789,6 +792,9 @@ export interface Invoice {
   paymentTiming?: string;
   status?: "DRAFT" | "CONFIRMED";
   dueDate?: string;
+  eventAt?: string | null;
+  eventEndAt?: string | null;
+  eventLocation?: string | null;
   items?: InvoiceLineItem[];
   discounts?: InvoiceDiscount[];
   notes?: string;
@@ -837,6 +843,9 @@ export const invoicesApi = {
       paymentTiming?: string;
       createdAt: string;
       dueDate: string | null;
+      eventAt?: string | null;
+      eventEndAt?: string | null;
+      eventLocation?: string | null;
       items: InvoiceLineItem[];
       discounts: InvoiceDiscount[];
       notes: string | null;

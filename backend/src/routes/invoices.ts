@@ -57,6 +57,9 @@ const invoiceUpdateSchema = z.object({
   paymentTiming: z.enum(INVOICE_PAYMENT_TIMINGS).optional(),
   createdAt: z.string().datetime().optional(),
   dueDate: z.string().datetime().nullable().optional(),
+  eventAt: z.string().datetime().nullable().optional(),
+  eventEndAt: z.string().datetime().nullable().optional(),
+  eventLocation: z.string().nullable().optional(),
   items: z.array(invoiceItemSchema).optional(),
   discounts: z.array(invoiceDiscountSchema).optional(),
   notes: z.string().nullable().optional(),
@@ -228,6 +231,9 @@ router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthReques
         disclaimer: INVOICE_COURTESY_DISCLAIMER,
         showWebsite,
         showQuoteRef,
+        eventAt: quote.eventAt,
+        eventEndAt: quote.eventEndAt,
+        eventLocation: quote.eventLocation,
         status: "DRAFT",
       },
       include: { client: true, quote: true },
@@ -283,6 +289,13 @@ router.patch("/:id", requirePermission("invoices", "UPDATE"), async (req: AuthRe
         paymentTiming: data.paymentTiming,
         createdAt: data.createdAt ? new Date(data.createdAt) : undefined,
         dueDate: data.dueDate ? new Date(data.dueDate) : data.dueDate === null ? null : undefined,
+        eventAt: data.eventAt ? new Date(data.eventAt) : data.eventAt === null ? null : undefined,
+        eventEndAt: data.eventEndAt
+          ? new Date(data.eventEndAt)
+          : data.eventEndAt === null
+            ? null
+            : undefined,
+        eventLocation: data.eventLocation,
         items: data.items,
         discounts: data.discounts,
         notes: data.notes,
