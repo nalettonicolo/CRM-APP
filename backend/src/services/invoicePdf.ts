@@ -67,6 +67,20 @@ function money(n: number | { toString(): string }) {
   });
 }
 
+function paymentStatusLabel(status: string | null | undefined): string {
+  switch (status) {
+    case "PAID":
+      return "Pagato";
+    case "PARTIAL":
+      return "Parziale";
+    case "OVERDUE":
+      return "Scaduto";
+    case "UNPAID":
+    default:
+      return "Non pagato";
+  }
+}
+
 function displayInvoiceNumber(number: string | null | undefined): string {
   if (!number) return "BOZZA";
   if (number.startsWith("BOZZA")) return number;
@@ -138,7 +152,7 @@ async function generateInvoiceReceiptPdf(
       invoice.client.phone || null,
     ].filter(Boolean) as string[];
 
-    const blockTop = doc.y;
+    const blockTop = 145;
     const blockX = 300;
     const blockWidth = 245;
     doc.font("Helvetica-Bold").fontSize(11).text("Cliente", blockX, blockTop, {
@@ -154,7 +168,17 @@ async function generateInvoiceReceiptPdf(
     for (const line of clientLines) {
       doc.text(line, blockX, doc.y + 1, { width: blockWidth, align: "right" });
     }
-    doc.y += 6;
+    const clientBottom = doc.y + 2;
+
+    doc.font("Helvetica").fontSize(9).fillColor("#52525b");
+    doc.text(
+      `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
+      50,
+      clientBottom,
+      { width: 230, align: "left" }
+    );
+    doc.fillColor("#000000");
+    doc.y = clientBottom + 22;
 
     if (invoice.quote && showQuoteReferences) {
       if (doc.y < blockTop + 86) doc.y = blockTop + 86;
@@ -216,35 +240,60 @@ async function generateInvoiceReceiptPdf(
       doc.moveDown();
     }
 
-    const totalsX = 380;
-    const addTotalLine = (label: string, value: string, bold = false) => {
+    const totalsX = 375;
+    const addTotalLine = (label: string, value: string, y: number, bold = false) => {
       if (bold) doc.font("Helvetica-Bold");
-      doc.fontSize(10).text(label, totalsX, doc.y, { continued: true });
+      doc.fontSize(10).text(label, totalsX, y, { continued: true });
       doc.text(value, { align: "right" });
       if (bold) doc.font("Helvetica");
+      return doc.y;
     };
 
     const discounts = parseInvoiceDiscounts(invoice.discounts);
     const grossSubtotal = Number(invoice.subtotal);
-    addTotalLine("Imponibile", `€ ${money(grossSubtotal)}`);
+    const summaryHeight =
+      105 + discounts.length * 16 + (Number(invoice.depositAmount) > 0 ? 28 : 0);
+    let summaryY = Math.max(doc.y + 18, doc.page.height - summaryHeight - 65);
+    if (summaryY > doc.page.height - 95) {
+      doc.addPage();
+      summaryY = doc.page.height - summaryHeight - 65;
+    }
+
+    let cursorY = summaryY;
+    cursorY = addTotalLine("Imponibile", `€ ${money(grossSubtotal)}`, cursorY);
     for (const discount of discounts) {
       const deduction = discountDeduction(grossSubtotal, discount);
       const label =
         discount.mode === "PERCENT"
           ? `${discount.description} (${discount.value}%)`
           : discount.description;
-      addTotalLine(label, `- € ${money(deduction)}`);
+      cursorY = addTotalLine(label, `- € ${money(deduction)}`, cursorY);
     }
-    addTotalLine("IVA", `€ ${money(invoice.vatAmount)}`);
-    addTotalLine("Totale", `€ ${money(invoice.total)}`, true);
+    cursorY = addTotalLine("IVA", `€ ${money(invoice.vatAmount)}`, cursorY);
+    cursorY = addTotalLine("Totale", `€ ${money(invoice.total)}`, cursorY, true);
     if (Number(invoice.depositAmount) > 0) {
-      addTotalLine("Acconto", `€ ${money(invoice.depositAmount)}`);
-      addTotalLine("Saldo", `€ ${money(invoice.balanceDue)}`, true);
+      cursorY = addTotalLine("Acconto", `€ ${money(invoice.depositAmount)}`, cursorY);
+      cursorY = addTotalLine("Saldo", `€ ${money(invoice.balanceDue)}`, cursorY, true);
     }
 
+    doc.moveTo(50, cursorY + 6).lineTo(545, cursorY + 6).strokeColor("#e4e4e7").stroke();
+    cursorY += 12;
+    cursorY = addTotalLine(
+      "Pagamento",
+      paymentStatusLabel(invoice.paymentStatus),
+      cursorY
+    );
+    cursorY = addTotalLine(
+      "Scadenza",
+      invoice.dueDate ? invoice.dueDate.toLocaleDateString("it-IT") : "—",
+      cursorY
+    );
+
+    const bankTop = summaryY;
+    doc.y = bankTop;
     drawPdfBankDetails(doc, companyInfo);
 
-    doc.moveDown();
+    doc.y = Math.max(doc.y + 4, cursorY + 8);
     doc
       .fontSize(8)
       .fillColor("#71717a")
