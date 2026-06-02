@@ -9,6 +9,8 @@ import type {
 } from "@prisma/client";
 import { DOCUMENT_COPY } from "../constants/documentCopy.js";
 import {
+  drawPdfClientBlock,
+  drawPdfEventInfoRow,
   drawPdfLetterhead,
   loadCompanySettings,
   loadLogoFilePath,
@@ -22,7 +24,7 @@ type ReportWithRelations = InterventionReport & {
   quote?:
     | (Pick<
         Quote,
-        "number" | "title" | "status" | "total" | "eventAt" | "eventEndAt"
+        "number" | "title" | "status" | "total" | "eventAt" | "eventEndAt" | "eventLocation"
       > & {
         items: Pick<
           QuoteItem,
@@ -167,27 +169,9 @@ export async function generateReportPdf(
       subtitleRight,
     });
 
-    const clientName =
-      report.client.companyName ||
-      report.client.contactName ||
-      [report.client.firstName, report.client.lastName]
-        .filter(Boolean)
-        .join(" ") ||
-      "Cliente";
     const technicianName = `${report.technician.firstName} ${report.technician.lastName}`;
     const topY = doc.y;
-    const leftBottom = drawInfoCard(
-      doc,
-      "Cliente",
-      [
-        { label: "Nome", value: clientName },
-        { label: "Email", value: report.client.email },
-        { label: "Telefono", value: report.client.phone },
-      ],
-      50,
-      topY,
-      238
-    );
+    const leftBottom = drawPdfClientBlock(doc, report.client, topY, 50, 238, "left");
     const rightBottom = drawInfoCard(
       doc,
       "Tecnico",
@@ -203,20 +187,12 @@ export async function generateReportPdf(
     doc.y = Math.max(leftBottom, rightBottom) + 12;
 
     if (report.quote) {
-      const eventPeriod = report.quote.eventAt
-        ? `${report.quote.eventAt.toLocaleDateString("it-IT")}${
-            report.quote.eventEndAt
-              ? ` – ${report.quote.eventEndAt.toLocaleDateString("it-IT")}`
-              : ""
-          }`
-        : null;
       const quoteBottom = drawInfoCard(
         doc,
         "Preventivo di riferimento",
         [
           { label: "Numero", value: report.quote.number },
           { label: "Oggetto", value: report.quote.title },
-          { label: "Evento", value: eventPeriod },
           { label: "Totale", value: `€ ${money(report.quote.total)}` },
         ],
         50,
@@ -252,6 +228,14 @@ export async function generateReportPdf(
         .fillColor("#111827")
         .text(report.description.trim(), 50, doc.y, { width: 495 });
       doc.fillColor("#000000");
+    }
+
+    if (report.quote) {
+      drawPdfEventInfoRow(doc, {
+        location: report.quote.eventLocation,
+        eventAt: report.quote.eventAt,
+        eventEndAt: report.quote.eventEndAt,
+      });
     }
 
     if (report.materials.length > 0) {

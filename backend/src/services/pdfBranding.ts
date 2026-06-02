@@ -156,6 +156,119 @@ function drawEmptySignatureLines(doc: PdfDoc): void {
   doc.fontSize(8).text(DOCUMENT_COPY.quote.paperNote, 50, doc.y, { width: 480 });
 }
 
+export type ClientPdfInput = {
+  companyName?: string | null;
+  contactName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  address?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  province?: string | null;
+  email?: string | null;
+  phone?: string | null;
+};
+
+export function resolveClientPdfName(client: ClientPdfInput): string {
+  return (
+    client.companyName ||
+    client.contactName ||
+    [client.firstName, client.lastName].filter(Boolean).join(" ") ||
+    "Cliente"
+  );
+}
+
+export function clientPdfDetailLines(client: ClientPdfInput): string[] {
+  const clientName = resolveClientPdfName(client);
+  const contactName = client.contactName?.trim();
+  const referenceName =
+    client.companyName && contactName && contactName !== clientName
+      ? contactName
+      : null;
+  return [
+    client.address
+      ? [client.address, client.postalCode, client.city, client.province]
+          .filter(Boolean)
+          .join(" ")
+      : null,
+    referenceName ? `Referente: ${referenceName}` : null,
+    client.email || null,
+    client.phone || null,
+  ].filter(Boolean) as string[];
+}
+
+/** Dati cliente senza intestazione «Cliente». */
+export function drawPdfClientBlock(
+  doc: PdfDoc,
+  client: ClientPdfInput,
+  top: number,
+  x: number,
+  width: number,
+  align: "left" | "right" = "right"
+): number {
+  const clientName = resolveClientPdfName(client);
+  const lines = clientPdfDetailLines(client);
+  let y = top;
+
+  doc.font("Helvetica-Bold").fontSize(12).fillColor("#000000");
+  doc.text(clientName, x, y, { width, align });
+  y += 14;
+  doc.font("Helvetica").fontSize(10);
+  for (const line of lines) {
+    doc.text(line, x, y, { width, align });
+    y += doc.heightOfString(line, { width }) + 4;
+  }
+  return y;
+}
+
+export function formatEventDatesPdf(
+  eventAt?: Date | null,
+  eventEndAt?: Date | null
+): string {
+  if (!eventAt) return "";
+  const end = eventEndAt ?? eventAt;
+  const sameDay = eventAt.toDateString() === end.toDateString();
+  return sameDay
+    ? eventAt.toLocaleDateString("it-IT")
+    : `${eventAt.toLocaleDateString("it-IT")} – ${end.toLocaleDateString("it-IT")}`;
+}
+
+/** Località a sinistra, date evento a destra — sopra la tabella voci. */
+export function drawPdfEventInfoRow(
+  doc: PdfDoc,
+  input: {
+    location?: string | null;
+    eventAt?: Date | null;
+    eventEndAt?: Date | null;
+  }
+): number {
+  const location = input.location?.trim() || "";
+  const dates = formatEventDatesPdf(input.eventAt, input.eventEndAt);
+  if (!location && !dates) return doc.y;
+
+  const y = doc.y;
+  const datesWidth = 210;
+  const gap = 16;
+  const locationWidth = dates ? 545 - 50 - datesWidth - gap : 495;
+  const datesX = location ? 50 + locationWidth + gap : 545 - datesWidth;
+
+  doc.fontSize(10).font("Helvetica").fillColor("#111827");
+  if (location) {
+    doc.text(location, 50, y, { width: locationWidth });
+  }
+  if (dates) {
+    doc.text(dates, datesX, y, { width: datesWidth, align: "right" });
+  }
+  const rowHeight = Math.max(
+    location ? doc.heightOfString(location, { width: locationWidth }) : 0,
+    dates ? doc.heightOfString(dates, { width: datesWidth }) : 11,
+    11
+  );
+  doc.y = y + rowHeight + 12;
+  doc.fillColor("#000000");
+  return doc.y;
+}
+
 /** Coordinate bancarie a posizione fissa; ritorna Y sotto l’ultima riga. */
 export function drawPdfBankDetailsAt(
   doc: PdfDoc,

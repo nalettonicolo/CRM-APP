@@ -9,6 +9,8 @@ import {
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import {
   drawPdfBankDetailsAt,
+  drawPdfClientBlock,
+  drawPdfEventInfoRow,
   drawPdfLetterhead,
   loadCompanySettings,
   loadLogoFilePath,
@@ -101,34 +103,6 @@ async function generateInvoiceReceiptPdf(
     const leftX = 50;
     const leftWidth = 280;
 
-    const clientName =
-      invoice.client.companyName ||
-      invoice.client.contactName ||
-      [invoice.client.firstName, invoice.client.lastName]
-        .filter(Boolean)
-        .join(" ") ||
-      "Cliente";
-    const contactName = invoice.client.contactName?.trim();
-    const referenceName =
-      invoice.client.companyName && contactName && contactName !== clientName
-        ? contactName
-        : null;
-    const clientLines = [
-      invoice.client.address
-        ? [
-            invoice.client.address,
-            invoice.client.postalCode,
-            invoice.client.city,
-            invoice.client.province,
-          ]
-            .filter(Boolean)
-            .join(" ")
-        : null,
-      referenceName ? `Referente: ${referenceName}` : null,
-      invoice.client.email || null,
-      invoice.client.phone || null,
-    ].filter(Boolean) as string[];
-
     const leftMetaLines = [
       `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
       `Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`,
@@ -150,26 +124,24 @@ async function generateInvoiceReceiptPdf(
 
     const blockX = 300;
     const blockWidth = 245;
-    let clientY = sectionTop;
-    doc.font("Helvetica-Bold").fontSize(11).text("Cliente", blockX, clientY, {
-      width: blockWidth,
-      align: "right",
-      underline: true,
-    });
-    clientY += 14;
-    doc.font("Helvetica-Bold").fontSize(12).text(clientName, blockX, clientY, {
-      width: blockWidth,
-      align: "right",
-    });
-    clientY += 14;
-    doc.font("Helvetica").fontSize(10);
-    for (const line of clientLines) {
-      doc.text(line, blockX, clientY, { width: blockWidth, align: "right" });
-      clientY += doc.heightOfString(line, { width: blockWidth }) + 4;
-    }
+    const clientBottom = drawPdfClientBlock(
+      doc,
+      invoice.client,
+      sectionTop,
+      blockX,
+      blockWidth,
+      "right"
+    );
 
-    doc.y = Math.max(leftY, clientY) + 16;
+    doc.y = Math.max(leftY, clientBottom) + 12;
     doc.x = 50;
+    if (invoice.quote) {
+      drawPdfEventInfoRow(doc, {
+        location: invoice.quote.eventLocation,
+        eventAt: invoice.quote.eventAt,
+        eventEndAt: invoice.quote.eventEndAt,
+      });
+    }
 
     const items = invoiceItems(invoice);
     if (items.length > 0) {

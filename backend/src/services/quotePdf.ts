@@ -7,6 +7,8 @@ import type {
 } from "@prisma/client";
 import {
   drawPdfBankDetails,
+  drawPdfClientBlock,
+  drawPdfEventInfoRow,
   drawPdfLetterhead,
   drawPdfSignatureBlock,
   loadCompanySettings,
@@ -51,50 +53,42 @@ export async function generateQuotePdf(
       subtitleRight,
     });
 
-    const clientName =
-      quote.client.companyName ||
-      quote.client.contactName ||
-      [quote.client.firstName, quote.client.lastName].filter(Boolean).join(" ") ||
-      "Cliente";
-    doc.fontSize(11).text("Cliente", { underline: true });
-    doc.fontSize(10).text(clientName);
-    if (quote.client.address) {
-      const addr = [
-        quote.client.address,
-        quote.client.postalCode,
-        quote.client.city,
-        quote.client.province,
-      ]
-        .filter(Boolean)
-        .join(" ");
-      doc.text(addr);
-    }
-    if (quote.client.email) doc.text(quote.client.email);
-    if (quote.client.phone) doc.text(quote.client.phone);
-    doc.moveDown();
+    const sectionTop = Math.max(doc.y, 118) + 6;
+    const leftX = 50;
+    const leftWidth = 280;
+    let leftY = sectionTop;
 
-    doc.fontSize(11).text("Riferimenti preventivo", { underline: true });
-    doc.fontSize(10);
-    if (quote.title?.trim()) {
-      doc.text(`Oggetto: ${quote.title.trim()}`);
+    doc.fontSize(11).font("Helvetica-Bold").fillColor("#000000");
+    doc.text("Riferimenti preventivo", leftX, leftY, { width: leftWidth, underline: true });
+    leftY += 16;
+    doc.font("Helvetica").fontSize(10);
+    const refLines = [
+      quote.title?.trim() ? `Oggetto: ${quote.title.trim()}` : null,
+      quote.validUntil
+        ? `Offerta valida fino al: ${quote.validUntil.toLocaleDateString("it-IT")}`
+        : null,
+    ].filter(Boolean) as string[];
+    for (const line of refLines) {
+      doc.text(line, leftX, leftY, { width: leftWidth });
+      leftY += doc.heightOfString(line, { width: leftWidth }) + 4;
     }
-    const loc = (quote as Quote & { eventLocation?: string | null })
-      .eventLocation?.trim();
-    if (loc) doc.text(`Luogo: ${loc}`);
-    if (quote.eventAt) {
-      const end = quote.eventEndAt ?? quote.eventAt;
-      const sameDay = quote.eventAt.toDateString() === end.toDateString();
-      const period = sameDay
-        ? quote.eventAt.toLocaleDateString("it-IT")
-        : `${quote.eventAt.toLocaleDateString("it-IT")} – ${end.toLocaleDateString("it-IT")}`;
-      doc.text(`Periodo di servizio: ${period}`);
-    }
-    if (quote.validUntil) {
-      doc.text(
-        `Offerta valida fino al: ${quote.validUntil.toLocaleDateString("it-IT")}`
-      );
-    }
-    doc.moveDown();
+
+    const clientBottom = drawPdfClientBlock(
+      doc,
+      quote.client,
+      sectionTop,
+      300,
+      245,
+      "right"
+    );
+
+    doc.y = Math.max(leftY, clientBottom) + 12;
+    doc.x = 50;
+    drawPdfEventInfoRow(doc, {
+      location: quote.eventLocation,
+      eventAt: quote.eventAt,
+      eventEndAt: quote.eventEndAt,
+    });
 
     const tableTop = doc.y;
     const colDesc = 50;

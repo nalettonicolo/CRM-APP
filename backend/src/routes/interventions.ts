@@ -53,6 +53,7 @@ const reportQuoteInclude = {
     total: true,
     eventAt: true,
     eventEndAt: true,
+    eventLocation: true,
     validUntil: true,
     items: {
       orderBy: { sortOrder: "asc" as const },
