@@ -362,7 +362,7 @@ async function main() {
     update: {},
   });
 
-  const quoteNumber = `PRV-${new Date().getFullYear()}-0001`;
+  const quoteNumber = `PRV-${new Date().getFullYear()}-001`;
   const quote = await prisma.quote.upsert({
     where: { number: quoteNumber },
     create: {

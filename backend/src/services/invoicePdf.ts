@@ -8,19 +8,20 @@ import {
 } from "./invoiceDiscounts.js";
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import {
-  createPdfTotalsWriter,
-  drawPdfBankDetails,
+  drawPdfCourtesyFooter,
   drawPdfEventInfoRow,
-  drawPdfHeaderClientRow,
+  drawPdfLeftMetaClientRow,
   drawPdfLetterhead,
   drawPdfLineItemsTable,
-  drawPdfNotesSection,
+  drawPdfNotesSectionLeft,
   loadCompanySettings,
   loadLogoFilePath,
   pdfMoney,
   type CompanyInfo,
+  type PdfFooterTotalLine,
   type PdfLineItem,
 } from "./pdfBranding.js";
+import { formatSequentialDocumentNumber } from "./documentSequence.js";
 
 type InvoiceWithRelations = InvoicePreview & {
   client: Client;
@@ -66,11 +67,9 @@ function invoiceItems(invoice: InvoiceWithRelations): PdfLineItem[] {
   );
 }
 
-function displayInvoiceNumber(number: string | null | undefined): string {
-  if (!number) return "BOZZA";
-  if (number.startsWith("BOZZA")) return number;
-  const normalized = number.replace(/^FPR-/, "");
-  return normalized;
+function displayInvoicePdfLabel(number: string | null | undefined): string {
+  const normalized = formatSequentialDocumentNumber(number, { fallback: "BOZZA" });
+  return `${DOCUMENT_COPY.invoice.pdfTitlePrefix} Doc. ${normalized}`;
 }
 
 async function generateInvoiceReceiptPdf(
@@ -82,6 +81,7 @@ async function generateInvoiceReceiptPdf(
 
   const displayNumber = invoice.number || `BOZZA-${invoice.id.slice(0, 6).toUpperCase()}`;
   const issueDate = invoice.confirmedAt ?? invoice.createdAt;
+  const showQuoteReferences = invoice.showQuoteRef !== false;
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
@@ -90,30 +90,24 @@ async function generateInvoiceReceiptPdf(
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    const showQuoteReferences = invoice.showQuoteRef !== false;
     const headerCompany =
       invoice.showWebsite === false ? { ...companyInfo, website: "" } : companyInfo;
 
-    drawPdfLetterhead(doc, headerCompany, logoPath, {
-      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
-      subtitleRight: [`Emesso il: ${issueDate.toLocaleDateString("it-IT")}`],
-    });
+    drawPdfLetterhead(doc, headerCompany, logoPath);
 
-    const refLines = [
-      invoice.quote?.title?.trim() && showQuoteReferences
-        ? `Oggetto: ${invoice.quote.title.trim()}`
-        : null,
+    const metaLines = [
+      displayInvoicePdfLabel(displayNumber),
+      `Data: ${issueDate.toLocaleDateString("it-IT")}`,
       invoice.dueDate
         ? `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`
         : null,
       invoice.quote && showQuoteReferences
-        ? `Rif. preventivo: ${invoice.quote.number}`
+        ? `Rif. preventivo: ${formatSequentialDocumentNumber(invoice.quote.number)}`
         : null,
     ].filter(Boolean) as string[];
 
-    drawPdfHeaderClientRow(doc, {
-      referencesHeading: DOCUMENT_COPY.invoice.referencesHeading,
-      referenceLines: refLines,
+    drawPdfLeftMetaClientRow(doc, {
+      metaLines,
       client: invoice.client,
     });
 
@@ -123,53 +117,50 @@ async function generateInvoiceReceiptPdf(
       eventEndAt: invoice.eventEndAt ?? invoice.quote?.eventEndAt,
     });
 
-    const items = invoiceItems(invoice);
-    drawPdfLineItemsTable(doc, items);
+    drawPdfLineItemsTable(doc, invoiceItems(invoice));
 
-    const addTotalLine = createPdfTotalsWriter(doc);
+    if (invoice.notes?.trim()) {
+      drawPdfNotesSectionLeft(doc, invoice.notes);
+    }
+
     const discounts = parseInvoiceDiscounts(invoice.discounts);
     const grossSubtotal = Number(invoice.subtotal);
-
-    addTotalLine("Imponibile", `€ ${pdfMoney(grossSubtotal)}`);
+    const totalLines: PdfFooterTotalLine[] = [
+      { label: "Imponibile", value: `€ ${pdfMoney(grossSubtotal)}` },
+    ];
     for (const discount of discounts) {
       const deduction = discountDeduction(grossSubtotal, discount);
       const label =
         discount.mode === "PERCENT"
           ? `${discount.description} (${discount.value}%)`
           : discount.description;
-      addTotalLine(label, `- € ${pdfMoney(deduction)}`);
+      totalLines.push({ label, value: `- € ${pdfMoney(deduction)}` });
     }
-    addTotalLine("IVA", `€ ${pdfMoney(invoice.vatAmount)}`);
-    addTotalLine("Totale", `€ ${pdfMoney(invoice.total)}`, true);
+    totalLines.push(
+      { label: "IVA", value: `€ ${pdfMoney(invoice.vatAmount)}` },
+      { label: "Totale", value: `€ ${pdfMoney(invoice.total)}`, bold: true }
+    );
     if (Number(invoice.depositAmount) > 0) {
-      addTotalLine("Acconto", `€ ${pdfMoney(invoice.depositAmount)}`);
-      addTotalLine("Saldo", `€ ${pdfMoney(invoice.balanceDue)}`, true);
-    }
-
-    const paymentLine = formatInvoicePaymentPdfLine(invoice, true);
-    doc.moveDown(0.3);
-    doc.fontSize(9).font("Helvetica-Bold").text(DOCUMENT_COPY.invoice.paymentHeading);
-    doc.font("Helvetica");
-    doc.moveDown(0.2);
-    addTotalLine("Modalità", paymentLine);
-    if (invoice.dueDate) {
-      addTotalLine(
-        "Scadenza",
-        invoice.dueDate.toLocaleDateString("it-IT")
+      totalLines.push(
+        { label: "Acconto", value: `€ ${pdfMoney(invoice.depositAmount)}` },
+        { label: "Saldo", value: `€ ${pdfMoney(invoice.balanceDue)}`, bold: true }
       );
     }
 
-    drawPdfNotesSection(doc, invoice.notes);
-    drawPdfBankDetails(doc, companyInfo);
+    const footerY = drawPdfCourtesyFooter(doc, companyInfo, {
+      totalLines,
+      paymentLineLeft: formatInvoicePaymentPdfLine(invoice, true),
+      dueDateRight: invoice.dueDate
+        ? invoice.dueDate.toLocaleDateString("it-IT")
+        : null,
+    });
 
-    if (doc.y > 620) doc.addPage();
-    doc.moveDown(0.5);
     const disclaimerText =
       invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER;
     doc
       .fontSize(7.5)
       .fillColor("#71717a")
-      .text(disclaimerText, 50, doc.y, { width: 495, align: "left" });
+      .text(disclaimerText, 50, footerY + 8, { width: 495, align: "left" });
     doc.fillColor("#000000");
 
     doc.end();

@@ -12,6 +12,7 @@ import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { quotesApi } from "@/lib/api";
 import { quoteStatusLabels } from "@/lib/labels";
+import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import {
   formatQuoteListSubtitle,
   formatQuoteServicePeriod,
@@ -84,7 +85,9 @@ export default function QuotesPage() {
                         key={q.id}
                         onClick={() => router.push(`/quotes/${q.id}`)}
                       >
-                        <td className="px-4 py-3 font-mono text-xs">{q.number}</td>
+                        <td className="px-4 py-3 font-mono text-xs">
+                          {formatQuoteDocumentNumber(q.number)}
+                        </td>
                         <td className="px-4 py-3">
                           {q.client?.companyName || q.client?.contactName}
                         </td>

@@ -14,6 +14,7 @@ import {
   DetailField,
   DetailSection,
 } from "@/components/detail/detail-shell";
+import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import { formatQuoteServicePeriod } from "@/lib/quote-display";
 import { downloadQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
 import {
@@ -41,6 +42,7 @@ export default function QuoteDetailPage() {
   const qc = useQueryClient();
   const [pdfBusy, setPdfBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [statusError, setStatusError] = useState("");
   const getSignatureRef = useRef<() => string | undefined>(() => undefined);
 
   const fromQuote = useMutation({
@@ -56,8 +58,13 @@ export default function QuoteDetailPage() {
   const setStatus = useMutation({
     mutationFn: (status: string) => quotesApi.update(id, { status }),
     onSuccess: () => {
+      setStatusError("");
       qc.invalidateQueries({ queryKey: ["quote", id] });
       qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
+    onError: (e: Error) => {
+      setStatusError(e.message || "Errore durante l'aggiornamento dello stato.");
     },
   });
 
@@ -108,13 +115,20 @@ export default function QuoteDetailPage() {
                 {deleteError}
               </p>
             )}
+            {statusError && (
+              <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+                {statusError}
+              </p>
+            )}
             <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
               <div className="flex items-start gap-4">
                 <div className="rounded-xl bg-primary/10 p-3">
                   <FileText className="h-8 w-8 text-primary" />
                 </div>
                 <div>
-                  <p className="font-mono text-sm text-muted-foreground">{quote.number}</p>
+                  <p className="font-mono text-sm text-muted-foreground">
+                    {formatQuoteDocumentNumber(quote.number)}
+                  </p>
                   <h1 className="text-2xl font-bold tracking-tight">
                     {quote.title || "Preventivo"}
                   </h1>
@@ -230,6 +244,21 @@ export default function QuoteDetailPage() {
                         <X className="h-4 w-4" /> Rifiuta
                       </Button>
                     </>
+                  )}
+                  {quote.status === "ACCEPTED" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="border-destructive/40 text-destructive hover:text-destructive"
+                      disabled={setStatus.isPending}
+                      onClick={() => {
+                        if (confirm(DOCUMENT_COPY.quote.rejectAfterAcceptConfirm)) {
+                          setStatus.mutate("REJECTED");
+                        }
+                      }}
+                    >
+                      <X className="h-4 w-4" /> Segna come rifiutato
+                    </Button>
                   )}
                 </div>
                 <span

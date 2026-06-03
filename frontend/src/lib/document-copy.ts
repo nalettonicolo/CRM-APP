@@ -17,6 +17,8 @@ export const DOCUMENT_COPY = {
       "Firma non ancora registrata. Puoi raccoglierla qui (come nei report) oppure attendere il portale cliente.",
     pdfNote: "La firma compare nel PDF del preventivo.",
     rejectConfirm: "Segnare il preventivo come rifiutato?",
+    rejectAfterAcceptConfirm:
+      "Il preventivo è già accettato. Segnarlo come rifiutato? L'evento in calendario verrà rimosso. Non è possibile se esiste un documento di cortesia o pagamenti collegati.",
     resendEmail: "Rinvia email",
     resendConfirm: "Reinviare il preventivo all'email del cliente?",
     sentPrefix: "Inviato il",
@@ -99,5 +101,16 @@ export const DOCUMENT_COPY = {
 export function formatInvoiceDocumentNumber(number?: string | null): string {
   if (!number) return "BOZZA";
   const normalized = number.replace(/^FPR-/, "");
-  return `Doc. ${normalized}`;
+  const match = normalized.match(/^(\d{4})-(\d+)$/);
+  const display = match
+    ? `${match[1]}-${String(Number(match[2])).padStart(3, "0")}`
+    : normalized;
+  return `Doc. ${display}`;
+}
+
+export function formatQuoteDocumentNumber(number?: string | null): string {
+  if (!number) return "BOZZA";
+  const match = number.match(/^PRV-(\d{4})-(\d+)$/);
+  if (!match) return number;
+  return `PRV-${match[1]}-${String(Number(match[2])).padStart(3, "0")}`;
 }

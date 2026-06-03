@@ -19,6 +19,7 @@ import {
   PDF_LAYOUT,
   type CompanyInfo,
 } from "./pdfBranding.js";
+import { formatSequentialDocumentNumber } from "./documentSequence.js";
 
 type ReportWithRelations = InterventionReport & {
   client: Client;
@@ -111,7 +112,7 @@ export async function generateReportPdf(
       report.technician.email ? report.technician.email : null,
       report.technician.phone ? report.technician.phone : null,
       report.quote
-        ? `Rif. preventivo: ${report.quote.number}`
+        ? `Rif. preventivo: ${formatSequentialDocumentNumber(report.quote.number)}`
         : null,
       report.quote?.title?.trim()
         ? `Oggetto: ${report.quote.title.trim()}`

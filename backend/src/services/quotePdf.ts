@@ -5,21 +5,21 @@ import type {
   QuoteItem,
   QuotePaymentTerm,
 } from "@prisma/client";
-import { DOCUMENT_COPY } from "../constants/documentCopy.js";
 import {
-  createPdfTotalsWriter,
-  drawPdfBankDetails,
+  drawPdfCourtesyFooter,
   drawPdfEventInfoRow,
-  drawPdfHeaderClientRow,
+  drawPdfLeftMetaClientRow,
   drawPdfLetterhead,
   drawPdfLineItemsTable,
-  drawPdfNotesSection,
+  drawPdfNotesSectionLeft,
   drawPdfSignatureBlock,
   loadCompanySettings,
   loadLogoFilePath,
   pdfMoney,
   type CompanyInfo,
+  type PdfFooterTotalLine,
 } from "./pdfBranding.js";
+import { formatSequentialDocumentNumber } from "./documentSequence.js";
 
 export { loadCompanySettings };
 
@@ -42,23 +42,19 @@ export async function generateQuotePdf(
     doc.on("end", () => resolve(Buffer.concat(chunks)));
     doc.on("error", reject);
 
-    drawPdfLetterhead(doc, companyInfo, logoPath, {
-      titleRight: `Preventivo ${quote.number}`,
-      subtitleRight: [
-        `Emesso il: ${quote.createdAt.toLocaleDateString("it-IT")}`,
-      ],
-    });
+    drawPdfLetterhead(doc, companyInfo, logoPath);
 
-    const refLines = [
-      quote.title?.trim() ? `Oggetto: ${quote.title.trim()}` : null,
+    const metaLines = [
+      `Preventivo ${formatSequentialDocumentNumber(quote.number)}`,
+      `Data: ${quote.createdAt.toLocaleDateString("it-IT")}`,
       quote.validUntil
         ? `Offerta valida fino al: ${quote.validUntil.toLocaleDateString("it-IT")}`
         : null,
+      quote.title?.trim() ? `Oggetto: ${quote.title.trim()}` : null,
     ].filter(Boolean) as string[];
 
-    drawPdfHeaderClientRow(doc, {
-      referencesHeading: "Riferimenti preventivo",
-      referenceLines: refLines,
+    drawPdfLeftMetaClientRow(doc, {
+      metaLines,
       client: quote.client,
     });
 
@@ -70,52 +66,69 @@ export async function generateQuotePdf(
 
     drawPdfLineItemsTable(doc, quote.items);
 
-    const addTotalLine = createPdfTotalsWriter(doc);
-    addTotalLine("Imponibile", `€ ${pdfMoney(quote.subtotal)}`);
-    if (Number(quote.discountAmount) > 0) {
-      addTotalLine("Sconto", `- € ${pdfMoney(quote.discountAmount)}`);
+    if (quote.notes?.trim()) {
+      drawPdfNotesSectionLeft(doc, quote.notes);
     }
-    addTotalLine("IVA", `€ ${pdfMoney(quote.vatAmount)}`);
-    addTotalLine("Totale", `€ ${pdfMoney(quote.total)}`, true);
+
+    const totalLines: PdfFooterTotalLine[] = [
+      { label: "Imponibile", value: `€ ${pdfMoney(quote.subtotal)}` },
+    ];
+    if (Number(quote.discountAmount) > 0) {
+      totalLines.push({
+        label: "Sconto",
+        value: `- € ${pdfMoney(quote.discountAmount)}`,
+      });
+    }
+    totalLines.push(
+      { label: "IVA", value: `€ ${pdfMoney(quote.vatAmount)}` },
+      { label: "Totale", value: `€ ${pdfMoney(quote.total)}`, bold: true }
+    );
     if (Number(quote.withholdingTaxAmount) > 0) {
       const pct = Number(quote.withholdingTaxPercent);
       const label =
         pct > 0
           ? `Ritenuta d'acconto (${pdfMoney(pct)}%)`
           : "Ritenuta d'acconto";
-      addTotalLine(label, `- € ${pdfMoney(quote.withholdingTaxAmount)}`);
+      totalLines.push({ label, value: `- € ${pdfMoney(quote.withholdingTaxAmount)}` });
     }
     if (Number(quote.stampDutyAmount) > 0) {
-      addTotalLine("Marca da bollo", `€ ${pdfMoney(quote.stampDutyAmount)}`);
+      totalLines.push({
+        label: "Marca da bollo",
+        value: `€ ${pdfMoney(quote.stampDutyAmount)}`,
+      });
     }
     if (
       Number(quote.netPayable) > 0 &&
       Number(quote.netPayable) !== Number(quote.total)
     ) {
-      addTotalLine("Netto a pagare", `€ ${pdfMoney(quote.netPayable)}`, true);
+      totalLines.push({
+        label: "Netto a pagare",
+        value: `€ ${pdfMoney(quote.netPayable)}`,
+        bold: true,
+      });
     }
 
     const paymentTerms = quote.paymentTerms;
     if (paymentTerms && paymentTerms.length > 0) {
-      doc.moveDown(0.3);
-      doc.fontSize(9).font("Helvetica-Bold").text("Piano di pagamento");
-      doc.font("Helvetica");
-      doc.moveDown(0.2);
       for (const term of paymentTerms) {
         const pct =
           term.percent != null && Number(term.percent) > 0
             ? ` (${pdfMoney(term.percent)}%)`
             : "";
         const note = term.note?.trim() ? ` — ${term.note.trim()}` : "";
-        addTotalLine(
-          `${term.label}${pct}${note}`,
-          `€ ${pdfMoney(Number(term.amount))}`
-        );
+        totalLines.push({
+          label: `${term.label}${pct}${note}`,
+          value: `€ ${pdfMoney(Number(term.amount))}`,
+        });
       }
       if (Number(quote.balanceDue) >= 0) {
         const hasBalanceRow = paymentTerms.some((t) => t.isBalance);
         if (!hasBalanceRow && Number(quote.balanceDue) > 0) {
-          addTotalLine("Saldo da versare", `€ ${pdfMoney(quote.balanceDue)}`, true);
+          totalLines.push({
+            label: "Saldo da versare",
+            value: `€ ${pdfMoney(quote.balanceDue)}`,
+            bold: true,
+          });
         }
       }
     } else {
@@ -124,13 +137,20 @@ export async function generateQuotePdf(
       if (depPct > 0 || depAmt > 0) {
         const depLabel =
           depPct > 0 ? `Acconto (${pdfMoney(depPct)}%)` : "Acconto richiesto";
-        addTotalLine(depLabel, `€ ${pdfMoney(depAmt)}`);
-        addTotalLine("Saldo da versare", `€ ${pdfMoney(quote.balanceDue)}`, true);
+        totalLines.push(
+          { label: depLabel, value: `€ ${pdfMoney(depAmt)}` },
+          {
+            label: "Saldo da versare",
+            value: `€ ${pdfMoney(quote.balanceDue)}`,
+            bold: true,
+          }
+        );
       }
     }
 
-    drawPdfNotesSection(doc, quote.notes);
-    drawPdfBankDetails(doc, companyInfo);
+    const footerY = drawPdfCourtesyFooter(doc, companyInfo, { totalLines });
+    doc.y = footerY + 8;
+    doc.x = 50;
 
     drawPdfSignatureBlock(doc, {
       clientSignature: quote.clientSignature,

@@ -17,6 +17,94 @@ export function parseDocumentNumber(number: string): {
   };
 }
 
+const LOG_ENTITY_BY_TYPE: Record<DocumentEntityType, string> = {
+  invoice: "invoice",
+  quote: "quote",
+  report: "report",
+};
+
+/** Visualizzazione uniforme (es. PRV-2026-003, 2026-003). */
+export function formatSequentialDocumentNumber(
+  number: string | null | undefined,
+  options?: { padLength?: number; fallback?: string }
+): string {
+  if (!number?.trim()) return options?.fallback ?? "BOZZA";
+  if (number.startsWith("BOZZA")) return number;
+  const parsed = parseDocumentNumber(number.trim());
+  if (!parsed) return number;
+  const padLength = options?.padLength ?? 3;
+  const seq = String(parsed.seq).padStart(padLength, "0");
+  return parsed.prefix
+    ? `${parsed.prefix}-${parsed.year}-${seq}`
+    : `${parsed.year}-${seq}`;
+}
+
+/** Prossimo numero progressivo per anno (stessa logica per fatture e preventivi). */
+export async function generateSequentialDocumentNumber(
+  entityType: DocumentEntityType,
+  options: {
+    prefix?: string;
+    padLength?: number;
+    legacyPrefixes?: string[];
+  } = {}
+): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = options.prefix?.trim() || "";
+  const padLength = options.padLength ?? 3;
+  const legacyPrefixes = options.legacyPrefixes ?? [];
+
+  const existing = await fetchActiveNumbers(entityType, prefix ? `${prefix}-${year}-` : `${year}-`);
+  const bareYearExisting =
+    prefix && entityType === "quote"
+      ? await fetchActiveNumbers(entityType, `${year}-`)
+      : [];
+  const legacyExisting = await Promise.all(
+    legacyPrefixes.map((legacy) =>
+      fetchActiveNumbers(entityType, `${legacy}-${year}-`)
+    )
+  );
+  const deletedLogs = await prisma.activityLog.findMany({
+    where: {
+      entityType: LOG_ENTITY_BY_TYPE[entityType],
+      action: "DELETE",
+    },
+    select: { details: true },
+  });
+
+  const numbers = [
+    ...existing,
+    ...bareYearExisting,
+    ...legacyExisting.flat(),
+    ...deletedLogs
+      .map((log) =>
+        log.details &&
+        typeof log.details === "object" &&
+        !Array.isArray(log.details) &&
+        "number" in log.details
+          ? String(log.details.number)
+          : ""
+      )
+      .filter(Boolean),
+  ];
+
+  const prefixPattern =
+    prefix || legacyPrefixes.length > 0
+      ? `^(?:(?:${[prefix, ...legacyPrefixes].filter(Boolean).join("|")})-)?`
+      : "^(?:FPR-)?";
+
+  const max = numbers.reduce((highest, number) => {
+    const match = number.match(
+      new RegExp(`${prefixPattern}(\\d{4})-(\\d+)$`)
+    );
+    if (!match) return highest;
+    if (Number(match[1]) !== year) return highest;
+    return Math.max(highest, Number(match[2]));
+  }, 0);
+
+  const seq = String(max + 1).padStart(padLength, "0");
+  return prefix ? `${prefix}-${year}-${seq}` : `${year}-${seq}`;
+}
+
 async function fetchActiveNumbers(
   entityType: DocumentEntityType,
   prefix: string

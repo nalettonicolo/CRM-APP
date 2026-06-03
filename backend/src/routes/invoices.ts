@@ -26,6 +26,7 @@ import { toDecimal } from "../services/quoteCalculator.js";
 import {
   assertCanEditDocumentCreatedAt,
   canEditDocumentCreatedAt,
+  generateSequentialDocumentNumber,
 } from "../services/documentSequence.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
@@ -69,47 +70,9 @@ const invoiceUpdateSchema = z.object({
 });
 
 async function generateInvoiceNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const [existing, deletedLogs] = await Promise.all([
-    prisma.invoicePreview.findMany({
-      where: {
-        OR: [
-          { number: { startsWith: `${year}-` } },
-          { number: { startsWith: `FPR-${year}-` } },
-        ],
-      },
-      select: { number: true },
-    }),
-    prisma.activityLog.findMany({
-      where: { entityType: "invoice", action: "DELETE" },
-      select: { details: true },
-    }),
-  ]);
-  const numbers = [
-    ...existing
-      .map((row) => row.number)
-      .filter((number): number is string => typeof number === "string"),
-    ...deletedLogs
-      .map((log) =>
-        log.details &&
-        typeof log.details === "object" &&
-        !Array.isArray(log.details) &&
-        "number" in log.details
-          ? String(log.details.number)
-          : ""
-      )
-      .filter(
-        (number) =>
-          number.startsWith(`${year}-`) || number.startsWith(`FPR-${year}-`)
-      ),
-  ];
-  const max = numbers.reduce((highest, number) => {
-    const match = number.match(/^(?:FPR-)?(\d{4})-(\d+)$/);
-    if (!match) return highest;
-    if (Number(match[1]) !== year) return highest;
-    return Math.max(highest, Number(match[2]));
-  }, 0);
-  return `${year}-${String(max + 1).padStart(3, "0")}`;
+  return generateSequentialDocumentNumber("invoice", {
+    legacyPrefixes: ["FPR"],
+  });
 }
 
 function canEditInvoiceCreatedAt(invoice: { status: "DRAFT" | "CONFIRMED"; number: string | null }) {

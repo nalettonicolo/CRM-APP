@@ -260,7 +260,132 @@ export function drawPdfReferencesBlock(
   return y;
 }
 
-/** Intestazione + cliente affiancati come nel preventivo. */
+/** Meta documento a sinistra (grigio) + cliente a destra — layout documento di cortesia. */
+export function drawPdfLeftMetaClientRow(
+  doc: PdfDoc,
+  input: {
+    metaLines: string[];
+    client: ClientPdfInput;
+  }
+): number {
+  const sectionTop = Math.max(doc.y, PDF_LAYOUT.sectionTopMin) + 6;
+  const { leftRefX: x, leftRefWidth: width } = PDF_LAYOUT;
+  let leftY = sectionTop;
+
+  doc.font("Helvetica").fontSize(9).fillColor("#52525b");
+  for (const line of input.metaLines) {
+    doc.text(line, x, leftY, { width });
+    leftY += doc.heightOfString(line, { width }) + 5;
+  }
+  doc.fillColor("#000000");
+
+  const clientBottom = drawPdfClientBlock(
+    doc,
+    input.client,
+    sectionTop,
+    PDF_LAYOUT.clientBlockX,
+    PDF_LAYOUT.clientBlockWidth,
+    "right"
+  );
+  doc.y = Math.max(leftY, clientBottom) + 12;
+  doc.x = PDF_LAYOUT.margin;
+  return doc.y;
+}
+
+export type PdfFooterTotalLine = {
+  label: string;
+  value: string;
+  bold?: boolean;
+};
+
+/** Piede: coordinate bancarie a sinistra, totali (e scadenza) a destra. */
+export function drawPdfCourtesyFooter(
+  doc: PdfDoc,
+  company: CompanyInfo,
+  input: {
+    totalLines: PdfFooterTotalLine[];
+    paymentLineLeft?: string | null;
+    dueLabelRight?: string | null;
+    dueDateRight?: string | null;
+  }
+): number {
+  const totalsX = PDF_LAYOUT.totalsX;
+  const totalsLineCount =
+    input.totalLines.length + (input.dueDateRight ? 1 : 0);
+  const summaryHeight = Math.max(72, totalsLineCount * 15 + 48) + 40;
+  const summaryY = Math.max(doc.y + 10, doc.page.height - summaryHeight - 52);
+
+  const bankBottomY = drawPdfBankDetailsAt(
+    doc,
+    company,
+    PDF_LAYOUT.margin,
+    summaryY
+  );
+
+  const addTotalLine = (
+    label: string,
+    value: string,
+    y: number,
+    bold = false
+  ) => {
+    if (bold) doc.font("Helvetica-Bold");
+    doc.fontSize(10).fillColor("#000000").text(label, totalsX, y, {
+      continued: true,
+    });
+    doc.text(value, { align: "right" });
+    if (bold) doc.font("Helvetica");
+    return doc.y;
+  };
+
+  let cursorY = summaryY;
+  for (const line of input.totalLines) {
+    cursorY = addTotalLine(line.label, line.value, cursorY, line.bold);
+  }
+
+  const paymentRowY = Math.max(cursorY, bankBottomY) + 14;
+  const paymentLine = input.paymentLineLeft?.trim();
+  const dueDate = input.dueDateRight?.trim();
+  const dueLabel = input.dueLabelRight?.trim() || "Scadenza";
+
+  if (paymentLine) {
+    const paymentWidth = totalsX - PDF_LAYOUT.margin - 28;
+    doc.fontSize(9).font("Helvetica").text(paymentLine, PDF_LAYOUT.margin, paymentRowY, {
+      width: paymentWidth,
+      lineGap: 1,
+    });
+  }
+
+  if (dueDate) {
+    doc.font("Helvetica-Bold").text(dueLabel, totalsX, paymentRowY, { width: 62 });
+    doc.font("Helvetica").text(dueDate, totalsX + 66, paymentRowY, {
+      width: PDF_LAYOUT.pageRight - (totalsX + 66),
+      align: "right",
+    });
+  }
+
+  const paymentRowHeight = paymentLine
+    ? doc.heightOfString(paymentLine, {
+        width: totalsX - PDF_LAYOUT.margin - 28,
+      })
+    : 11;
+
+  return paymentRowY + paymentRowHeight + 4;
+}
+
+/** Note a tutta larghezza, allineate a sinistra (documento di cortesia). */
+export function drawPdfNotesSectionLeft(doc: PdfDoc, notes?: string | null): void {
+  const text = notes?.trim();
+  if (!text) return;
+  doc.x = PDF_LAYOUT.margin;
+  doc.fillColor("#52525b").fontSize(9).text("Note", { underline: true });
+  doc.fillColor("#111827").fontSize(9).text(text, {
+    width: 495,
+  });
+  doc.moveDown(0.6);
+  doc.fillColor("#000000");
+}
+
+/** Intestazione + cliente affiancati (verbali e varianti con titolo sottolineato). */
 export function drawPdfHeaderClientRow(
   doc: PdfDoc,
   input: {
@@ -348,13 +473,20 @@ export function createPdfTotalsWriter(doc: PdfDoc, x = PDF_LAYOUT.totalsX) {
   };
 }
 
-/** Sezione Note (dopo totali, come nel preventivo). */
+/** Sottotitolo allineato a destra (es. Piano di pagamento). */
+export function drawPdfTotalsSubheading(doc: PdfDoc, title: string): void {
+  const x = PDF_LAYOUT.totalsX;
+  const width = PDF_LAYOUT.pageRight - x;
+  doc.moveDown(0.3);
+  doc.fontSize(9).font("Helvetica-Bold").fillColor("#000000");
+  doc.text(title, x, doc.y, { width, align: "right" });
+  doc.font("Helvetica");
+  doc.moveDown(0.2);
+}
+
+/** @deprecated Usare drawPdfNotesSectionLeft per layout cortesia/preventivo. */
 export function drawPdfNotesSection(doc: PdfDoc, notes?: string | null): void {
-  const text = notes?.trim();
-  if (!text) return;
-  doc.moveDown();
-  doc.fontSize(9).fillColor("#52525b").text("Note", { underline: true });
-  doc.fillColor("#000000").text(text);
+  drawPdfNotesSectionLeft(doc, notes);
 }
 
 /** Titolo di sezione sottolineato (verbali e sezioni aggiuntive). */

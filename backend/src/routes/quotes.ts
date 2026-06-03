@@ -19,6 +19,7 @@ import { logActivity } from "../services/activityLog.js";
 import {
   assertCanEditDocumentCreatedAt,
   canEditDocumentCreatedAt,
+  generateSequentialDocumentNumber,
 } from "../services/documentSequence.js";
 import { quoteEmailBody } from "../constants/emailBodies.js";
 import { sendEmail, emailTemplate } from "../services/email.js";
@@ -136,11 +137,7 @@ function buildPaymentTermsCreate(
 }
 
 async function generateQuoteNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const count = await prisma.quote.count({
-    where: { createdAt: { gte: new Date(`${year}-01-01`) } },
-  });
-  return `PRV-${year}-${String(count + 1).padStart(4, "0")}`;
+  return generateSequentialDocumentNumber("quote", { prefix: "PRV" });
 }
 
 router.get("/", requirePermission("quotes", "READ"), async (req: AuthRequest, res, next) => {
@@ -502,6 +499,27 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
     });
     if (!existing) throw new NotFoundError();
 
+    if (body.status === "REJECTED" && existing.status === "ACCEPTED") {
+      const linked = await prisma.quote.findUnique({
+        where: { id: existing.id },
+        select: {
+          _count: {
+            select: { invoicePreviews: true, payments: true },
+          },
+        },
+      });
+      if (linked?._count.invoicePreviews) {
+        throw new ValidationError(
+          "Impossibile rifiutare: esiste un documento di cortesia collegato. Eliminalo prima."
+        );
+      }
+      if (linked?._count.payments) {
+        throw new ValidationError(
+          "Impossibile rifiutare: esistono pagamenti registrati su questo preventivo."
+        );
+      }
+    }
+
     if (body.createdAt) {
       await assertCanEditDocumentCreatedAt(
         "quote",
@@ -636,7 +654,10 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
             acceptedAt: new Date(),
             signedByClient: true,
           }),
-          ...(body.status === "REJECTED" && { rejectedAt: new Date() }),
+          ...(body.status === "REJECTED" && {
+            rejectedAt: new Date(),
+            acceptedAt: null,
+          }),
           ...(body.signedByClient && { signedAt: new Date(), signedByClient: true }),
         },
         include: {
@@ -657,6 +678,9 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
 
     if (body.status === "ACCEPTED" || quote.status === "ACCEPTED") {
       await syncQuoteCalendarEvent(quote.id);
+    }
+    if (body.status === "REJECTED") {
+      await prisma.event.deleteMany({ where: { quoteId: quote.id } });
     }
 
     res.json({
