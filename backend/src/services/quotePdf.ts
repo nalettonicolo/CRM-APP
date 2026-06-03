@@ -12,6 +12,7 @@ import {
   drawPdfLetterhead,
   drawPdfLineItemsTable,
   drawPdfNotesSectionLeft,
+  drawPdfPaymentScheduleSection,
   drawPdfSignatureBlock,
   loadCompanySettings,
   loadLogoFilePath,
@@ -19,6 +20,7 @@ import {
   pdfMoney,
   type CompanyInfo,
   type PdfFooterTotalLine,
+  type PdfPaymentScheduleLine,
 } from "./pdfBranding.js";
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import { formatSequentialDocumentNumber } from "./documentSequence.js";
@@ -34,6 +36,89 @@ function quotePdfDueDate(
     return balanceTerm.dueDate.toLocaleDateString("it-IT");
   }
   return null;
+}
+
+function buildQuotePaymentScheduleLines(
+  quote: Quote & { paymentTerms?: QuotePaymentTerm[] }
+): PdfPaymentScheduleLine[] {
+  const lines: PdfPaymentScheduleLine[] = [];
+  const paymentTerms = quote.paymentTerms;
+
+  if (paymentTerms && paymentTerms.length > 0) {
+    for (const term of paymentTerms) {
+      const pct =
+        term.percent != null && Number(term.percent) > 0
+          ? ` (${pdfMoney(term.percent)}%)`
+          : "";
+      const note = term.note?.trim() ? ` — ${term.note.trim()}` : "";
+      lines.push({
+        label: `${term.label}${pct}${note}`,
+        amount: `€ ${pdfMoney(Number(term.amount))}`,
+      });
+    }
+    const hasBalanceRow = paymentTerms.some((t) => t.isBalance);
+    if (!hasBalanceRow && Number(quote.balanceDue) > 0) {
+      lines.push({
+        label: "Saldo da versare",
+        amount: `€ ${pdfMoney(quote.balanceDue)}`,
+      });
+    }
+    return lines;
+  }
+
+  const depPct = Number(quote.depositPercent);
+  const depAmt = Number(quote.depositAmount);
+  if (depPct > 0 || depAmt > 0) {
+    const depLabel =
+      depPct > 0 ? `Acconto (${pdfMoney(depPct)}%)` : "Acconto richiesto";
+    lines.push(
+      { label: depLabel, amount: `€ ${pdfMoney(depAmt)}` },
+      { label: "Saldo da versare", amount: `€ ${pdfMoney(quote.balanceDue)}` }
+    );
+  }
+
+  return lines;
+}
+
+function buildQuoteFooterTotalLines(quote: Quote): PdfFooterTotalLine[] {
+  const totalLines: PdfFooterTotalLine[] = [
+    { label: "Imponibile", value: `€ ${pdfMoney(quote.subtotal)}` },
+  ];
+  if (Number(quote.discountAmount) > 0) {
+    totalLines.push({
+      label: "Sconto",
+      value: `- € ${pdfMoney(quote.discountAmount)}`,
+    });
+  }
+  totalLines.push(
+    { label: "IVA", value: `€ ${pdfMoney(quote.vatAmount)}` },
+    { label: "Totale", value: `€ ${pdfMoney(quote.total)}`, bold: true }
+  );
+  if (Number(quote.withholdingTaxAmount) > 0) {
+    const pct = Number(quote.withholdingTaxPercent);
+    const label =
+      pct > 0
+        ? `Ritenuta d'acconto (${pdfMoney(pct)}%)`
+        : "Ritenuta d'acconto";
+    totalLines.push({ label, value: `- € ${pdfMoney(quote.withholdingTaxAmount)}` });
+  }
+  if (Number(quote.stampDutyAmount) > 0) {
+    totalLines.push({
+      label: "Marca da bollo",
+      value: `€ ${pdfMoney(quote.stampDutyAmount)}`,
+    });
+  }
+  if (
+    Number(quote.netPayable) > 0 &&
+    Number(quote.netPayable) !== Number(quote.total)
+  ) {
+    totalLines.push({
+      label: "Netto a pagare",
+      value: `€ ${pdfMoney(quote.netPayable)}`,
+      bold: true,
+    });
+  }
+  return totalLines;
 }
 
 export { loadCompanySettings };
@@ -81,93 +166,18 @@ export async function generateQuotePdf(
 
     drawPdfLineItemsTable(doc, quote.items);
 
+    drawPdfPaymentScheduleSection(doc, buildQuotePaymentScheduleLines(quote));
+
     if (quote.notes?.trim()) {
       drawPdfNotesSectionLeft(doc, quote.notes);
     }
 
-    const totalLines: PdfFooterTotalLine[] = [
-      { label: "Imponibile", value: `€ ${pdfMoney(quote.subtotal)}` },
-    ];
-    if (Number(quote.discountAmount) > 0) {
-      totalLines.push({
-        label: "Sconto",
-        value: `- € ${pdfMoney(quote.discountAmount)}`,
-      });
-    }
-    totalLines.push(
-      { label: "IVA", value: `€ ${pdfMoney(quote.vatAmount)}` },
-      { label: "Totale", value: `€ ${pdfMoney(quote.total)}`, bold: true }
-    );
-    if (Number(quote.withholdingTaxAmount) > 0) {
-      const pct = Number(quote.withholdingTaxPercent);
-      const label =
-        pct > 0
-          ? `Ritenuta d'acconto (${pdfMoney(pct)}%)`
-          : "Ritenuta d'acconto";
-      totalLines.push({ label, value: `- € ${pdfMoney(quote.withholdingTaxAmount)}` });
-    }
-    if (Number(quote.stampDutyAmount) > 0) {
-      totalLines.push({
-        label: "Marca da bollo",
-        value: `€ ${pdfMoney(quote.stampDutyAmount)}`,
-      });
-    }
-    if (
-      Number(quote.netPayable) > 0 &&
-      Number(quote.netPayable) !== Number(quote.total)
-    ) {
-      totalLines.push({
-        label: "Netto a pagare",
-        value: `€ ${pdfMoney(quote.netPayable)}`,
-        bold: true,
-      });
-    }
-
-    const paymentTerms = quote.paymentTerms;
-    if (paymentTerms && paymentTerms.length > 0) {
-      for (const term of paymentTerms) {
-        const pct =
-          term.percent != null && Number(term.percent) > 0
-            ? ` (${pdfMoney(term.percent)}%)`
-            : "";
-        const note = term.note?.trim() ? ` — ${term.note.trim()}` : "";
-        totalLines.push({
-          label: `${term.label}${pct}${note}`,
-          value: `€ ${pdfMoney(Number(term.amount))}`,
-        });
-      }
-      if (Number(quote.balanceDue) >= 0) {
-        const hasBalanceRow = paymentTerms.some((t) => t.isBalance);
-        if (!hasBalanceRow && Number(quote.balanceDue) > 0) {
-          totalLines.push({
-            label: "Saldo da versare",
-            value: `€ ${pdfMoney(quote.balanceDue)}`,
-            bold: true,
-          });
-        }
-      }
-    } else {
-      const depPct = Number(quote.depositPercent);
-      const depAmt = Number(quote.depositAmount);
-      if (depPct > 0 || depAmt > 0) {
-        const depLabel =
-          depPct > 0 ? `Acconto (${pdfMoney(depPct)}%)` : "Acconto richiesto";
-        totalLines.push(
-          { label: depLabel, value: `€ ${pdfMoney(depAmt)}` },
-          {
-            label: "Saldo da versare",
-            value: `€ ${pdfMoney(quote.balanceDue)}`,
-            bold: true,
-          }
-        );
-      }
-    }
-
-    const footerY = drawPdfCourtesyFooter(
+    const signatureReserve = 132;
+    drawPdfCourtesyFooter(
       doc,
       companyInfo,
       {
-        totalLines,
+        totalLines: buildQuoteFooterTotalLines(quote),
         paymentLineLeft: formatInvoicePaymentPdfLine(
           {
             paymentStatus: quote.paymentStatus,
@@ -178,9 +188,10 @@ export async function generateQuotePdf(
         ),
         dueDateRight: quotePdfDueDate(quote),
       },
-      { reserveBelow: 120 }
+      { reserveBelow: signatureReserve }
     );
-    doc.y = footerY + 6;
+
+    doc.y += 6;
     doc.x = PDF_LAYOUT.margin;
 
     drawPdfSignatureBlock(doc, {

@@ -104,16 +104,14 @@ export function drawPdfSignatureBlock(
   }
 ): void {
   const pageBottom = doc.page.height - PDF_LAYOUT.margin;
-  const blockHeight = 118;
+  const blockHeight = 128;
   if (doc.y + blockHeight > pageBottom) {
     doc.addPage();
     doc.x = PDF_LAYOUT.margin;
     doc.y = PDF_LAYOUT.margin;
-  } else {
-    doc.moveDown(0.6);
   }
 
-  doc.moveDown(0.2);
+  doc.moveDown(0.5);
   doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
   doc.text(
     options.label || DOCUMENT_COPY.quote.acceptanceHeading,
@@ -407,6 +405,41 @@ export function drawPdfCourtesyFooter(
     : 11;
 
   return paymentRowY + paymentRowHeight + 4;
+}
+
+export type PdfPaymentScheduleLine = {
+  label: string;
+  amount: string;
+};
+
+/** Acconti e saldi sopra le note (non nella colonna totali). */
+export function drawPdfPaymentScheduleSection(
+  doc: PdfDoc,
+  lines: PdfPaymentScheduleLine[]
+): void {
+  if (lines.length === 0) return;
+
+  const blockHeight = 22 + lines.length * 14;
+  const pageBottom = doc.page.height - PDF_LAYOUT.margin;
+  if (doc.y + blockHeight > pageBottom) {
+    doc.addPage();
+    doc.x = PDF_LAYOUT.margin;
+    doc.y = PDF_LAYOUT.margin;
+  }
+
+  doc.moveDown(0.3);
+  doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
+  doc.text("Piano di pagamento", PDF_LAYOUT.margin, doc.y, { underline: true });
+  doc.moveDown(0.45);
+  doc.font("Helvetica").fontSize(9).fillColor("#111827");
+  for (const line of lines) {
+    doc.text(`${line.label}: ${line.amount}`, PDF_LAYOUT.margin, doc.y, {
+      width: 495,
+    });
+    doc.moveDown(0.3);
+  }
+  doc.fillColor("#000000");
+  doc.moveDown(0.2);
 }
 
 /** Note a tutta larghezza, allineate a sinistra (documento di cortesia). */
