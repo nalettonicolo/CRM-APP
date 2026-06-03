@@ -221,6 +221,152 @@ export function drawPdfClientBlock(
   return y;
 }
 
+export const PDF_LAYOUT = {
+  margin: 50,
+  pageRight: 545,
+  sectionTopMin: 118,
+  clientBlockX: 300,
+  clientBlockWidth: 245,
+  leftRefX: 50,
+  leftRefWidth: 280,
+  totalsX: 380,
+  tableCols: { desc: 50, qty: 320, price: 380, total: 480 },
+} as const;
+
+export function pdfMoney(n: number | { toString(): string }): string {
+  return Number(n).toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+/** Blocco sinistro con titolo sottolineato (es. Riferimenti preventivo). */
+export function drawPdfReferencesBlock(
+  doc: PdfDoc,
+  top: number,
+  heading: string,
+  lines: string[]
+): number {
+  const { leftRefX: x, leftRefWidth: width } = PDF_LAYOUT;
+  let y = top;
+  doc.fontSize(11).font("Helvetica-Bold").fillColor("#000000");
+  doc.text(heading, x, y, { width, underline: true });
+  y += 16;
+  doc.font("Helvetica").fontSize(10);
+  for (const line of lines) {
+    doc.text(line, x, y, { width });
+    y += doc.heightOfString(line, { width }) + 4;
+  }
+  return y;
+}
+
+/** Intestazione + cliente affiancati come nel preventivo. */
+export function drawPdfHeaderClientRow(
+  doc: PdfDoc,
+  input: {
+    referencesHeading: string;
+    referenceLines: string[];
+    client: ClientPdfInput;
+  }
+): number {
+  const sectionTop = Math.max(doc.y, PDF_LAYOUT.sectionTopMin) + 6;
+  const leftY = drawPdfReferencesBlock(
+    doc,
+    sectionTop,
+    input.referencesHeading,
+    input.referenceLines
+  );
+  const clientBottom = drawPdfClientBlock(
+    doc,
+    input.client,
+    sectionTop,
+    PDF_LAYOUT.clientBlockX,
+    PDF_LAYOUT.clientBlockWidth,
+    "right"
+  );
+  doc.y = Math.max(leftY, clientBottom) + 12;
+  doc.x = PDF_LAYOUT.margin;
+  return doc.y;
+}
+
+export type PdfLineItem = {
+  description: string;
+  quantity: number | { toString(): string };
+  unit?: string | null;
+  unitPrice: number | { toString(): string };
+  total: number | { toString(): string };
+};
+
+/** Tabella voci (Descrizione, Q.tà, Prezzo, Totale). */
+export function drawPdfLineItemsTable(doc: PdfDoc, items: PdfLineItem[]): void {
+  if (items.length === 0) return;
+
+  const { desc, qty, price, total } = PDF_LAYOUT.tableCols;
+  const tableTop = doc.y;
+
+  doc.fontSize(10).font("Helvetica-Bold");
+  doc.text("Descrizione", desc, tableTop);
+  doc.text("Q.tà", qty, tableTop, { width: 50, align: "right" });
+  doc.text("Prezzo", price, tableTop, { width: 70, align: "right" });
+  doc.text("Totale", total, tableTop, { width: 70, align: "right" });
+  doc.font("Helvetica");
+  doc.moveDown(0.5);
+  doc
+    .moveTo(PDF_LAYOUT.margin, doc.y)
+    .lineTo(PDF_LAYOUT.pageRight, doc.y)
+    .strokeColor("#e4e4e7")
+    .stroke();
+  doc.moveDown(0.3);
+
+  for (const item of items) {
+    const y = doc.y;
+    if (y > 700) doc.addPage();
+    doc.fontSize(9).text(item.description, desc, y, { width: 250 });
+    const qtyText = item.unit
+      ? `${pdfMoney(item.quantity)} ${item.unit}`
+      : pdfMoney(item.quantity);
+    doc.text(qtyText, qty, y, { width: 50, align: "right" });
+    doc.text(`€ ${pdfMoney(item.unitPrice)}`, price, y, {
+      width: 70,
+      align: "right",
+    });
+    doc.text(`€ ${pdfMoney(item.total)}`, total, y, {
+      width: 70,
+      align: "right",
+    });
+    doc.moveDown(0.8);
+  }
+  doc.moveDown();
+}
+
+export function createPdfTotalsWriter(doc: PdfDoc, x = PDF_LAYOUT.totalsX) {
+  return (label: string, value: string, bold = false) => {
+    if (bold) doc.font("Helvetica-Bold");
+    doc.fontSize(10).text(label, x, doc.y, { continued: true });
+    doc.text(value, { align: "right" });
+    if (bold) doc.font("Helvetica");
+  };
+}
+
+/** Sezione Note (dopo totali, come nel preventivo). */
+export function drawPdfNotesSection(doc: PdfDoc, notes?: string | null): void {
+  const text = notes?.trim();
+  if (!text) return;
+  doc.moveDown();
+  doc.fontSize(9).fillColor("#52525b").text("Note", { underline: true });
+  doc.fillColor("#000000").text(text);
+}
+
+/** Titolo di sezione sottolineato (verbali e sezioni aggiuntive). */
+export function drawPdfSectionHeading(doc: PdfDoc, title: string): void {
+  if (doc.y > 700) doc.addPage();
+  doc.moveDown(0.4);
+  doc.fontSize(11).font("Helvetica-Bold").fillColor("#000000");
+  doc.text(title, PDF_LAYOUT.margin, doc.y, { underline: true });
+  doc.moveDown(0.5);
+  doc.font("Helvetica").fontSize(10).fillColor("#000000");
+}
+
 export function formatEventDatesPdf(
   eventAt?: Date | null,
   eventEndAt?: Date | null

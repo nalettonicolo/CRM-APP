@@ -8,13 +8,18 @@ import {
 } from "./invoiceDiscounts.js";
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import {
-  drawPdfBankDetailsAt,
-  drawPdfClientBlock,
+  createPdfTotalsWriter,
+  drawPdfBankDetails,
   drawPdfEventInfoRow,
+  drawPdfHeaderClientRow,
   drawPdfLetterhead,
+  drawPdfLineItemsTable,
+  drawPdfNotesSection,
   loadCompanySettings,
   loadLogoFilePath,
+  pdfMoney,
   type CompanyInfo,
+  type PdfLineItem,
 } from "./pdfBranding.js";
 
 type InvoiceWithRelations = InvoicePreview & {
@@ -34,7 +39,7 @@ type InvoiceLineItem = {
   total: MoneyLike;
 };
 
-function invoiceItems(invoice: InvoiceWithRelations): InvoiceLineItem[] {
+function invoiceItems(invoice: InvoiceWithRelations): PdfLineItem[] {
   if (Array.isArray(invoice.items)) {
     return invoice.items
       .filter((item) => item && typeof item === "object" && "description" in item)
@@ -45,7 +50,6 @@ function invoiceItems(invoice: InvoiceWithRelations): InvoiceLineItem[] {
           quantity: Number(row.quantity) || 0,
           unit: typeof row.unit === "string" ? row.unit : null,
           unitPrice: Number(row.unitPrice) || 0,
-          vatRate: Number(row.vatRate) || 0,
           total: Number(row.total) || 0,
         };
       })
@@ -57,24 +61,16 @@ function invoiceItems(invoice: InvoiceWithRelations): InvoiceLineItem[] {
       quantity: item.quantity,
       unit: item.unit,
       unitPrice: item.unitPrice,
-      vatRate: item.vatRate,
       total: item.total,
     })) ?? []
   );
-}
-
-function money(n: number | { toString(): string }) {
-  return Number(n).toLocaleString("it-IT", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
 }
 
 function displayInvoiceNumber(number: string | null | undefined): string {
   if (!number) return "BOZZA";
   if (number.startsWith("BOZZA")) return number;
   const normalized = number.replace(/^FPR-/, "");
-  return `Doc. ${normalized}`;
+  return normalized;
 }
 
 async function generateInvoiceReceiptPdf(
@@ -85,6 +81,8 @@ async function generateInvoiceReceiptPdf(
   const logoPath = await loadLogoFilePath();
 
   const displayNumber = invoice.number || `BOZZA-${invoice.id.slice(0, 6).toUpperCase()}`;
+  const issueDate = invoice.confirmedAt ?? invoice.createdAt;
+
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: "A4" });
     const chunks: Buffer[] = [];
@@ -93,19 +91,18 @@ async function generateInvoiceReceiptPdf(
     doc.on("error", reject);
 
     const showQuoteReferences = invoice.showQuoteRef !== false;
-
     const headerCompany =
       invoice.showWebsite === false ? { ...companyInfo, website: "" } : companyInfo;
 
-    drawPdfLetterhead(doc, headerCompany, logoPath);
+    drawPdfLetterhead(doc, headerCompany, logoPath, {
+      titleRight: `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
+      subtitleRight: [`Emesso il: ${issueDate.toLocaleDateString("it-IT")}`],
+    });
 
-    const sectionTop = Math.max(doc.y, 118) + 6;
-    const leftX = 50;
-    const leftWidth = 280;
-
-    const leftMetaLines = [
-      `${DOCUMENT_COPY.invoice.pdfTitlePrefix} ${displayInvoiceNumber(displayNumber)}`,
-      `Data: ${invoice.createdAt.toLocaleDateString("it-IT")}`,
+    const refLines = [
+      invoice.quote?.title?.trim() && showQuoteReferences
+        ? `Oggetto: ${invoice.quote.title.trim()}`
+        : null,
       invoice.dueDate
         ? `Scadenza: ${invoice.dueDate.toLocaleDateString("it-IT")}`
         : null,
@@ -114,27 +111,12 @@ async function generateInvoiceReceiptPdf(
         : null,
     ].filter(Boolean) as string[];
 
-    let leftY = sectionTop;
-    doc.font("Helvetica").fontSize(9).fillColor("#52525b");
-    for (const line of leftMetaLines) {
-      doc.text(line, leftX, leftY, { width: leftWidth });
-      leftY += doc.heightOfString(line, { width: leftWidth }) + 5;
-    }
-    doc.fillColor("#000000");
+    drawPdfHeaderClientRow(doc, {
+      referencesHeading: DOCUMENT_COPY.invoice.referencesHeading,
+      referenceLines: refLines,
+      client: invoice.client,
+    });
 
-    const blockX = 300;
-    const blockWidth = 245;
-    const clientBottom = drawPdfClientBlock(
-      doc,
-      invoice.client,
-      sectionTop,
-      blockX,
-      blockWidth,
-      "right"
-    );
-
-    doc.y = Math.max(leftY, clientBottom) + 12;
-    doc.x = 50;
     drawPdfEventInfoRow(doc, {
       location: invoice.eventLocation ?? invoice.quote?.eventLocation,
       eventAt: invoice.eventAt ?? invoice.quote?.eventAt,
@@ -142,131 +124,53 @@ async function generateInvoiceReceiptPdf(
     });
 
     const items = invoiceItems(invoice);
-    if (items.length > 0) {
-      const tableTop = doc.y;
-      const colDesc = 50;
-      const colQty = 320;
-      const colPrice = 380;
-      const colTotal = 480;
+    drawPdfLineItemsTable(doc, items);
 
-      doc.fontSize(10).font("Helvetica-Bold");
-      doc.text("Descrizione", colDesc, tableTop);
-      doc.text("Q.tà", colQty, tableTop, { width: 50, align: "right" });
-      doc.text("Prezzo", colPrice, tableTop, { width: 70, align: "right" });
-      doc.text("Totale", colTotal, tableTop, { width: 70, align: "right" });
-      doc.font("Helvetica");
-      doc.moveDown(0.5);
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#e4e4e7").stroke();
-      doc.moveDown(0.3);
-
-      for (const item of items) {
-        if (doc.y > 700) doc.addPage();
-        const y = doc.y;
-        doc.fontSize(9).text(item.description, colDesc, y, { width: 250 });
-        const descHeight = doc.heightOfString(item.description, { width: 250 });
-        const qtyText = item.unit
-          ? `${money(item.quantity)} ${item.unit}`
-          : money(item.quantity);
-        doc.text(qtyText, colQty, y, { width: 50, align: "right" });
-        doc.text(`€ ${money(item.unitPrice)}`, colPrice, y, {
-          width: 70,
-          align: "right",
-        });
-        doc.text(`€ ${money(item.total)}`, colTotal, y, {
-          width: 70,
-          align: "right",
-        });
-        const rowHeight = Math.max(descHeight, 14);
-        doc.y = y + rowHeight + 6;
-      }
-      doc.moveDown();
-    }
-
-    if (invoice.notes?.trim()) {
-      doc.x = 50;
-      doc.fillColor("#52525b").fontSize(9).text("Note", { underline: true });
-      doc.fillColor("#111827").fontSize(9).text(invoice.notes.trim(), {
-        width: 495,
-      });
-      doc.moveDown(0.6);
-    }
-
-    const totalsX = 375;
-    const addTotalLine = (label: string, value: string, y: number, bold = false) => {
-      if (bold) doc.font("Helvetica-Bold");
-      doc.fontSize(10).text(label, totalsX, y, { continued: true });
-      doc.text(value, { align: "right" });
-      if (bold) doc.font("Helvetica");
-      return doc.y;
-    };
-
+    const addTotalLine = createPdfTotalsWriter(doc);
     const discounts = parseInvoiceDiscounts(invoice.discounts);
     const grossSubtotal = Number(invoice.subtotal);
-    const totalsLineCount =
-      3 +
-      discounts.length +
-      (Number(invoice.depositAmount) > 0 ? 2 : 0);
-    const summaryHeight = Math.max(72, totalsLineCount * 15 + 48) + 40;
-    const summaryY = Math.max(doc.y + 10, doc.page.height - summaryHeight - 52);
 
-    const bankBottomY = drawPdfBankDetailsAt(doc, companyInfo, 50, summaryY);
-
-    let cursorY = summaryY;
-    cursorY = addTotalLine("Imponibile", `€ ${money(grossSubtotal)}`, cursorY);
+    addTotalLine("Imponibile", `€ ${pdfMoney(grossSubtotal)}`);
     for (const discount of discounts) {
       const deduction = discountDeduction(grossSubtotal, discount);
       const label =
         discount.mode === "PERCENT"
           ? `${discount.description} (${discount.value}%)`
           : discount.description;
-      cursorY = addTotalLine(label, `- € ${money(deduction)}`, cursorY);
+      addTotalLine(label, `- € ${pdfMoney(deduction)}`);
     }
-    cursorY = addTotalLine("IVA", `€ ${money(invoice.vatAmount)}`, cursorY);
-    cursorY = addTotalLine("Totale", `€ ${money(invoice.total)}`, cursorY, true);
+    addTotalLine("IVA", `€ ${pdfMoney(invoice.vatAmount)}`);
+    addTotalLine("Totale", `€ ${pdfMoney(invoice.total)}`, true);
     if (Number(invoice.depositAmount) > 0) {
-      cursorY = addTotalLine("Acconto", `€ ${money(invoice.depositAmount)}`, cursorY);
-      cursorY = addTotalLine("Saldo", `€ ${money(invoice.balanceDue)}`, cursorY, true);
+      addTotalLine("Acconto", `€ ${pdfMoney(invoice.depositAmount)}`);
+      addTotalLine("Saldo", `€ ${pdfMoney(invoice.balanceDue)}`, true);
     }
 
-    const totalsBottomY = cursorY;
-    const paymentRowY = Math.max(totalsBottomY, bankBottomY) + 14;
     const paymentLine = formatInvoicePaymentPdfLine(invoice, true);
-    const dueLine = invoice.dueDate
-      ? invoice.dueDate.toLocaleDateString("it-IT")
-      : "—";
-    const scadenzaX = totalsX;
-    const paymentWidth = scadenzaX - 50 - 28;
+    doc.moveDown(0.3);
+    doc.fontSize(9).font("Helvetica-Bold").text(DOCUMENT_COPY.invoice.paymentHeading);
+    doc.font("Helvetica");
+    doc.moveDown(0.2);
+    addTotalLine("Modalità", paymentLine);
+    if (invoice.dueDate) {
+      addTotalLine(
+        "Scadenza",
+        invoice.dueDate.toLocaleDateString("it-IT")
+      );
+    }
 
-    doc.fontSize(9).font("Helvetica").text(paymentLine, 50, paymentRowY, {
-      width: paymentWidth,
-      lineGap: 1,
-    });
+    drawPdfNotesSection(doc, invoice.notes);
+    drawPdfBankDetails(doc, companyInfo);
 
-    doc.font("Helvetica-Bold").text("Scadenza", scadenzaX, paymentRowY, {
-      width: 62,
-    });
-    doc.font("Helvetica").text(dueLine, scadenzaX + 66, paymentRowY, {
-      width: 545 - (scadenzaX + 66),
-      align: "right",
-    });
-
-    const paymentRowHeight = Math.max(
-      doc.heightOfString(paymentLine, { width: paymentWidth }),
-      11
-    );
-    cursorY = paymentRowY + paymentRowHeight + 4;
-
-    const footerY = cursorY + 8;
+    if (doc.y > 620) doc.addPage();
+    doc.moveDown(0.5);
     const disclaimerText =
       invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER;
     doc
       .fontSize(7.5)
       .fillColor("#71717a")
-      .text(disclaimerText, 50, footerY, { width: 495, align: "left" });
+      .text(disclaimerText, 50, doc.y, { width: 495, align: "left" });
     doc.fillColor("#000000");
-    doc.x = 50;
-    doc.y =
-      footerY + doc.heightOfString(disclaimerText, { width: 495 }) + 4;
 
     doc.end();
   });

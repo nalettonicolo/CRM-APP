@@ -19,10 +19,13 @@ export const DOCUMENT_COPY = {
   },
   invoice: {
     pdfTitlePrefix: "Documento di cortesia",
+    referencesHeading: "Riferimenti documento",
+    paymentHeading: "Pagamento",
     disclaimer: INVOICE_COURTESY_DISCLAIMER,
   },
   report: {
     pdfTitlePrefix: "Verbale intervento",
+    referencesHeading: "Riferimenti verbale",
     checklistHeading: "Voci attività",
     signaturesHeading: "Firme",
     technicianSignLabel: "Firma del tecnico",
