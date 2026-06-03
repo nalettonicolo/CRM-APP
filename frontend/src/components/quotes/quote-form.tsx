@@ -17,6 +17,8 @@ import {
 } from "@/lib/api";
 import { PaymentScheduleEditor } from "@/components/quotes/payment-schedule-editor";
 import {
+  invoicePaymentMethodOptions,
+  invoicePaymentTimingOptions,
   SERVICE_UNIT_OPTIONS,
   serviceUnitLabel,
 } from "@/lib/labels";
@@ -48,6 +50,8 @@ export type QuoteFormPayload = {
   withholdingTaxAmount?: number;
   stampDutyAmount?: number;
   paymentTerms?: PaymentTermDraft[];
+  paymentMethod?: string;
+  paymentTiming?: string;
   items: QuoteItemDraft[];
 };
 
@@ -103,6 +107,8 @@ export function QuoteForm({
   const [eventLocation, setEventLocation] = useState("");
   const [createdAt, setCreatedAt] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTermDraft[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState("BANK_TRANSFER");
+  const [paymentTiming, setPaymentTiming] = useState("END_OF_WORK");
   const [withholdingTaxPercent, setWithholdingTaxPercent] = useState("");
   const [withholdingTaxAmount, setWithholdingTaxAmount] = useState("");
   const [stampDutyAmount, setStampDutyAmount] = useState("");
@@ -113,6 +119,8 @@ export function QuoteForm({
       setClientId(initial.clientId || "");
       setTitle(initial.title || "");
       setNotes(initial.notes || "");
+      setPaymentMethod(initial.paymentMethod || "BANK_TRANSFER");
+      setPaymentTiming(initial.paymentTiming || "END_OF_WORK");
       if (initial.paymentTerms?.length) {
         setPaymentTerms(
           initial.paymentTerms.map((t) => ({
@@ -274,6 +282,8 @@ export function QuoteForm({
       ...(initial && initial.canEditCreatedAt !== false && createdAt
         ? { createdAt: dateInputToIso(createdAt, 12) }
         : {}),
+      paymentMethod,
+      paymentTiming,
       paymentTerms: paymentTerms
         .filter((t) => t.label.trim())
         .map((t) => ({
@@ -402,6 +412,45 @@ export function QuoteForm({
             <p className="mt-1 text-xs text-muted-foreground">
               Lascia vuoto se un solo giorno. In calendario: 10:00–18:00.
             </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-xl border border-border bg-muted/20 p-4">
+        <div>
+          <h3 className="text-sm font-semibold">Modalità di pagamento</h3>
+          <p className="text-xs text-muted-foreground">
+            Compare nel PDF sotto le coordinate bancarie, come nei documenti di cortesia.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Metodo</label>
+            <select
+              className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+            >
+              {invoicePaymentMethodOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Termine</label>
+            <select
+              className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+              value={paymentTiming}
+              onChange={(e) => setPaymentTiming(e.target.value)}
+            >
+              {invoicePaymentTimingOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

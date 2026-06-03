@@ -428,6 +428,8 @@ model Quote {
   eventAt         DateTime?
   eventEndAt      DateTime?
   eventLocation   String?
+  paymentMethod   PaymentMethod       @default(BANK_TRANSFER)
+  paymentTiming   InvoicePaymentTiming @default(END_OF_WORK)
   items           QuoteItem[]
   calendarEvents  Event[]
   paymentTerms    QuotePaymentTerm[]

@@ -294,6 +294,8 @@ export interface Quote {
   client?: Client;
   items?: QuoteItem[];
   paymentTerms?: QuotePaymentTerm[];
+  paymentMethod?: string;
+  paymentTiming?: string;
   createdBy?: { firstName: string; lastName: string; email?: string };
   createdAt: string;
   updatedAt?: string;

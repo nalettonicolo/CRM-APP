@@ -20,7 +20,21 @@ import {
   type CompanyInfo,
   type PdfFooterTotalLine,
 } from "./pdfBranding.js";
+import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import { formatSequentialDocumentNumber } from "./documentSequence.js";
+
+function quotePdfDueDate(
+  quote: Quote & { paymentTerms?: QuotePaymentTerm[] }
+): string | null {
+  if (quote.validUntil) {
+    return quote.validUntil.toLocaleDateString("it-IT");
+  }
+  const balanceTerm = quote.paymentTerms?.find((t) => t.isBalance && t.dueDate);
+  if (balanceTerm?.dueDate) {
+    return balanceTerm.dueDate.toLocaleDateString("it-IT");
+  }
+  return null;
+}
 
 export { loadCompanySettings };
 
@@ -149,9 +163,23 @@ export async function generateQuotePdf(
       }
     }
 
-    const footerY = drawPdfCourtesyFooter(doc, companyInfo, { totalLines }, {
-      reserveBelow: 120,
-    });
+    const footerY = drawPdfCourtesyFooter(
+      doc,
+      companyInfo,
+      {
+        totalLines,
+        paymentLineLeft: formatInvoicePaymentPdfLine(
+          {
+            paymentStatus: quote.paymentStatus,
+            paymentMethod: quote.paymentMethod,
+            paymentTiming: quote.paymentTiming,
+          },
+          true
+        ),
+        dueDateRight: quotePdfDueDate(quote),
+      },
+      { reserveBelow: 120 }
+    );
     doc.y = footerY + 6;
     doc.x = PDF_LAYOUT.margin;
 

@@ -18,6 +18,7 @@ import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import { formatQuoteServicePeriod } from "@/lib/quote-display";
 import { downloadQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
 import {
+  formatInvoicePaymentTerms,
   quoteStatusLabels,
   paymentStatusLabels,
   clientStatusLabels,
@@ -297,6 +298,13 @@ export default function QuoteDetailPage() {
                   value={
                     quote.validUntil ? formatDate(quote.validUntil) : "—"
                   }
+                />
+                <DetailField
+                  label="Modalità di pagamento (PDF)"
+                  value={formatInvoicePaymentTerms({
+                    paymentMethod: quote.paymentMethod,
+                    paymentTiming: quote.paymentTiming,
+                  })}
                 />
               </dl>
             </DetailSection>

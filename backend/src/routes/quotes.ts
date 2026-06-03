@@ -28,6 +28,10 @@ import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 import { syncQuoteCalendarEvent } from "../services/quoteCalendar.js";
 import { getQuoteDefaults } from "../services/quoteDefaults.js";
+import {
+  INVOICE_PAYMENT_METHODS,
+  INVOICE_PAYMENT_TIMINGS,
+} from "../constants/invoicePayment.js";
 
 const quoteItemInputSchema = z.object({
   type: z.enum(["service", "product", "custom"]).default("custom"),
@@ -215,6 +219,8 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         depositPercent: z.number().optional(),
         depositAmount: z.number().optional(),
         paymentTerms: z.array(paymentTermInputSchema).optional(),
+        paymentMethod: z.enum(INVOICE_PAYMENT_METHODS).optional(),
+        paymentTiming: z.enum(INVOICE_PAYMENT_TIMINGS).optional(),
         items: z.array(quoteItemInputSchema).optional(),
       })
       .merge(taxFieldsSchema)
@@ -264,6 +270,8 @@ router.post("/", requirePermission("quotes", "CREATE"), async (req: AuthRequest,
         eventAt: body.eventAt ? new Date(body.eventAt) : undefined,
         eventEndAt: body.eventEndAt ? new Date(body.eventEndAt) : undefined,
         eventLocation: body.eventLocation?.trim() || undefined,
+        paymentMethod: body.paymentMethod,
+        paymentTiming: body.paymentTiming,
         notes: body.notes,
         discountPercent: toDecimal(body.discountPercent || 0),
         discountAmount: toDecimal(body.discountAmount || 0),
@@ -480,6 +488,8 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
         depositPercent: z.number().optional(),
         depositAmount: z.number().optional(),
         paymentTerms: z.array(paymentTermInputSchema).optional(),
+        paymentMethod: z.enum(INVOICE_PAYMENT_METHODS).optional(),
+        paymentTiming: z.enum(INVOICE_PAYMENT_TIMINGS).optional(),
         items: z.array(quoteItemInputSchema).optional(),
         status: z
           .enum(["DRAFT", "SENT", "ACCEPTED", "REJECTED", "EXPIRED", "CANCELLED"])
@@ -607,6 +617,12 @@ router.patch("/:id", requirePermission("quotes", "UPDATE"), async (req: AuthRequ
           }),
           ...(body.eventLocation !== undefined && {
             eventLocation: body.eventLocation?.trim() || null,
+          }),
+          ...(body.paymentMethod !== undefined && {
+            paymentMethod: body.paymentMethod,
+          }),
+          ...(body.paymentTiming !== undefined && {
+            paymentTiming: body.paymentTiming,
           }),
           ...(body.createdAt !== undefined && {
             createdAt: new Date(body.createdAt),
