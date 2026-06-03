@@ -101,25 +101,33 @@ export function drawPdfSignatureBlock(
     clientSignature?: string | null;
     signedAt?: Date | null;
     label?: string;
-  }
-): void {
-  const pageBottom = doc.page.height - PDF_LAYOUT.margin;
-  const blockHeight = 128;
-  if (doc.y + blockHeight > pageBottom) {
-    doc.addPage();
-    doc.x = PDF_LAYOUT.margin;
-    doc.y = PDF_LAYOUT.margin;
+  },
+  layout?: { startY?: number }
+): number {
+  const x = PDF_LAYOUT.margin;
+  let y = layout?.startY ?? doc.y;
+
+  if (layout?.startY == null) {
+    const pageBottom = pdfPageBottomY(doc);
+    const blockHeight = estimateSignatureBlockHeight(
+      Boolean(options.clientSignature?.trim()?.startsWith("data:image"))
+    );
+    if (y + blockHeight > pageBottom) {
+      doc.addPage();
+      y = PDF_LAYOUT.margin;
+    } else {
+      y += 6;
+    }
   }
 
-  doc.moveDown(0.5);
+  doc.x = x;
+  doc.y = y;
   doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
-  doc.text(
-    options.label || DOCUMENT_COPY.quote.acceptanceHeading,
-    50,
-    doc.y,
-    { underline: true }
-  );
-  doc.moveDown(0.5);
+  doc.text(options.label || DOCUMENT_COPY.quote.acceptanceHeading, x, y, {
+    width: 480,
+    underline: true,
+  });
+  y += 16;
   doc.font("Helvetica").fontSize(9).fillColor("#52525b");
 
   const sig = options.clientSignature?.trim();
@@ -127,39 +135,41 @@ export function drawPdfSignatureBlock(
     try {
       const base64 = sig.includes(",") ? sig.split(",")[1]! : sig;
       const buf = Buffer.from(base64, "base64");
-      const y = doc.y;
-      doc.image(buf, 50, y, { width: 200, height: 70, fit: [200, 70] });
-      doc.y = y + 78;
+      doc.image(buf, x, y, { width: 200, height: 70, fit: [200, 70] });
+      y += 76;
       if (options.signedAt) {
-        doc.text(
-          `Firmato digitalmente il ${options.signedAt.toLocaleDateString("it-IT")} alle ${options.signedAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`,
-          50
-        );
+        const signedLine = `Firmato digitalmente il ${options.signedAt.toLocaleDateString("it-IT")} alle ${options.signedAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}`;
+        doc.text(signedLine, x, y, { width: 480 });
+        y += doc.heightOfString(signedLine, { width: 480 }) + 3;
       }
-      doc.text(DOCUMENT_COPY.quote.acceptanceDigital, 50, doc.y, { width: 480 });
-      doc.moveDown(0.3);
-      doc.text(DOCUMENT_COPY.quote.acceptanceDigitalChannel, 50, doc.y, {
+      doc.text(DOCUMENT_COPY.quote.acceptanceDigital, x, y, { width: 480 });
+      y += doc.heightOfString(DOCUMENT_COPY.quote.acceptanceDigital, { width: 480 }) + 3;
+      doc.text(DOCUMENT_COPY.quote.acceptanceDigitalChannel, x, y, { width: 480 });
+      y += doc.heightOfString(DOCUMENT_COPY.quote.acceptanceDigitalChannel, {
         width: 480,
       });
     } catch {
-      drawEmptySignatureLines(doc);
+      y = drawEmptySignatureLinesAt(doc, x, y);
     }
   } else {
-    drawEmptySignatureLines(doc);
+    y = drawEmptySignatureLinesAt(doc, x, y);
   }
 
   doc.fillColor("#000000");
+  doc.y = y;
+  return y;
 }
 
-function drawEmptySignatureLines(doc: PdfDoc): void {
-  doc.moveDown(0.5);
-  doc.text(DOCUMENT_COPY.quote.acceptancePaper, 50, doc.y, { width: 480 });
-  doc.moveDown(1);
-  doc.text(DOCUMENT_COPY.quote.paperDateLine, 50);
-  doc.moveDown(0.8);
-  doc.text(DOCUMENT_COPY.quote.paperSignLine, 50);
-  doc.moveDown(0.5);
-  doc.fontSize(8).text(DOCUMENT_COPY.quote.paperNote, 50, doc.y, { width: 480 });
+function drawEmptySignatureLinesAt(doc: PdfDoc, x: number, y: number): number {
+  doc.text(DOCUMENT_COPY.quote.acceptancePaper, x, y, { width: 480 });
+  y += doc.heightOfString(DOCUMENT_COPY.quote.acceptancePaper, { width: 480 }) + 10;
+  doc.text(DOCUMENT_COPY.quote.paperDateLine, x, y);
+  y += 14;
+  doc.text(DOCUMENT_COPY.quote.paperSignLine, x, y);
+  y += 16;
+  doc.fontSize(8).text(DOCUMENT_COPY.quote.paperNote, x, y, { width: 480 });
+  y += doc.heightOfString(DOCUMENT_COPY.quote.paperNote, { width: 480 }) + 2;
+  return y;
 }
 
 export type ClientPdfInput = {
@@ -327,7 +337,41 @@ export function estimateCourtesyFooterHeight(
 export function estimateSignatureBlockHeight(
   hasDigitalSignature: boolean
 ): number {
-  return hasDigitalSignature ? 138 : 118;
+  return hasDigitalSignature ? 132 : 98;
+}
+
+/** Altezza reale del blocco firma (stessi font del disegno). */
+export function measurePdfSignatureBlockHeight(
+  doc: PdfDoc,
+  options: {
+    clientSignature?: string | null;
+    signedAt?: Date | null;
+    label?: string;
+  }
+): number {
+  const w = 480;
+  let h = 16;
+  const sig = options.clientSignature?.trim();
+  if (sig?.startsWith("data:image")) {
+    h += 76 + 3;
+    if (options.signedAt) {
+      h += 12 + 3;
+    }
+    h +=
+      doc.heightOfString(DOCUMENT_COPY.quote.acceptanceDigital, { width: w }) +
+      3;
+    h += doc.heightOfString(DOCUMENT_COPY.quote.acceptanceDigitalChannel, {
+      width: w,
+    });
+  } else {
+    h +=
+      doc.heightOfString(DOCUMENT_COPY.quote.acceptancePaper, { width: w }) + 10;
+    h += 14 + 16;
+    doc.fontSize(8);
+    h += doc.heightOfString(DOCUMENT_COPY.quote.paperNote, { width: w }) + 2;
+    doc.fontSize(9);
+  }
+  return h;
 }
 
 /** Se c'è spazio, ancorare il blocco finale al margine inferiore (come documento di cortesia). */
@@ -336,7 +380,7 @@ export function alignPdfClosingToPageBottom(
   blockHeight: number,
   minGapAfterContent = 8
 ): void {
-  const pageBottom = doc.page.height - PDF_LAYOUT.margin;
+  const pageBottom = pdfPageBottomY(doc);
   let startY = doc.y + minGapAfterContent;
 
   if (startY + blockHeight <= pageBottom) {
@@ -356,7 +400,11 @@ export function alignPdfClosingToPageBottom(
   doc.x = PDF_LAYOUT.margin;
 }
 
-/** Piede in flusso: banca sx, totali dx. */
+function pdfPageBottomY(doc: PdfDoc): number {
+  return doc.page.height - PDF_LAYOUT.margin;
+}
+
+/** Piede: banca sx, totali dx, pagamento sx (come documento di cortesia). */
 export function drawPdfCourtesyFooter(
   doc: PdfDoc,
   company: CompanyInfo,
@@ -366,20 +414,30 @@ export function drawPdfCourtesyFooter(
     dueLabelRight?: string | null;
     dueDateRight?: string | null;
   },
-  options?: { reserveBelow?: number; skipLeadingGap?: boolean }
+  options?: {
+    reserveBelow?: number;
+    skipLeadingGap?: boolean;
+    startY?: number;
+  }
 ): number {
   const totalsX = PDF_LAYOUT.totalsX;
   const reserveBelow = options?.reserveBelow ?? 0;
   const footerHeight = estimateCourtesyFooterHeight(company, input);
-  const pageBottom = doc.page.height - PDF_LAYOUT.margin;
+  const pageBottom = pdfPageBottomY(doc);
 
-  if (!options?.skipLeadingGap) {
-    doc.moveDown(0.4);
-  }
-  let summaryY = doc.y;
-  if (summaryY + footerHeight + reserveBelow > pageBottom) {
-    doc.addPage();
-    summaryY = PDF_LAYOUT.margin;
+  let summaryY = options?.startY ?? doc.y;
+  if (options?.startY == null) {
+    if (!options?.skipLeadingGap) {
+      doc.moveDown(0.4);
+    }
+    summaryY = doc.y;
+    if (summaryY + footerHeight + reserveBelow > pageBottom) {
+      doc.addPage();
+      summaryY = PDF_LAYOUT.margin;
+      doc.x = PDF_LAYOUT.margin;
+      doc.y = summaryY;
+    }
+  } else {
     doc.x = PDF_LAYOUT.margin;
     doc.y = summaryY;
   }
@@ -411,34 +469,101 @@ export function drawPdfCourtesyFooter(
     cursorY = addTotalLine(line.label, line.value, cursorY, line.bold);
   }
 
-  const paymentRowY = Math.max(cursorY, bankBottomY) + 14;
+  const blockBottom = Math.max(cursorY, bankBottomY);
+  const paymentRowY = blockBottom + 12;
   const paymentLine = input.paymentLineLeft?.trim();
   const dueDate = input.dueDateRight?.trim();
   const dueLabel = input.dueLabelRight?.trim() || "Scadenza";
+  const paymentWidth = totalsX - PDF_LAYOUT.margin - 28;
 
+  let rowHeight = 11;
   if (paymentLine) {
-    const paymentWidth = totalsX - PDF_LAYOUT.margin - 28;
     doc.fontSize(9).font("Helvetica").text(paymentLine, PDF_LAYOUT.margin, paymentRowY, {
       width: paymentWidth,
       lineGap: 1,
     });
+    rowHeight = Math.max(
+      rowHeight,
+      doc.heightOfString(paymentLine, { width: paymentWidth })
+    );
   }
 
   if (dueDate) {
-    doc.font("Helvetica-Bold").text(dueLabel, totalsX, paymentRowY, { width: 62 });
+    doc.font("Helvetica-Bold").fontSize(9).text(dueLabel, totalsX, paymentRowY, {
+      width: 62,
+    });
     doc.font("Helvetica").text(dueDate, totalsX + 66, paymentRowY, {
       width: PDF_LAYOUT.pageRight - (totalsX + 66),
       align: "right",
     });
+    rowHeight = Math.max(rowHeight, 11);
   }
 
-  const paymentRowHeight = paymentLine
-    ? doc.heightOfString(paymentLine, {
-        width: totalsX - PDF_LAYOUT.margin - 28,
-      })
-    : 11;
+  doc.fillColor("#000000");
+  return paymentRowY + rowHeight + 4;
+}
 
-  return paymentRowY + paymentRowHeight + 4;
+/** Preventivo: piede + firma; la firma è l'ultima riga della pagina. */
+export function layoutPdfQuoteClosing(
+  doc: PdfDoc,
+  company: CompanyInfo,
+  footerInput: {
+    totalLines: PdfFooterTotalLine[];
+    paymentLineLeft?: string | null;
+  },
+  signatureOptions: {
+    clientSignature?: string | null;
+    signedAt?: Date | null;
+    label?: string;
+  }
+): void {
+  const pageBottom = pdfPageBottomY(doc);
+  const contentEnd = doc.y;
+  const gapAfterContent = 14;
+  const gapFooterSignature = 10;
+
+  const sigHeight = measurePdfSignatureBlockHeight(doc, signatureOptions);
+  const footerHeight = estimateCourtesyFooterHeight(company, {
+    ...footerInput,
+    dueDateRight: null,
+  });
+  const closingHeight = footerHeight + gapFooterSignature + sigHeight;
+  const minFooterTop = contentEnd + gapAfterContent;
+
+  let footerTop = minFooterTop;
+  let signatureTop = footerTop + footerHeight + gapFooterSignature;
+  const canAnchorToBottom =
+    minFooterTop + closingHeight <= pageBottom + 0.5;
+
+  if (canAnchorToBottom) {
+    signatureTop = pageBottom - sigHeight;
+    footerTop = signatureTop - gapFooterSignature - footerHeight;
+    if (footerTop < minFooterTop) {
+      footerTop = minFooterTop;
+      signatureTop = footerTop + footerHeight + gapFooterSignature;
+    }
+  } else if (minFooterTop + closingHeight > pageBottom) {
+    doc.addPage();
+    doc.x = PDF_LAYOUT.margin;
+    doc.y = PDF_LAYOUT.margin;
+    footerTop = PDF_LAYOUT.margin;
+    signatureTop = footerTop + footerHeight + gapFooterSignature;
+  }
+
+  const footerEnd = drawPdfCourtesyFooter(doc, company, footerInput, {
+    startY: footerTop,
+    skipLeadingGap: true,
+  });
+
+  signatureTop = Math.max(signatureTop, footerEnd + gapFooterSignature);
+  if (canAnchorToBottom) {
+    signatureTop = pageBottom - sigHeight;
+    if (signatureTop < footerEnd + gapFooterSignature) {
+      signatureTop = footerEnd + gapFooterSignature;
+    }
+  }
+
+  drawPdfSignatureBlock(doc, signatureOptions, { startY: signatureTop });
 }
 
 export type PdfPaymentScheduleLine = {

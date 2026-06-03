@@ -6,20 +6,15 @@ import type {
   QuotePaymentTerm,
 } from "@prisma/client";
 import {
-  alignPdfClosingToPageBottom,
-  drawPdfCourtesyFooter,
   drawPdfEventInfoRow,
   drawPdfLeftMetaClientRow,
   drawPdfLetterhead,
   drawPdfLineItemsTable,
   drawPdfNotesSectionLeft,
   drawPdfPaymentScheduleSection,
-  drawPdfSignatureBlock,
-  estimateCourtesyFooterHeight,
-  estimateSignatureBlockHeight,
+  layoutPdfQuoteClosing,
   loadCompanySettings,
   loadLogoFilePath,
-  PDF_LAYOUT,
   pdfMoney,
   type CompanyInfo,
   type PdfFooterTotalLine,
@@ -27,19 +22,6 @@ import {
 } from "./pdfBranding.js";
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import { formatSequentialDocumentNumber } from "./documentSequence.js";
-
-function quotePdfDueDate(
-  quote: Quote & { paymentTerms?: QuotePaymentTerm[] }
-): string | null {
-  if (quote.validUntil) {
-    return quote.validUntil.toLocaleDateString("it-IT");
-  }
-  const balanceTerm = quote.paymentTerms?.find((t) => t.isBalance && t.dueDate);
-  if (balanceTerm?.dueDate) {
-    return balanceTerm.dueDate.toLocaleDateString("it-IT");
-  }
-  return null;
-}
 
 function buildQuotePaymentScheduleLines(
   quote: Quote & { paymentTerms?: QuotePaymentTerm[] }
@@ -175,34 +157,25 @@ export async function generateQuotePdf(
       drawPdfNotesSectionLeft(doc, quote.notes);
     }
 
-    const footerInput = {
-      totalLines: buildQuoteFooterTotalLines(quote),
-      paymentLineLeft: formatInvoicePaymentPdfLine(
-        {
-          paymentStatus: quote.paymentStatus,
-          paymentMethod: quote.paymentMethod,
-          paymentTiming: quote.paymentTiming,
-        },
-        true
-      ),
-      dueDateRight: quotePdfDueDate(quote),
-    };
-    const hasDigitalSig = Boolean(quote.clientSignature?.trim()?.startsWith("data:image"));
-    const closingHeight =
-      estimateCourtesyFooterHeight(companyInfo, footerInput) +
-      estimateSignatureBlockHeight(hasDigitalSig) +
-      6;
-
-    alignPdfClosingToPageBottom(doc, closingHeight);
-
-    drawPdfCourtesyFooter(doc, companyInfo, footerInput, {
-      skipLeadingGap: true,
-    });
-
-    drawPdfSignatureBlock(doc, {
-      clientSignature: quote.clientSignature,
-      signedAt: quote.signedAt,
-    });
+    layoutPdfQuoteClosing(
+      doc,
+      companyInfo,
+      {
+        totalLines: buildQuoteFooterTotalLines(quote),
+        paymentLineLeft: formatInvoicePaymentPdfLine(
+          {
+            paymentStatus: quote.paymentStatus,
+            paymentMethod: quote.paymentMethod,
+            paymentTiming: quote.paymentTiming,
+          },
+          true
+        ),
+      },
+      {
+        clientSignature: quote.clientSignature,
+        signedAt: quote.signedAt,
+      }
+    );
 
     doc.end();
   });
