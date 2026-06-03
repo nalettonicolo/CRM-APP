@@ -147,20 +147,24 @@ async function generateInvoiceReceiptPdf(
       );
     }
 
+    const disclaimerText =
+      invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER;
+    const disclaimerHeight = doc.heightOfString(disclaimerText, { width: 495 });
+
     const footerY = drawPdfCourtesyFooter(doc, companyInfo, {
       totalLines,
       paymentLineLeft: formatInvoicePaymentPdfLine(invoice, true),
       dueDateRight: invoice.dueDate
         ? invoice.dueDate.toLocaleDateString("it-IT")
         : null,
-    });
+    }, { reserveBelow: disclaimerHeight + 14 });
 
-    const disclaimerText =
-      invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER;
+    doc.y = footerY + 8;
+    doc.x = 50;
     doc
       .fontSize(7.5)
       .fillColor("#71717a")
-      .text(disclaimerText, 50, footerY + 8, { width: 495, align: "left" });
+      .text(disclaimerText, 50, doc.y, { width: 495, align: "left" });
     doc.fillColor("#000000");
 
     doc.end();

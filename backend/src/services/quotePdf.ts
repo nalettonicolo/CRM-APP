@@ -15,6 +15,7 @@ import {
   drawPdfSignatureBlock,
   loadCompanySettings,
   loadLogoFilePath,
+  PDF_LAYOUT,
   pdfMoney,
   type CompanyInfo,
   type PdfFooterTotalLine,
@@ -148,9 +149,11 @@ export async function generateQuotePdf(
       }
     }
 
-    const footerY = drawPdfCourtesyFooter(doc, companyInfo, { totalLines });
-    doc.y = footerY + 8;
-    doc.x = 50;
+    const footerY = drawPdfCourtesyFooter(doc, companyInfo, { totalLines }, {
+      reserveBelow: 120,
+    });
+    doc.y = footerY + 6;
+    doc.x = PDF_LAYOUT.margin;
 
     drawPdfSignatureBlock(doc, {
       clientSignature: quote.clientSignature,

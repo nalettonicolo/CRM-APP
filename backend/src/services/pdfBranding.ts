@@ -103,9 +103,17 @@ export function drawPdfSignatureBlock(
     label?: string;
   }
 ): void {
-  if (doc.y > 620) doc.addPage();
+  const pageBottom = doc.page.height - PDF_LAYOUT.margin;
+  const blockHeight = 118;
+  if (doc.y + blockHeight > pageBottom) {
+    doc.addPage();
+    doc.x = PDF_LAYOUT.margin;
+    doc.y = PDF_LAYOUT.margin;
+  } else {
+    doc.moveDown(0.6);
+  }
 
-  doc.moveDown(1.5);
+  doc.moveDown(0.2);
   doc.fontSize(10).font("Helvetica-Bold").fillColor("#000000");
   doc.text(
     options.label || DOCUMENT_COPY.quote.acceptanceHeading,
@@ -298,7 +306,27 @@ export type PdfFooterTotalLine = {
   bold?: boolean;
 };
 
-/** Piede: coordinate bancarie a sinistra, totali (e scadenza) a destra. */
+function estimateCourtesyFooterHeight(
+  company: CompanyInfo,
+  input: {
+    totalLines: PdfFooterTotalLine[];
+    paymentLineLeft?: string | null;
+    dueDateRight?: string | null;
+  }
+): number {
+  const bankLines = [
+    company.bankName?.trim(),
+    company.iban?.trim(),
+    company.bic?.trim(),
+  ].filter(Boolean).length;
+  const bankBlock = bankLines > 0 ? 16 + bankLines * 13 : 0;
+  const totalsBlock = input.totalLines.length * 13 + 6;
+  const paymentBlock =
+    input.paymentLineLeft?.trim() || input.dueDateRight?.trim() ? 22 : 0;
+  return bankBlock + totalsBlock + paymentBlock + 10;
+}
+
+/** Piede in flusso (non ancorato in fondo pagina): banca sx, totali dx. */
 export function drawPdfCourtesyFooter(
   doc: PdfDoc,
   company: CompanyInfo,
@@ -307,13 +335,22 @@ export function drawPdfCourtesyFooter(
     paymentLineLeft?: string | null;
     dueLabelRight?: string | null;
     dueDateRight?: string | null;
-  }
+  },
+  options?: { reserveBelow?: number }
 ): number {
   const totalsX = PDF_LAYOUT.totalsX;
-  const totalsLineCount =
-    input.totalLines.length + (input.dueDateRight ? 1 : 0);
-  const summaryHeight = Math.max(72, totalsLineCount * 15 + 48) + 40;
-  const summaryY = Math.max(doc.y + 10, doc.page.height - summaryHeight - 52);
+  const reserveBelow = options?.reserveBelow ?? 0;
+  const footerHeight = estimateCourtesyFooterHeight(company, input);
+  const pageBottom = doc.page.height - PDF_LAYOUT.margin;
+
+  doc.moveDown(0.4);
+  let summaryY = doc.y;
+  if (summaryY + footerHeight + reserveBelow > pageBottom) {
+    doc.addPage();
+    summaryY = PDF_LAYOUT.margin;
+    doc.x = PDF_LAYOUT.margin;
+    doc.y = summaryY;
+  }
 
   const bankBottomY = drawPdfBankDetailsAt(
     doc,
