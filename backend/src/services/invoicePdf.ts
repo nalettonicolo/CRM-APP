@@ -8,12 +8,14 @@ import {
 } from "./invoiceDiscounts.js";
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
 import {
+  alignPdfClosingToPageBottom,
   drawPdfCourtesyFooter,
   drawPdfEventInfoRow,
   drawPdfLeftMetaClientRow,
   drawPdfLetterhead,
   drawPdfLineItemsTable,
   drawPdfNotesSectionLeft,
+  estimateCourtesyFooterHeight,
   loadCompanySettings,
   loadLogoFilePath,
   pdfMoney,
@@ -149,20 +151,30 @@ async function generateInvoiceReceiptPdf(
 
     const disclaimerText =
       invoice.disclaimer?.trim() || INVOICE_COURTESY_DISCLAIMER;
+    doc.fontSize(7.5);
     const disclaimerHeight = doc.heightOfString(disclaimerText, { width: 495 });
 
-    const footerY = drawPdfCourtesyFooter(doc, companyInfo, {
+    const footerInput = {
       totalLines,
       paymentLineLeft: formatInvoicePaymentPdfLine(invoice, true),
       dueDateRight: invoice.dueDate
         ? invoice.dueDate.toLocaleDateString("it-IT")
         : null,
-    }, { reserveBelow: disclaimerHeight + 14 });
+    };
+    const closingHeight =
+      estimateCourtesyFooterHeight(companyInfo, footerInput) +
+      disclaimerHeight +
+      14;
+
+    alignPdfClosingToPageBottom(doc, closingHeight);
+
+    const footerY = drawPdfCourtesyFooter(doc, companyInfo, footerInput, {
+      skipLeadingGap: true,
+    });
 
     doc.y = footerY + 8;
     doc.x = 50;
     doc
-      .fontSize(7.5)
       .fillColor("#71717a")
       .text(disclaimerText, 50, doc.y, { width: 495, align: "left" });
     doc.fillColor("#000000");

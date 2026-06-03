@@ -6,6 +6,7 @@ import type {
   QuotePaymentTerm,
 } from "@prisma/client";
 import {
+  alignPdfClosingToPageBottom,
   drawPdfCourtesyFooter,
   drawPdfEventInfoRow,
   drawPdfLeftMetaClientRow,
@@ -14,6 +15,8 @@ import {
   drawPdfNotesSectionLeft,
   drawPdfPaymentScheduleSection,
   drawPdfSignatureBlock,
+  estimateCourtesyFooterHeight,
+  estimateSignatureBlockHeight,
   loadCompanySettings,
   loadLogoFilePath,
   PDF_LAYOUT,
@@ -172,27 +175,29 @@ export async function generateQuotePdf(
       drawPdfNotesSectionLeft(doc, quote.notes);
     }
 
-    const signatureReserve = 132;
-    drawPdfCourtesyFooter(
-      doc,
-      companyInfo,
-      {
-        totalLines: buildQuoteFooterTotalLines(quote),
-        paymentLineLeft: formatInvoicePaymentPdfLine(
-          {
-            paymentStatus: quote.paymentStatus,
-            paymentMethod: quote.paymentMethod,
-            paymentTiming: quote.paymentTiming,
-          },
-          true
-        ),
-        dueDateRight: quotePdfDueDate(quote),
-      },
-      { reserveBelow: signatureReserve }
-    );
+    const footerInput = {
+      totalLines: buildQuoteFooterTotalLines(quote),
+      paymentLineLeft: formatInvoicePaymentPdfLine(
+        {
+          paymentStatus: quote.paymentStatus,
+          paymentMethod: quote.paymentMethod,
+          paymentTiming: quote.paymentTiming,
+        },
+        true
+      ),
+      dueDateRight: quotePdfDueDate(quote),
+    };
+    const hasDigitalSig = Boolean(quote.clientSignature?.trim()?.startsWith("data:image"));
+    const closingHeight =
+      estimateCourtesyFooterHeight(companyInfo, footerInput) +
+      estimateSignatureBlockHeight(hasDigitalSig) +
+      6;
 
-    doc.y += 6;
-    doc.x = PDF_LAYOUT.margin;
+    alignPdfClosingToPageBottom(doc, closingHeight);
+
+    drawPdfCourtesyFooter(doc, companyInfo, footerInput, {
+      skipLeadingGap: true,
+    });
 
     drawPdfSignatureBlock(doc, {
       clientSignature: quote.clientSignature,

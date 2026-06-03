@@ -304,7 +304,7 @@ export type PdfFooterTotalLine = {
   bold?: boolean;
 };
 
-function estimateCourtesyFooterHeight(
+export function estimateCourtesyFooterHeight(
   company: CompanyInfo,
   input: {
     totalLines: PdfFooterTotalLine[];
@@ -324,7 +324,39 @@ function estimateCourtesyFooterHeight(
   return bankBlock + totalsBlock + paymentBlock + 10;
 }
 
-/** Piede in flusso (non ancorato in fondo pagina): banca sx, totali dx. */
+export function estimateSignatureBlockHeight(
+  hasDigitalSignature: boolean
+): number {
+  return hasDigitalSignature ? 138 : 118;
+}
+
+/** Se c'è spazio, ancorare il blocco finale al margine inferiore (come documento di cortesia). */
+export function alignPdfClosingToPageBottom(
+  doc: PdfDoc,
+  blockHeight: number,
+  minGapAfterContent = 8
+): void {
+  const pageBottom = doc.page.height - PDF_LAYOUT.margin;
+  let startY = doc.y + minGapAfterContent;
+
+  if (startY + blockHeight <= pageBottom) {
+    doc.y = pageBottom - blockHeight;
+    doc.x = PDF_LAYOUT.margin;
+    return;
+  }
+
+  if (doc.y + blockHeight > pageBottom) {
+    doc.addPage();
+    doc.y = PDF_LAYOUT.margin;
+    startY = doc.y + minGapAfterContent;
+    if (startY + blockHeight <= pageBottom) {
+      doc.y = pageBottom - blockHeight;
+    }
+  }
+  doc.x = PDF_LAYOUT.margin;
+}
+
+/** Piede in flusso: banca sx, totali dx. */
 export function drawPdfCourtesyFooter(
   doc: PdfDoc,
   company: CompanyInfo,
@@ -334,14 +366,16 @@ export function drawPdfCourtesyFooter(
     dueLabelRight?: string | null;
     dueDateRight?: string | null;
   },
-  options?: { reserveBelow?: number }
+  options?: { reserveBelow?: number; skipLeadingGap?: boolean }
 ): number {
   const totalsX = PDF_LAYOUT.totalsX;
   const reserveBelow = options?.reserveBelow ?? 0;
   const footerHeight = estimateCourtesyFooterHeight(company, input);
   const pageBottom = doc.page.height - PDF_LAYOUT.margin;
 
-  doc.moveDown(0.4);
+  if (!options?.skipLeadingGap) {
+    doc.moveDown(0.4);
+  }
   let summaryY = doc.y;
   if (summaryY + footerHeight + reserveBelow > pageBottom) {
     doc.addPage();
