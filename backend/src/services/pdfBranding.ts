@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import PDFDocument from "pdfkit";
 import { DOCUMENT_COPY } from "../constants/documentCopy.js";
+import type { PdfPaymentLineSegment } from "../constants/invoicePayment.js";
 import { prisma } from "../lib/prisma.js";
 
 type PdfDoc = InstanceType<typeof PDFDocument>;
@@ -319,6 +320,7 @@ export function estimateCourtesyFooterHeight(
   input: {
     totalLines: PdfFooterTotalLine[];
     paymentLineLeft?: string | null;
+    paymentLineSegments?: PdfPaymentLineSegment[] | null;
     dueDateRight?: string | null;
   }
 ): number {
@@ -330,7 +332,11 @@ export function estimateCourtesyFooterHeight(
   const bankBlock = bankLines > 0 ? 16 + bankLines * 13 : 0;
   const totalsBlock = input.totalLines.length * 13 + 6;
   const paymentBlock =
-    input.paymentLineLeft?.trim() || input.dueDateRight?.trim() ? 22 : 0;
+    input.paymentLineLeft?.trim() ||
+    input.paymentLineSegments?.length ||
+    input.dueDateRight?.trim()
+      ? 22
+      : 0;
   return bankBlock + totalsBlock + paymentBlock + 10;
 }
 
@@ -404,6 +410,26 @@ function pdfPageBottomY(doc: PdfDoc): number {
   return doc.page.height - PDF_LAYOUT.margin;
 }
 
+function drawPdfPaymentMethodLine(
+  doc: PdfDoc,
+  segments: PdfPaymentLineSegment[],
+  x: number,
+  y: number,
+  width: number
+): void {
+  if (!segments.length) return;
+  doc.fontSize(9).fillColor("#000000");
+  segments.forEach((seg, index) => {
+    doc.font(seg.bold ? "Helvetica-Bold" : "Helvetica");
+    doc.text(seg.text, index === 0 ? x : undefined, index === 0 ? y : undefined, {
+      continued: index < segments.length - 1,
+      width: index === 0 ? width : undefined,
+      lineGap: 1,
+    });
+  });
+  doc.font("Helvetica");
+}
+
 /** Piede: banca sx, totali dx, pagamento sx (come documento di cortesia). */
 export function drawPdfCourtesyFooter(
   doc: PdfDoc,
@@ -411,6 +437,7 @@ export function drawPdfCourtesyFooter(
   input: {
     totalLines: PdfFooterTotalLine[];
     paymentLineLeft?: string | null;
+    paymentLineSegments?: PdfPaymentLineSegment[] | null;
     dueLabelRight?: string | null;
     dueDateRight?: string | null;
   },
@@ -471,20 +498,28 @@ export function drawPdfCourtesyFooter(
 
   const blockBottom = Math.max(cursorY, bankBottomY);
   const paymentRowY = blockBottom + 12;
-  const paymentLine = input.paymentLineLeft?.trim();
+  const paymentSegments =
+    input.paymentLineSegments?.filter((s) => s.text.length > 0) ??
+    (input.paymentLineLeft?.trim()
+      ? [{ text: input.paymentLineLeft.trim(), bold: true }]
+      : null);
+  const paymentPlain = paymentSegments?.map((s) => s.text).join("") ?? "";
   const dueDate = input.dueDateRight?.trim();
   const dueLabel = input.dueLabelRight?.trim() || "Scadenza";
   const paymentWidth = totalsX - PDF_LAYOUT.margin - 28;
 
   let rowHeight = 11;
-  if (paymentLine) {
-    doc.fontSize(9).font("Helvetica").text(paymentLine, PDF_LAYOUT.margin, paymentRowY, {
-      width: paymentWidth,
-      lineGap: 1,
-    });
+  if (paymentSegments?.length) {
+    drawPdfPaymentMethodLine(
+      doc,
+      paymentSegments,
+      PDF_LAYOUT.margin,
+      paymentRowY,
+      paymentWidth
+    );
     rowHeight = Math.max(
       rowHeight,
-      doc.heightOfString(paymentLine, { width: paymentWidth })
+      doc.heightOfString(paymentPlain, { width: paymentWidth })
     );
   }
 
@@ -510,6 +545,7 @@ export function layoutPdfQuoteClosing(
   footerInput: {
     totalLines: PdfFooterTotalLine[];
     paymentLineLeft?: string | null;
+    paymentLineSegments?: PdfPaymentLineSegment[] | null;
   },
   signatureOptions: {
     clientSignature?: string | null;

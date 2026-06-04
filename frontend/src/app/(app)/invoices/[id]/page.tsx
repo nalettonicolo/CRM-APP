@@ -10,7 +10,8 @@ import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
 import { Button } from "@/components/ui/button";
 import { downloadInvoicePdf, invoicesApi } from "@/lib/api";
-import { formatInvoicePaymentDisplay } from "@/lib/labels";
+import { PaymentMethodLine } from "@/components/documents/payment-method-line";
+import { formatInvoicePaymentLineSegments } from "@/lib/labels";
 import {
   DOCUMENT_COPY,
   INVOICE_COURTESY_DISCLAIMER,
@@ -265,7 +266,11 @@ export default function InvoiceDetailPage() {
                 />
                 <DetailField
                   label="Pagamento"
-                  value={formatInvoicePaymentDisplay(data)}
+                  value={
+                    <PaymentMethodLine
+                      segments={formatInvoicePaymentLineSegments(data)}
+                    />
+                  }
                 />
                 <DetailField
                   label="Scadenza"

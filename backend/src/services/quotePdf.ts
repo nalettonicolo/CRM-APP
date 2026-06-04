@@ -20,7 +20,7 @@ import {
   type PdfFooterTotalLine,
   type PdfPaymentScheduleLine,
 } from "./pdfBranding.js";
-import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
+import { formatInvoicePaymentPdfLineSegments } from "../constants/invoicePayment.js";
 import { consolidatePaymentTermsForDisplay } from "./paymentTerms.js";
 import { formatSequentialDocumentNumber } from "./documentSequence.js";
 
@@ -169,7 +169,7 @@ export async function generateQuotePdf(
       companyInfo,
       {
         totalLines: buildQuoteFooterTotalLines(quote),
-        paymentLineLeft: formatInvoicePaymentPdfLine(
+        paymentLineSegments: formatInvoicePaymentPdfLineSegments(
           {
             paymentStatus: quote.paymentStatus,
             paymentMethod: quote.paymentMethod,

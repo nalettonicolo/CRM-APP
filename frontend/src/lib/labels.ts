@@ -85,6 +85,38 @@ export function formatInvoicePaymentTerms(input: {
   return timing ? `${method} — ${timing}` : method;
 }
 
+export type PaymentLineSegment = { text: string; bold?: boolean };
+
+/** Come nel PDF: metodo in grassetto, termine in normale. */
+export function formatInvoicePaymentLineSegments(input: {
+  paymentStatus?: string | null;
+  paymentMethod?: string | null;
+  paymentTiming?: string | null;
+}): PaymentLineSegment[] {
+  const method =
+    paymentMethodLabels[input.paymentMethod || "BANK_TRANSFER"] ??
+    paymentMethodLabels.BANK_TRANSFER;
+  const timing =
+    invoicePaymentTimingPdf[input.paymentTiming || "END_OF_WORK"] ?? "";
+  const timingPart = timing ? ` — ${timing}` : "";
+
+  switch (input.paymentStatus) {
+    case "PAID":
+      return [{ text: "Pagato", bold: true }];
+    case "PARTIAL":
+      return [
+        { text: "Parzialmente pagato — " },
+        { text: method, bold: true },
+        { text: timingPart },
+      ];
+    default:
+      return [
+        { text: method, bold: true },
+        { text: timingPart },
+      ];
+  }
+}
+
 export function formatInvoicePaymentDisplay(input: {
   paymentStatus?: string | null;
   paymentMethod?: string | null;

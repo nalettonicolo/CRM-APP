@@ -18,8 +18,9 @@ import { consolidatePaymentTermsForDisplay } from "@/lib/consolidate-payment-ter
 import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import { formatQuoteServicePeriod } from "@/lib/quote-display";
 import { downloadQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
+import { PaymentMethodLine } from "@/components/documents/payment-method-line";
 import {
-  formatInvoicePaymentTerms,
+  formatInvoicePaymentLineSegments,
   quoteStatusLabels,
   paymentStatusLabels,
   clientStatusLabels,
@@ -302,10 +303,15 @@ export default function QuoteDetailPage() {
                 />
                 <DetailField
                   label="Modalità di pagamento (PDF)"
-                  value={formatInvoicePaymentTerms({
-                    paymentMethod: quote.paymentMethod,
-                    paymentTiming: quote.paymentTiming,
-                  })}
+                  value={
+                    <PaymentMethodLine
+                      segments={formatInvoicePaymentLineSegments({
+                        paymentMethod: quote.paymentMethod,
+                        paymentTiming: quote.paymentTiming,
+                        paymentStatus: quote.paymentStatus,
+                      })}
+                    />
+                  }
                 />
               </dl>
             </DetailSection>

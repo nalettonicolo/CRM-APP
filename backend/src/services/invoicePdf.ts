@@ -6,7 +6,7 @@ import {
   discountDeduction,
   parseInvoiceDiscounts,
 } from "./invoiceDiscounts.js";
-import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
+import { formatInvoicePaymentPdfLineSegments } from "../constants/invoicePayment.js";
 import {
   alignPdfClosingToPageBottom,
   drawPdfCourtesyFooter,
@@ -156,7 +156,7 @@ async function generateInvoiceReceiptPdf(
 
     const footerInput = {
       totalLines,
-      paymentLineLeft: formatInvoicePaymentPdfLine(invoice, true),
+      paymentLineSegments: formatInvoicePaymentPdfLineSegments(invoice, true),
       dueDateRight: invoice.dueDate
         ? invoice.dueDate.toLocaleDateString("it-IT")
         : null,

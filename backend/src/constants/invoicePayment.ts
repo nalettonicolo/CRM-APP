@@ -62,6 +62,43 @@ export function formatInvoicePaymentTermsPdf(
   return timing ? `${method} — ${timing}` : method;
 }
 
+export type PdfPaymentLineSegment = { text: string; bold?: boolean };
+
+/** Segmenti PDF: titolo metodo in grassetto, termine in normale. */
+export function formatInvoicePaymentPdfLineSegments(
+  input: {
+    paymentStatus?: string | null;
+    paymentMethod?: string | null;
+    paymentTiming?: string | null;
+  },
+  compact = false
+): PdfPaymentLineSegment[] {
+  const methods = compact ? METHOD_PDF_COMPACT : METHOD_PDF;
+  const methodKey = (input.paymentMethod as InvoicePaymentMethod) || "BANK_TRANSFER";
+  const method = methods[methodKey] ?? methods.BANK_TRANSFER;
+  const timingKey = (input.paymentTiming as InvoicePaymentTiming) || "END_OF_WORK";
+  const timing = TIMING_PDF[timingKey];
+  const timingPart = timing ? ` — ${timing}` : "";
+
+  switch (input.paymentStatus) {
+    case "PAID":
+      return [{ text: "Pagato", bold: true }];
+    case "PARTIAL":
+      return [
+        { text: "Parzialmente pagato — " },
+        { text: method, bold: true },
+        { text: timingPart },
+      ];
+    case "OVERDUE":
+    case "UNPAID":
+    default:
+      return [
+        { text: method, bold: true },
+        { text: timingPart },
+      ];
+  }
+}
+
 export function formatInvoicePaymentPdfLine(
   input: {
     paymentStatus?: string | null;
@@ -70,16 +107,7 @@ export function formatInvoicePaymentPdfLine(
   },
   compact = false
 ): string {
-  const terms = formatInvoicePaymentTermsPdf(input, compact);
-  switch (input.paymentStatus) {
-    case "PAID":
-      return "Pagato";
-    case "PARTIAL":
-      return `Parzialmente pagato — ${terms}`;
-    case "OVERDUE":
-      return terms;
-    case "UNPAID":
-    default:
-      return terms;
-  }
+  return formatInvoicePaymentPdfLineSegments(input, compact)
+    .map((s) => s.text)
+    .join("");
 }

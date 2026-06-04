@@ -38,15 +38,18 @@ export function DetailField({
   value,
 }: {
   label: string;
-  value?: string | null;
+  value?: string | React.ReactNode | null;
 }) {
-  if (!value?.trim()) return null;
+  if (value == null) return null;
+  if (typeof value === "string" && !value.trim()) return null;
   return (
     <div>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
-      <p className="mt-0.5 text-sm">{value}</p>
+      <div className="mt-0.5 text-sm">
+        {typeof value === "string" ? value : value}
+      </div>
     </div>
   );
 }
