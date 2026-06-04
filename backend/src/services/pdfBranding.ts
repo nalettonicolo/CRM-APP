@@ -503,7 +503,7 @@ export function drawPdfCourtesyFooter(
   return paymentRowY + rowHeight + 4;
 }
 
-/** Preventivo: piede + firma; la firma è l'ultima riga della pagina. */
+/** Preventivo: piede + firma ancorati al fondo dell'ultima pagina (niente bianco sotto). */
 export function layoutPdfQuoteClosing(
   doc: PdfDoc,
   company: CompanyInfo,
@@ -518,7 +518,6 @@ export function layoutPdfQuoteClosing(
   }
 ): void {
   const pageBottom = pdfPageBottomY(doc);
-  const contentEnd = doc.y;
   const gapAfterContent = 14;
   const gapFooterSignature = 10;
 
@@ -528,26 +527,29 @@ export function layoutPdfQuoteClosing(
     dueDateRight: null,
   });
   const closingHeight = footerHeight + gapFooterSignature + sigHeight;
-  const minFooterTop = contentEnd + gapAfterContent;
 
-  let footerTop = minFooterTop;
-  let signatureTop = footerTop + footerHeight + gapFooterSignature;
-  const canAnchorToBottom =
-    minFooterTop + closingHeight <= pageBottom + 0.5;
+  let contentEnd = doc.y;
 
-  if (canAnchorToBottom) {
-    signatureTop = pageBottom - sigHeight;
-    footerTop = signatureTop - gapFooterSignature - footerHeight;
-    if (footerTop < minFooterTop) {
-      footerTop = minFooterTop;
-      signatureTop = footerTop + footerHeight + gapFooterSignature;
-    }
-  } else if (minFooterTop + closingHeight > pageBottom) {
+  // Non c'è spazio per piede+firma sotto il corpo → pagina dedicata al blocco finale
+  if (contentEnd + gapAfterContent + closingHeight > pageBottom) {
     doc.addPage();
     doc.x = PDF_LAYOUT.margin;
     doc.y = PDF_LAYOUT.margin;
-    footerTop = PDF_LAYOUT.margin;
-    signatureTop = footerTop + footerHeight + gapFooterSignature;
+    contentEnd = PDF_LAYOUT.margin;
+  }
+
+  // Sempre in fondo all'ultima pagina (mai in alto su pagina 2)
+  let signatureTop = pageBottom - sigHeight;
+  let footerTop = signatureTop - gapFooterSignature - footerHeight;
+
+  // Sovrapposizione col corpo sulla stessa pagina → nuova pagina solo per chiusura
+  if (footerTop < contentEnd + gapAfterContent) {
+    doc.addPage();
+    doc.x = PDF_LAYOUT.margin;
+    doc.y = PDF_LAYOUT.margin;
+    contentEnd = PDF_LAYOUT.margin;
+    signatureTop = pageBottom - sigHeight;
+    footerTop = signatureTop - gapFooterSignature - footerHeight;
   }
 
   const footerEnd = drawPdfCourtesyFooter(doc, company, footerInput, {
@@ -555,15 +557,14 @@ export function layoutPdfQuoteClosing(
     skipLeadingGap: true,
   });
 
-  signatureTop = Math.max(signatureTop, footerEnd + gapFooterSignature);
-  if (canAnchorToBottom) {
-    signatureTop = pageBottom - sigHeight;
-    if (signatureTop < footerEnd + gapFooterSignature) {
-      signatureTop = footerEnd + gapFooterSignature;
-    }
-  }
+  const signatureTopFinal = Math.max(
+    pageBottom - sigHeight,
+    footerEnd + gapFooterSignature
+  );
 
-  drawPdfSignatureBlock(doc, signatureOptions, { startY: signatureTop });
+  drawPdfSignatureBlock(doc, signatureOptions, {
+    startY: signatureTopFinal,
+  });
 }
 
 export type PdfPaymentScheduleLine = {
