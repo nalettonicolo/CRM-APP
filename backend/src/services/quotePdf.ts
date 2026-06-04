@@ -21,6 +21,7 @@ import {
   type PdfPaymentScheduleLine,
 } from "./pdfBranding.js";
 import { formatInvoicePaymentPdfLine } from "../constants/invoicePayment.js";
+import { consolidatePaymentTermsForDisplay } from "./paymentTerms.js";
 import { formatSequentialDocumentNumber } from "./documentSequence.js";
 
 function buildQuotePaymentScheduleLines(
@@ -30,7 +31,13 @@ function buildQuotePaymentScheduleLines(
   const paymentTerms = quote.paymentTerms;
 
   if (paymentTerms && paymentTerms.length > 0) {
-    for (const term of paymentTerms) {
+    const terms = consolidatePaymentTermsForDisplay(
+      paymentTerms,
+      Number(quote.total)
+    );
+    for (const term of terms) {
+      const amount = Number(term.amount);
+      if (amount <= 0.009) continue;
       const pct =
         term.percent != null && Number(term.percent) > 0
           ? ` (${pdfMoney(term.percent)}%)`
@@ -41,7 +48,7 @@ function buildQuotePaymentScheduleLines(
         amount: `€ ${pdfMoney(Number(term.amount))}`,
       });
     }
-    const hasBalanceRow = paymentTerms.some((t) => t.isBalance);
+    const hasBalanceRow = terms.some((t) => t.isBalance);
     if (!hasBalanceRow && Number(quote.balanceDue) > 0) {
       lines.push({
         label: "Saldo da versare",

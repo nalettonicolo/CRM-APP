@@ -14,6 +14,7 @@ import {
   DetailField,
   DetailSection,
 } from "@/components/detail/detail-shell";
+import { consolidatePaymentTermsForDisplay } from "@/lib/consolidate-payment-terms";
 import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import { formatQuoteServicePeriod } from "@/lib/quote-display";
 import { downloadQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
@@ -376,7 +377,10 @@ export default function QuoteDetailPage() {
                 </dl>
                 {quote.paymentTerms && quote.paymentTerms.length > 0 ? (
                   <ul className="mt-3 space-y-2 text-sm">
-                    {quote.paymentTerms.map((t) => (
+                    {consolidatePaymentTermsForDisplay(
+                      quote.paymentTerms,
+                      Number(quote.total)
+                    ).map((t) => (
                       <li
                         key={t.id}
                         className="flex flex-wrap justify-between gap-2 rounded-lg border border-border bg-muted/20 px-3 py-2"
