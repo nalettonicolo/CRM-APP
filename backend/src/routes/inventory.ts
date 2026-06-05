@@ -12,6 +12,10 @@ import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.
 import { paramId } from "../utils/params.js";
 import { hasPermission } from "../utils/permissions.js";
 import { isRentalCategory, RENTAL_UNIT } from "../constants/rental.js";
+import {
+  generateProductSku,
+  skuPrefixForCategory,
+} from "../services/productSku.js";
 import { sanitizeSearchTerm } from "../utils/queryInput.js";
 
 function requireCatalogDelete(resource: "products" | "services") {
@@ -208,6 +212,57 @@ router.get("/products", requirePermission("products", "READ"), async (req, res, 
   }
 });
 
+router.get(
+  "/products/next-sku",
+  requirePermission("products", "READ"),
+  async (req, res, next) => {
+    try {
+      const category =
+        typeof req.query.category === "string" ? req.query.category : undefined;
+      const sku = await generateProductSku(category);
+      res.json({ sku, prefix: skuPrefixForCategory(category) });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.get(
+  "/rentals/preparation",
+  requirePermission("products", "READ"),
+  async (_req, res, next) => {
+    try {
+      const rentals = await prisma.product.findMany({
+        where: {
+          isActive: true,
+          OR: [
+            { isRentable: true },
+            {
+              category: { startsWith: "Noleggio", mode: "insensitive" },
+            },
+          ],
+        },
+        include: { inventory: { include: { warehouse: true } } },
+        orderBy: [{ category: "asc" }, { name: "asc" }],
+      });
+
+      res.json(
+        rentals.map((p) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          category: p.category,
+          unit: p.unit,
+          quantity: p.inventory ? Number(p.inventory.quantity) : 0,
+          warehouse: p.inventory?.warehouse?.name ?? null,
+        }))
+      );
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
 router.get("/rentals", requirePermission("products", "READ"), async (_req, res, next) => {
   try {
     const rentals = await prisma.product.findMany({
@@ -261,7 +316,7 @@ router.post("/products", requirePermission("products", "CREATE"), async (req: Au
     const data = z
       .object({
         name: z.string(),
-        sku: z.string(),
+        sku: z.string().optional(),
         description: z.string().optional(),
         category: z.string().optional(),
         isRentable: z.boolean().optional(),
@@ -278,10 +333,12 @@ router.post("/products", requirePermission("products", "CREATE"), async (req: Au
 
     const isRentable =
       data.isRentable === true || isRentalCategory(data.category);
+    const sku =
+      data.sku?.trim() || (await generateProductSku(data.category));
     const product = await prisma.product.create({
       data: {
         name: data.name,
-        sku: data.sku,
+        sku,
         description: data.description,
         category: data.category,
         isRentable,

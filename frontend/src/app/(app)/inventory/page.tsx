@@ -36,6 +36,7 @@ export default function InventoryPage() {
             href="/inventory/services?new=1"
             label={SECTION_CREATE.service}
           />
+          <PageCreateLink href="/inventory/print" label="Area stampa" />
         </PageCreateBar>
         <Card>
           <CardHeader>

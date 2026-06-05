@@ -18,9 +18,12 @@ import {
 } from "@/components/ui/dialog";
 import { inventoryApi, type Product } from "@/lib/api";
 import { SECTION_CREATE } from "@/lib/section-create";
+import { skuPrefixForCategory } from "@/lib/rental";
 import { formatCurrency } from "@/lib/utils";
 
-const empty = { name: "", sku: "", price: "", category: "" };
+const PRODUCT_CATEGORIES = ["Audio", "Luci", "Altro"] as const;
+
+const empty = { name: "", sku: "", price: "", category: "Audio" };
 
 export default function ProductsPage() {
   const router = useRouter();
@@ -61,13 +64,34 @@ export default function ProductsPage() {
     }
   }, [open, editing]);
 
+  const categoryForSku =
+    form.category === "Altro" ? undefined : form.category || "Audio";
+
+  const { data: nextSkuData } = useQuery({
+    queryKey: ["next-sku", categoryForSku ?? "prd"],
+    queryFn: () => inventoryApi.nextSku(categoryForSku),
+    enabled: open && !editing,
+  });
+
+  useEffect(() => {
+    if (!open || editing || !nextSkuData?.sku) return;
+    setForm((f) => ({ ...f, sku: nextSkuData.sku }));
+  }, [open, editing, nextSkuData?.sku]);
+
   const saveMut = useMutation({
     mutationFn: () => {
       const payload = {
         name: form.name,
-        sku: form.sku,
+        ...(editing
+          ? { sku: form.sku.trim() || editing.sku }
+          : form.sku.trim()
+            ? { sku: form.sku.trim() }
+            : {}),
         price: Number(form.price),
-        category: form.category || undefined,
+        category:
+          form.category && form.category !== "Altro"
+            ? form.category
+            : undefined,
       };
       return editing
         ? inventoryApi.updateProduct(editing.id, payload)
@@ -195,11 +219,48 @@ export default function ProductsPage() {
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
-            <Input
-              placeholder="SKU"
-              value={form.sku}
-              onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-            />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Categoria
+              </label>
+              <select
+                className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                value={form.category}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, category: e.target.value }))
+                }
+              >
+                {PRODUCT_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Audio → <strong>AUD</strong>, Luci → <strong>LUC</strong>, altro →{" "}
+                <strong>PRD</strong>
+              </p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                SKU {editing ? "" : "(automatico)"}
+              </label>
+              <Input
+                value={form.sku}
+                readOnly={!editing}
+                className={!editing ? "bg-muted font-mono" : "font-mono"}
+                onChange={
+                  editing
+                    ? (e) => setForm((f) => ({ ...f, sku: e.target.value }))
+                    : undefined
+                }
+              />
+              {!editing && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Prossimo: {skuPrefixForCategory(categoryForSku)}-####
+                </p>
+              )}
+            </div>
             <Input
               type="number"
               step="0.01"
@@ -207,18 +268,13 @@ export default function ProductsPage() {
               value={form.price}
               onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
             />
-            <Input
-              placeholder="Categoria"
-              value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Annulla
             </Button>
             <Button
-              disabled={!form.name || !form.sku || saveMut.isPending}
+              disabled={!form.name || saveMut.isPending}
               onClick={() => saveMut.mutate()}
             >
               Salva

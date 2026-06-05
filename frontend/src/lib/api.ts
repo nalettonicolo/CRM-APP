@@ -250,20 +250,47 @@ export const quotesApi = {
     }),
 };
 
-export async function downloadQuotePdf(id: string, filename: string) {
+async function fetchAuthenticatedPdf(path: string): Promise<Blob> {
   const token = getToken();
-  const res = await fetch(apiUrl(`/quotes/${id}/pdf`), {
+  const res = await fetch(apiUrl(path), {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     credentials: "include",
   });
-  if (!res.ok) throw new ApiError(res.status, "Download PDF fallito");
-  const blob = await res.blob();
+  if (!res.ok) throw new ApiError(res.status, "PDF non disponibile");
+  return res.blob();
+}
+
+function openBlobForPrint(blob: Blob) {
+  const url = URL.createObjectURL(blob);
+  const iframe = document.createElement("iframe");
+  iframe.className = "fixed left-0 top-0 h-0 w-0 border-0 opacity-0";
+  iframe.src = url;
+  document.body.appendChild(iframe);
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } finally {
+      window.setTimeout(() => {
+        document.body.removeChild(iframe);
+        URL.revokeObjectURL(url);
+      }, 60_000);
+    }
+  };
+}
+
+export async function downloadQuotePdf(id: string, filename: string) {
+  const blob = await fetchAuthenticatedPdf(`/quotes/${id}/pdf`);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export async function printQuotePdf(id: string) {
+  openBlobForPrint(await fetchAuthenticatedPdf(`/quotes/${id}/pdf`));
 }
 
 export interface Quote {
@@ -453,6 +480,16 @@ export const inventoryApi = {
     return api<Product[]>(`/inventory/products${q}`);
   },
   rentals: () => api<Product[]>("/inventory/rentals"),
+  nextSku: (category?: string) => {
+    const q = category
+      ? `?category=${encodeURIComponent(category)}`
+      : "";
+    return api<{ sku: string; prefix: string }>(
+      `/inventory/products/next-sku${q}`
+    );
+  },
+  rentalPreparation: () =>
+    api<RentalPrepItem[]>("/inventory/rentals/preparation"),
   services: (params?: { all?: boolean }) => {
     const q = params?.all ? "?all=1" : "";
     return api<Service[]>(`/inventory/services${q}`);
@@ -523,6 +560,16 @@ export interface InventoryItem {
   product: { name: string; sku: string; price: number | string };
   warehouse: { name: string };
 }
+
+export type RentalPrepItem = {
+  id: string;
+  name: string;
+  sku: string;
+  category?: string | null;
+  unit?: string | null;
+  quantity: number;
+  warehouse?: string | null;
+};
 
 export interface Product {
   id: string;
@@ -1002,19 +1049,17 @@ export const invoicesApi = {
 };
 
 export async function downloadInvoicePdf(id: string, filename: string) {
-  const token = getToken();
-  const res = await fetch(apiUrl(`/invoices/${id}/pdf`), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    credentials: "include",
-  });
-  if (!res.ok) throw new ApiError(res.status, "PDF documento non disponibile");
-  const blob = await res.blob();
+  const blob = await fetchAuthenticatedPdf(`/invoices/${id}/pdf`);
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
   a.download = filename;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+export async function printInvoicePdf(id: string) {
+  openBlobForPrint(await fetchAuthenticatedPdf(`/invoices/${id}/pdf`));
 }
 
 export interface AutomationRule {

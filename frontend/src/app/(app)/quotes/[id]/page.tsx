@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { FileText, User, Pencil, Download, Mail, Receipt, Check, X, Trash2 } from "lucide-react";
+import { FileText, User, Pencil, Download, Mail, Receipt, Check, X, Trash2, Printer } from "lucide-react";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { Button } from "@/components/ui/button";
 import { Header } from "@/components/layout/header";
@@ -17,7 +17,7 @@ import {
 import { consolidatePaymentTermsForDisplay } from "@/lib/consolidate-payment-terms";
 import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import { formatQuoteServicePeriod } from "@/lib/quote-display";
-import { downloadQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
+import { downloadQuotePdf, printQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
 import { PaymentMethodLine } from "@/components/documents/payment-method-line";
 import {
   formatInvoicePaymentLineSegments,
@@ -166,6 +166,21 @@ export default function QuoteDetailPage() {
                     }}
                   >
                     <Download className="h-4 w-4" /> PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pdfBusy}
+                    onClick={async () => {
+                      setPdfBusy(true);
+                      try {
+                        await printQuotePdf(id);
+                      } finally {
+                        setPdfBusy(false);
+                      }
+                    }}
+                  >
+                    <Printer className="h-4 w-4" /> Stampa
                   </Button>
                   <Button
                     variant="outline"

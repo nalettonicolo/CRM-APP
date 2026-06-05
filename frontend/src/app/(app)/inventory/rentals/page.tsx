@@ -21,6 +21,7 @@ import {
   RENTAL_CATEGORY_OPTIONS,
   RENTAL_CATEGORY_PREFIX,
   RENTAL_UNIT,
+  skuPrefixForCategory,
 } from "@/lib/rental";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { formatCurrency } from "@/lib/utils";
@@ -108,11 +109,28 @@ export default function RentalsPage() {
     }
   }, [open, editing]);
 
+  const categoryForSku = form.category.trim() || RENTAL_CATEGORY_PREFIX;
+
+  const { data: nextSkuData } = useQuery({
+    queryKey: ["next-sku", categoryForSku],
+    queryFn: () => inventoryApi.nextSku(categoryForSku),
+    enabled: open && !editing,
+  });
+
+  useEffect(() => {
+    if (!open || editing || !nextSkuData?.sku) return;
+    setForm((f) => ({ ...f, sku: nextSkuData.sku }));
+  }, [open, editing, nextSkuData?.sku]);
+
   const saveMut = useMutation({
     mutationFn: () => {
       const payload = {
         name: form.name.trim(),
-        sku: form.sku.trim(),
+        ...(editing
+          ? { sku: form.sku.trim() || editing.sku }
+          : form.sku.trim()
+            ? { sku: form.sku.trim() }
+            : {}),
         price: Number(form.price),
         category: form.category.trim() || RENTAL_CATEGORY_PREFIX,
         description: form.description.trim() || undefined,
@@ -152,6 +170,15 @@ export default function RentalsPage() {
           </Link>
           <Link href="/inventory/products" className="text-primary hover:underline">
             Catalogo prodotti →
+          </Link>
+          <Link
+            href="/inventory/rentals/preparation"
+            className="text-primary hover:underline"
+          >
+            Lista preparazione
+          </Link>
+          <Link href="/inventory/print" className="text-primary hover:underline">
+            Stampa
           </Link>
         </div>
 
@@ -263,24 +290,6 @@ export default function RentalsPage() {
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             />
-            <Input
-              placeholder="SKU / codice"
-              value={form.sku}
-              onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-            />
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Prezzo al giorno (€/gg)
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
-              />
-            </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Categoria
@@ -319,6 +328,42 @@ export default function RentalsPage() {
                   <option value={ADD_CATEGORY}>+ Nuova categoria…</option>
                 </select>
               )}
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Audio → codice <strong>AUD</strong>, Luci → codice <strong>LUC</strong>
+              </p>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                SKU {editing ? "" : "(automatico)"}
+              </label>
+              <Input
+                value={form.sku}
+                readOnly={!editing}
+                className={!editing ? "bg-muted font-mono" : "font-mono"}
+                onChange={
+                  editing
+                    ? (e) => setForm((f) => ({ ...f, sku: e.target.value }))
+                    : undefined
+                }
+              />
+              {!editing && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Prossimo: {skuPrefixForCategory(form.category)}-####
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Prezzo al giorno (€/gg)
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={form.price}
+                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+              />
             </div>
             <Input
               placeholder="Descrizione (opzionale)"
@@ -334,10 +379,7 @@ export default function RentalsPage() {
             </Button>
             <Button
               disabled={
-                !form.name.trim() ||
-                !form.sku.trim() ||
-                !form.price ||
-                saveMut.isPending
+                !form.name.trim() || !form.price || saveMut.isPending
               }
               onClick={() => saveMut.mutate()}
             >

@@ -15,6 +15,7 @@ import {
   Briefcase,
   CalendarRange,
   Calendar,
+  Printer,
   MapPin,
   Settings,
   LogOut,
@@ -63,6 +64,7 @@ const staffGroups: NavGroup[] = [
       { href: "/inventory/products", label: "Prodotti", icon: Boxes },
       { href: "/inventory/rentals", label: "Noleggio", icon: CalendarRange },
       { href: "/inventory/services", label: "Servizi", icon: Briefcase },
+      { href: "/inventory/print", label: "Stampa", icon: Printer },
     ],
   },
 ];

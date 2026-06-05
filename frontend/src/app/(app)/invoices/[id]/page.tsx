@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, Download, Mail, Pencil, Receipt, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Mail, Pencil, Printer, Receipt, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
 import { Button } from "@/components/ui/button";
-import { downloadInvoicePdf, invoicesApi } from "@/lib/api";
+import { downloadInvoicePdf, printInvoicePdf, invoicesApi } from "@/lib/api";
 import { PaymentMethodLine } from "@/components/documents/payment-method-line";
 import { formatInvoicePaymentLineSegments } from "@/lib/labels";
 import {
@@ -141,6 +141,14 @@ export default function InvoiceDetailPage() {
                 >
                   <Download className="h-4 w-4" />
                   Scarica PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => printInvoicePdf(id)}
+                >
+                  <Printer className="h-4 w-4" />
+                  Stampa
                 </Button>
                 <Button
                   variant="outline"
