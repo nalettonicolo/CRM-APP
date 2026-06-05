@@ -7,8 +7,10 @@ import {
   type AuthRequest,
 } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
+import { ensureSiteVisitForEvent } from "../services/siteVisit.js";
 import { NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import { parseOptionalDate } from "../utils/queryInput.js";
 import { EVENT_TYPE_VALUES } from "../constants/eventTypes.js";
 
 const eventTypeSchema = z.enum(EVENT_TYPE_VALUES);
@@ -38,9 +40,9 @@ router.get("/", requirePermission("events", "READ"), async (req, res, next) => {
   try {
     const { from, to } = req.query;
     const where: Record<string, unknown> = {};
-    if (from || to) {
-      const fromDate = from ? new Date(from as string) : undefined;
-      const toDate = to ? new Date(to as string) : undefined;
+    const fromDate = parseOptionalDate(from);
+    const toDate = parseOptionalDate(to);
+    if (fromDate || toDate) {
       const overlap: Record<string, unknown>[] = [];
       if (toDate) overlap.push({ startAt: { lte: toDate } });
       if (fromDate) {
@@ -65,7 +67,7 @@ router.get("/", requirePermission("events", "READ"), async (req, res, next) => {
   }
 });
 
-router.post("/", requirePermission("events", "CREATE"), async (req, res, next) => {
+router.post("/", requirePermission("events", "CREATE"), async (req: AuthRequest, res, next) => {
   try {
     const data = z
       .object({
@@ -93,13 +95,16 @@ router.post("/", requirePermission("events", "CREATE"), async (req, res, next) =
       },
       include: eventInclude,
     });
+    if (event.type === "SITE_VISIT") {
+      await ensureSiteVisitForEvent(event.id, req.user!.userId);
+    }
     res.status(201).json(event);
   } catch (e) {
     next(e);
   }
 });
 
-router.patch("/:id", requirePermission("events", "UPDATE"), async (req, res, next) => {
+router.patch("/:id", requirePermission("events", "UPDATE"), async (req: AuthRequest, res, next) => {
   try {
     const data = z
       .object({
@@ -130,6 +135,9 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req, res, nex
       },
       include: eventInclude,
     });
+    if (event.type === "SITE_VISIT") {
+      await ensureSiteVisitForEvent(event.id, req.user!.userId);
+    }
     res.json(event);
   } catch (e) {
     next(e);

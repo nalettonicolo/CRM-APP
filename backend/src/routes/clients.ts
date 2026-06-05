@@ -11,6 +11,11 @@ import { deleteClientById } from "../services/deleteClient.js";
 import { exportClientData } from "../services/clientDataExport.js";
 import { NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import {
+  buildOrContains,
+  optionalEnum,
+  parsePagination,
+} from "../utils/queryInput.js";
 
 const router = Router();
 router.use(authenticate);
@@ -39,27 +44,35 @@ const clientSchema = z.object({
     .optional(),
 });
 
+const CLIENT_STATUSES = [
+  "LEAD",
+  "PROSPECT",
+  "ACTIVE",
+  "INACTIVE",
+  "ARCHIVED",
+] as const;
+
 router.get("/", requirePermission("clients", "READ"), async (req, res, next) => {
   try {
-    const { search, status, page = "1", limit = "20" } = req.query;
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const { search, status, page, limit } = req.query;
+    const { page: pageNum, take, skip } = parsePagination(page, limit);
 
     const where: Record<string, unknown> = {};
-    if (status) where.status = status;
-    if (search) {
-      where.OR = [
-        { companyName: { contains: search as string, mode: "insensitive" } },
-        { email: { contains: search as string, mode: "insensitive" } },
-        { contactName: { contains: search as string, mode: "insensitive" } },
-        { phone: { contains: search as string, mode: "insensitive" } },
-      ];
-    }
+    const statusFilter = optionalEnum(status, CLIENT_STATUSES);
+    if (statusFilter) where.status = statusFilter;
+    const searchOr = buildOrContains(search, [
+      "companyName",
+      "email",
+      "contactName",
+      "phone",
+    ]);
+    if (searchOr) where.OR = searchOr;
 
     const [clients, total] = await Promise.all([
       prisma.client.findMany({
         where,
         skip,
-        take: parseInt(limit as string),
+        take,
         orderBy: { updatedAt: "desc" },
         include: {
           _count: {
@@ -70,7 +83,7 @@ router.get("/", requirePermission("clients", "READ"), async (req, res, next) => 
       prisma.client.count({ where }),
     ]);
 
-    res.json({ data: clients, total, page: parseInt(page as string) });
+    res.json({ data: clients, total, page: pageNum });
   } catch (e) {
     next(e);
   }

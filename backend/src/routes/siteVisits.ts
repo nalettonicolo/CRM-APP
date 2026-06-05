@@ -7,78 +7,13 @@ import {
   type AuthRequest,
 } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
+import {
+  ensureSiteVisitForEvent,
+  listSiteVisitEntries,
+  siteVisitInclude,
+} from "../services/siteVisit.js";
 import { NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
-
-const siteVisitInclude = {
-  event: {
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      startAt: true,
-      endAt: true,
-      clientId: true,
-      quoteId: true,
-    },
-  },
-  client: { select: { id: true, companyName: true, contactName: true } },
-  quote: { select: { id: true, number: true, title: true, eventLocation: true } },
-  conductedBy: { select: { id: true, firstName: true, lastName: true } },
-} as const;
-
-async function generateSiteVisitNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `SPL-${year}-`;
-  const last = await prisma.siteVisit.findFirst({
-    where: { number: { startsWith: prefix } },
-    orderBy: { number: "desc" },
-    select: { number: true },
-  });
-  const next = last
-    ? Number.parseInt(last.number.slice(prefix.length), 10) + 1
-    : 1;
-  return `${prefix}${String(next).padStart(4, "0")}`;
-}
-
-async function ensureSiteVisitForEvent(eventId: string, userId: string) {
-  const event = await prisma.event.findUnique({
-    where: { id: eventId },
-    include: { siteVisit: true },
-  });
-  if (!event) throw new NotFoundError();
-
-  if (event.type !== "SITE_VISIT") {
-    await prisma.event.update({
-      where: { id: eventId },
-      data: { type: "SITE_VISIT" },
-    });
-  }
-
-  if (event.siteVisit) {
-    return prisma.siteVisit.findUniqueOrThrow({
-      where: { id: event.siteVisit.id },
-      include: siteVisitInclude,
-    });
-  }
-
-  const number = await generateSiteVisitNumber();
-  const location = event.location?.trim() || undefined;
-
-  return prisma.siteVisit.create({
-    data: {
-      number,
-      eventId: event.id,
-      clientId: event.clientId,
-      quoteId: event.quoteId,
-      conductedById: userId,
-      location,
-      conductedAt: event.startAt,
-      status: "DRAFT",
-    },
-    include: siteVisitInclude,
-  });
-}
 
 const updateSchema = z.object({
   location: z.string().optional(),
@@ -96,10 +31,7 @@ router.use(authenticate);
 
 router.get("/", requirePermission("events", "READ"), async (_req, res, next) => {
   try {
-    const sheets = await prisma.siteVisit.findMany({
-      include: siteVisitInclude,
-      orderBy: { updatedAt: "desc" },
-    });
+    const sheets = await listSiteVisitEntries();
     res.json(sheets);
   } catch (e) {
     next(e);
@@ -111,7 +43,10 @@ router.get(
   requirePermission("events", "READ"),
   async (req: AuthRequest, res, next) => {
     try {
-      const sheet = await ensureSiteVisitForEvent(paramId(req, "eventId"), req.user!.userId);
+      const sheet = await ensureSiteVisitForEvent(
+        paramId(req, "eventId"),
+        req.user!.userId
+      );
       res.json(sheet);
     } catch (e) {
       next(e);
@@ -121,8 +56,18 @@ router.get(
 
 router.get("/:id", requirePermission("events", "READ"), async (req, res, next) => {
   try {
+    const id = paramId(req);
+    const byEvent = await prisma.siteVisit.findFirst({
+      where: { eventId: id },
+      include: siteVisitInclude,
+    });
+    if (byEvent) {
+      res.json(byEvent);
+      return;
+    }
+
     const sheet = await prisma.siteVisit.findUnique({
-      where: { id: paramId(req) },
+      where: { id },
       include: siteVisitInclude,
     });
     if (!sheet) throw new NotFoundError();
@@ -138,9 +83,11 @@ router.patch(
   async (req: AuthRequest, res, next) => {
     try {
       const data = updateSchema.parse(req.body);
-      const existing = await prisma.siteVisit.findUnique({
-        where: { id: paramId(req) },
-      });
+      const id = paramId(req);
+      let existing = await prisma.siteVisit.findUnique({ where: { id } });
+      if (!existing) {
+        existing = await prisma.siteVisit.findFirst({ where: { eventId: id } });
+      }
       if (!existing) throw new NotFoundError();
 
       const sheet = await prisma.siteVisit.update({

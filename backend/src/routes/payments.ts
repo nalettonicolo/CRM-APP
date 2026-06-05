@@ -11,6 +11,7 @@ import {
   getClientPaymentOverview,
   getOpenPaymentsOverview,
 } from "../services/paymentSchedule.js";
+import { optionalId, parseOptionalDate } from "../utils/queryInput.js";
 
 const router = Router();
 router.use(authenticate);
@@ -31,8 +32,8 @@ const paymentBody = z.object({
 
 router.get("/summary", requirePermission("payments", "READ"), async (req, res, next) => {
   try {
-    const from = req.query.from ? new Date(String(req.query.from)) : undefined;
-    const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const from = parseOptionalDate(req.query.from);
+    const to = parseOptionalDate(req.query.to);
     const where: { paidAt?: { gte?: Date; lte?: Date } } = {};
     if (from || to) {
       where.paidAt = {};
@@ -59,9 +60,7 @@ router.get(
   requirePermission("payments", "READ"),
   async (req, res, next) => {
     try {
-      const clientId = req.query.clientId
-        ? String(req.query.clientId)
-        : undefined;
+      const clientId = optionalId(req.query.clientId);
       const overview = await getOpenPaymentsOverview(clientId);
       res.json(overview);
     } catch (e) {
@@ -75,7 +74,7 @@ router.get(
   requirePermission("payments", "READ"),
   async (req, res, next) => {
     try {
-      const clientId = String(req.query.clientId || "");
+      const clientId = optionalId(req.query.clientId) ?? "";
       if (!clientId) {
         throw new ValidationError("clientId obbligatorio");
       }
@@ -89,8 +88,8 @@ router.get(
 
 router.get("/", requirePermission("payments", "READ"), async (req, res, next) => {
   try {
-    const clientId = req.query.clientId ? String(req.query.clientId) : undefined;
-    const quoteId = req.query.quoteId ? String(req.query.quoteId) : undefined;
+    const clientId = optionalId(req.query.clientId);
+    const quoteId = optionalId(req.query.quoteId);
 
     const payments = await prisma.clientPayment.findMany({
       where: {

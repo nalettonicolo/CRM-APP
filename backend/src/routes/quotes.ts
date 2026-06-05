@@ -26,6 +26,7 @@ import { sendEmail, emailTemplate } from "../services/email.js";
 import { generateQuotePdf, loadCompanySettings } from "../services/quotePdf.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import { optionalEnum, optionalId, parsePagination } from "../utils/queryInput.js";
 import { syncQuoteCalendarEvent } from "../services/quoteCalendar.js";
 import { getQuoteDefaults } from "../services/quoteDefaults.js";
 import {
@@ -144,22 +145,33 @@ async function generateQuoteNumber(): Promise<string> {
   return generateSequentialDocumentNumber("quote", { prefix: "PRV" });
 }
 
+const QUOTE_STATUSES = [
+  "DRAFT",
+  "SENT",
+  "ACCEPTED",
+  "REJECTED",
+  "EXPIRED",
+  "CANCELLED",
+] as const;
+
 router.get("/", requirePermission("quotes", "READ"), async (req: AuthRequest, res, next) => {
   try {
-    const { status, clientId, page = "1", limit = "20" } = req.query;
+    const { status, clientId, page, limit } = req.query;
+    const { take, skip } = parsePagination(page, limit);
     const where: Record<string, unknown> = {};
-    if (status) where.status = status;
-    if (clientId) where.clientId = clientId;
+    const statusFilter = optionalEnum(status, QUOTE_STATUSES);
+    if (statusFilter) where.status = statusFilter;
+    const safeClientId = optionalId(clientId);
+    if (safeClientId) where.clientId = safeClientId;
     if (req.user!.role === "CLIENT" && req.user!.clientId) {
       where.clientId = req.user!.clientId;
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
     const [quotes, total] = await Promise.all([
       prisma.quote.findMany({
         where,
         skip,
-        take: parseInt(limit as string),
+        take,
         orderBy: { createdAt: "desc" },
         include: {
           client: { select: { id: true, companyName: true, contactName: true } },

@@ -17,9 +17,10 @@ function clientLabel(sheet: {
 }
 
 export default function SiteVisitsPage() {
-  const { data: sheets = [], isLoading } = useQuery({
+  const { data: sheets = [], isLoading, isError } = useQuery({
     queryKey: ["site-visits"],
     queryFn: siteVisitsApi.list,
+    refetchOnWindowFocus: true,
   });
 
   return (
@@ -37,6 +38,12 @@ export default function SiteVisitsPage() {
 
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento…</p>
+        ) : isError ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-red-600">
+              Errore nel caricamento delle schede. Riprova tra poco.
+            </CardContent>
+          </Card>
         ) : sheets.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
@@ -50,7 +57,7 @@ export default function SiteVisitsPage() {
         ) : (
           <ul className="divide-y divide-border rounded-xl border border-border bg-card">
             {sheets.map((sheet) => (
-              <li key={sheet.id}>
+              <li key={sheet.eventId}>
                 <Link
                   href={`/site-visits/${sheet.eventId}`}
                   className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
@@ -73,12 +80,18 @@ export default function SiteVisitsPage() {
                     <span
                       className={cn(
                         "rounded-full px-2 py-0.5 text-xs font-medium",
-                        sheet.status === "COMPLETED"
-                          ? "bg-green-500/15 text-green-700"
-                          : "bg-amber-500/15 text-amber-800"
+                        sheet.pending
+                          ? "bg-blue-500/15 text-blue-800"
+                          : sheet.status === "COMPLETED"
+                            ? "bg-green-500/15 text-green-700"
+                            : "bg-amber-500/15 text-amber-800"
                       )}
                     >
-                      {sheet.status === "COMPLETED" ? "Completata" : "Bozza"}
+                      {sheet.pending
+                        ? "Da compilare"
+                        : sheet.status === "COMPLETED"
+                          ? "Completata"
+                          : "Bozza"}
                     </span>
                     {sheet.event?.startAt && (
                       <span className="text-muted-foreground">

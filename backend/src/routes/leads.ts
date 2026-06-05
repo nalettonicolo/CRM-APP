@@ -9,20 +9,35 @@ import {
 import { logActivity } from "../services/activityLog.js";
 import { NotFoundError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import { optionalEnum, optionalId, parsePagination } from "../utils/queryInput.js";
 
 const router = Router();
 router.use(authenticate);
 
+const LEAD_STATUSES = [
+  "new",
+  "NEW",
+  "contacted",
+  "CONTACTED",
+  "qualified",
+  "QUALIFIED",
+  "converted",
+  "CONVERTED",
+  "lost",
+  "LOST",
+  "closed",
+  "spam",
+] as const;
+
 router.get("/", requirePermission("leads", "READ"), async (req, res, next) => {
   try {
-    const { status, assignedTo, page = "1", limit = "20" } = req.query;
+    const { status, assignedTo, page, limit } = req.query;
+    const { page: pageNum, take, skip } = parsePagination(page, limit);
     const where: Record<string, unknown> = {};
-    if (status) where.status = status;
-    if (assignedTo) where.assignedTo = assignedTo;
-
-    const pageNum = Math.max(1, parseInt(page as string, 10) || 1);
-    const take = Math.min(100, Math.max(1, parseInt(limit as string, 10) || 20));
-    const skip = (pageNum - 1) * take;
+    const statusFilter = optionalEnum(status, LEAD_STATUSES);
+    if (statusFilter) where.status = statusFilter;
+    const assigneeId = optionalId(assignedTo);
+    if (assigneeId) where.assignedTo = assigneeId;
 
     const [data, total] = await Promise.all([
       prisma.lead.findMany({

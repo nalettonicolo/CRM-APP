@@ -11,6 +11,7 @@ import { logActivity } from "../services/activityLog.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 import { hasPermission } from "../utils/permissions.js";
+import { sanitizeSearchTerm } from "../utils/queryInput.js";
 
 function requireCatalogDelete(resource: "products" | "services") {
   return (req: AuthRequest, _res: import("express").Response, next: import("express").NextFunction): void => {
@@ -93,7 +94,7 @@ router.get("/", requirePermission("inventory", "READ"), async (req, res, next) =
 
     let filtered = items;
     if (search) {
-      const s = (search as string).toLowerCase();
+      const s = sanitizeSearchTerm(search).toLowerCase();
       filtered = items.filter((i: (typeof items)[number]) =>
           i.product.name.toLowerCase().includes(s) ||
           i.product.sku.toLowerCase().includes(s)

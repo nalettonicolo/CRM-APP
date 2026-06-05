@@ -58,6 +58,7 @@ export function SiteVisitForm({ sheet }: { sheet: SiteVisitSheet }) {
       }),
     onSuccess: (updated) => {
       qc.setQueryData(["site-visit", "event", sheet.eventId], updated);
+      qc.invalidateQueries({ queryKey: ["site-visits"] });
       setForm(sheetToForm(updated));
       setBanner("Scheda salvata.");
       setTimeout(() => setBanner(""), 2500);

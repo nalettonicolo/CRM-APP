@@ -793,6 +793,7 @@ export type PermissionMatrix = {
 export type SiteVisitSheet = {
   id: string;
   number: string;
+  pending?: boolean;
   eventId: string;
   clientId?: string | null;
   quoteId?: string | null;

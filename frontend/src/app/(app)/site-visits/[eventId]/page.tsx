@@ -21,12 +21,14 @@ export default function SiteVisitPage() {
     <>
       <Header title="Scheda sopralluogo" />
       <div className="p-4 sm:p-6">
-        <Link
-          href="/calendar"
-          className="mb-4 inline-block text-sm text-primary hover:underline"
-        >
-          ← Calendario
-        </Link>
+        <div className="mb-4 flex flex-wrap gap-4 text-sm">
+          <Link href="/site-visits" className="text-primary hover:underline">
+            ← Elenco sopralluoghi
+          </Link>
+          <Link href="/calendar" className="text-muted-foreground hover:underline">
+            Calendario
+          </Link>
+        </div>
 
         {isLoading && (
           <p className="text-muted-foreground">Caricamento scheda…</p>

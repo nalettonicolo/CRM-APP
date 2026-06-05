@@ -162,6 +162,9 @@ export function EventHubDialog({
     },
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["events"] });
+      if (updated.type === "SITE_VISIT") {
+        qc.invalidateQueries({ queryKey: ["site-visits"] });
+      }
       onEventUpdated?.(updated);
       setForm(eventToForm(updated));
     },
@@ -188,6 +191,7 @@ export function EventHubDialog({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["site-visits"] });
       onOpenChange(false);
       router.push(`/site-visits/${event!.id}`);
     },

@@ -5,30 +5,33 @@ import {
   staffOnly,
   requirePermission,
 } from "../middleware/auth.js";
+import { buildOrContains, sanitizeSearchTerm } from "../utils/queryInput.js";
 
 const router = Router();
 router.use(authenticate, staffOnly, requirePermission("search", "READ"));
 
 router.get("/", async (req, res, next) => {
   try {
-    const q = String(req.query.q || "").trim();
+    const q = sanitizeSearchTerm(req.query.q);
     if (!q || q.length < 2) {
       res.json({ clients: [], quotes: [], interventions: [] });
       return;
     }
 
+    const clientOr = buildOrContains(q, [
+      "companyName",
+      "contactName",
+      "email",
+      "phone",
+      "firstName",
+      "lastName",
+    ]);
+    const quoteOr = buildOrContains(q, ["number", "title"]);
+    const interventionOr = buildOrContains(q, ["number", "title"]);
+
     const [clients, quotes, interventions] = await Promise.all([
       prisma.client.findMany({
-        where: {
-          OR: [
-            { companyName: { contains: q, mode: "insensitive" } },
-            { contactName: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
-            { firstName: { contains: q, mode: "insensitive" } },
-            { lastName: { contains: q, mode: "insensitive" } },
-          ],
-        },
+        where: { OR: clientOr },
         take: 10,
         select: {
           id: true,
@@ -39,12 +42,7 @@ router.get("/", async (req, res, next) => {
         },
       }),
       prisma.quote.findMany({
-        where: {
-          OR: [
-            { number: { contains: q, mode: "insensitive" } },
-            { title: { contains: q, mode: "insensitive" } },
-          ],
-        },
+        where: { OR: quoteOr },
         take: 10,
         select: {
           id: true,
@@ -55,12 +53,7 @@ router.get("/", async (req, res, next) => {
         },
       }),
       prisma.intervention.findMany({
-        where: {
-          OR: [
-            { number: { contains: q, mode: "insensitive" } },
-            { title: { contains: q, mode: "insensitive" } },
-          ],
-        },
+        where: { OR: interventionOr },
         take: 10,
         select: {
           id: true,
