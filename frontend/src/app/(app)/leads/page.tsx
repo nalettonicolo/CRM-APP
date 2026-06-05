@@ -47,6 +47,7 @@ export default function LeadsPage() {
     mutationFn: (id: string) => leadsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "pending-count"] });
       setSelectedId(null);
     },
   });
@@ -56,6 +57,7 @@ export default function LeadsPage() {
       leadsApi.update(id, { convertToClient: true, status: "CONVERTED" }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "pending-count"] });
       qc.invalidateQueries({ queryKey: ["lead", selectedId] });
       setSelectedId(null);
     },
@@ -66,6 +68,7 @@ export default function LeadsPage() {
       leadsApi.update(selectedId!, { status: statusDraft }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["leads", "pending-count"] });
       qc.invalidateQueries({ queryKey: ["lead", selectedId] });
     },
   });

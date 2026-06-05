@@ -29,6 +29,10 @@ export default function InventoryPage() {
             label={SECTION_CREATE.product}
           />
           <PageCreateLink
+            href="/inventory/rentals?new=1"
+            label={SECTION_CREATE.rental}
+          />
+          <PageCreateLink
             href="/inventory/services?new=1"
             label={SECTION_CREATE.service}
           />

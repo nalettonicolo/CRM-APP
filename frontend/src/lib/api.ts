@@ -448,7 +448,11 @@ export const inventoryApi = {
     const q = params ? "?" + new URLSearchParams(params).toString() : "";
     return api<InventoryItem[]>(`/inventory${q}`);
   },
-  products: () => api<Product[]>("/inventory/products"),
+  products: (params?: { excludeRental?: boolean }) => {
+    const q = params?.excludeRental ? "?excludeRental=1" : "";
+    return api<Product[]>(`/inventory/products${q}`);
+  },
+  rentals: () => api<Product[]>("/inventory/rentals"),
   services: (params?: { all?: boolean }) => {
     const q = params?.all ? "?all=1" : "";
     return api<Service[]>(`/inventory/services${q}`);
@@ -527,6 +531,8 @@ export interface Product {
   price: number | string;
   category?: string;
   description?: string;
+  isRentable?: boolean;
+  unit?: string | null;
   isActive?: boolean;
 }
 
@@ -1402,6 +1408,7 @@ export const leadsApi = {
     const q = params ? "?" + new URLSearchParams(params).toString() : "";
     return api<{ data: LeadItem[]; total: number }>(`/leads${q}`);
   },
+  pendingCount: () => api<{ count: number }>("/leads/pending-count"),
   get: (id: string) => api<LeadItem>(`/leads/${id}`),
   update: (
     id: string,

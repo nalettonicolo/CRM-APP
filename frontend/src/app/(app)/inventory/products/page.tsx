@@ -42,8 +42,8 @@ export default function ProductsPage() {
   }, [searchParams, router, openCreateDialog]);
 
   const { data: products = [], isLoading } = useQuery({
-    queryKey: ["products"],
-    queryFn: inventoryApi.products,
+    queryKey: ["products", "sale"],
+    queryFn: () => inventoryApi.products({ excludeRental: true }),
   });
 
   useEffect(() => {
@@ -99,6 +99,9 @@ export default function ProductsPage() {
         <div className="flex flex-wrap gap-3 text-sm">
           <Link href="/inventory" className="text-primary hover:underline">
             ← Magazzino
+          </Link>
+          <Link href="/inventory/rentals" className="text-primary hover:underline">
+            Catalogo noleggio →
           </Link>
           <Link href="/inventory/services" className="text-primary hover:underline">
             Catalogo servizi →

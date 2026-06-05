@@ -52,6 +52,22 @@ router.post("/contact", async (req, res, next) => {
       },
     });
 
+    const admins = await prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, status: "ACTIVE" },
+      select: { id: true },
+    });
+    if (admins.length) {
+      await prisma.notification.createMany({
+        data: admins.map((admin) => ({
+          userId: admin.id,
+          type: "INFO" as const,
+          title: "Nuova richiesta contatto",
+          message: `${data.name} (${data.email})`,
+          link: "/leads",
+        })),
+      });
+    }
+
     let emailSent = false;
     let emailWarning: string | undefined;
     try {

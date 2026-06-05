@@ -61,6 +61,21 @@ router.get("/", requirePermission("leads", "READ"), async (req, res, next) => {
 });
 
 router.get(
+  "/pending-count",
+  requirePermission("leads", "READ"),
+  async (_req, res, next) => {
+    try {
+      const count = await prisma.lead.count({
+        where: { status: { in: ["new", "NEW"] } },
+      });
+      res.json({ count });
+    } catch (e) {
+      next(e);
+    }
+  }
+);
+
+router.get(
   "/:id",
   requirePermission("leads", "READ"),
   async (req: AuthRequest, res, next) => {

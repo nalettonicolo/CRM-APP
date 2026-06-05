@@ -11,6 +11,7 @@ import { logActivity } from "../services/activityLog.js";
 import { ForbiddenError, NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 import { hasPermission } from "../utils/permissions.js";
+import { isRentalCategory, RENTAL_UNIT } from "../constants/rental.js";
 import { sanitizeSearchTerm } from "../utils/queryInput.js";
 
 function requireCatalogDelete(resource: "products" | "services") {
@@ -169,14 +170,63 @@ router.post("/movements", requirePermission("inventory", "CREATE"), async (req: 
   }
 });
 
-router.get("/products", requirePermission("products", "READ"), async (_req, res, next) => {
+const productInclude = {
+  inventory: true,
+  supplier: true,
+} as const;
+
+router.get("/products", requirePermission("products", "READ"), async (req, res, next) => {
   try {
+    const excludeRental =
+      req.query.excludeRental === "1" || req.query.excludeRental === "true";
     const products = await prisma.product.findMany({
-      where: { isActive: true },
-      include: { inventory: true, supplier: true },
+      where: {
+        isActive: true,
+        ...(excludeRental
+          ? {
+              isRentable: false,
+              OR: [
+                { category: null },
+                {
+                  NOT: {
+                    category: {
+                      startsWith: "Noleggio",
+                      mode: "insensitive",
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      include: productInclude,
       orderBy: { name: "asc" },
     });
     res.json(products);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get("/rentals", requirePermission("products", "READ"), async (_req, res, next) => {
+  try {
+    const rentals = await prisma.product.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { isRentable: true },
+          {
+            category: {
+              startsWith: "Noleggio",
+              mode: "insensitive",
+            },
+          },
+        ],
+      },
+      include: productInclude,
+      orderBy: [{ category: "asc" }, { name: "asc" }],
+    });
+    res.json(rentals);
   } catch (e) {
     next(e);
   }
@@ -214,6 +264,8 @@ router.post("/products", requirePermission("products", "CREATE"), async (req: Au
         sku: z.string(),
         description: z.string().optional(),
         category: z.string().optional(),
+        isRentable: z.boolean().optional(),
+        unit: z.string().optional(),
         price: z.number(),
         cost: z.number().optional(),
         vatRate: z.number().optional(),
@@ -224,12 +276,16 @@ router.post("/products", requirePermission("products", "CREATE"), async (req: Au
       })
       .parse(req.body);
 
+    const isRentable =
+      data.isRentable === true || isRentalCategory(data.category);
     const product = await prisma.product.create({
       data: {
         name: data.name,
         sku: data.sku,
         description: data.description,
         category: data.category,
+        isRentable,
+        unit: isRentable ? data.unit?.trim() || RENTAL_UNIT : data.unit?.trim(),
         price: toDecimal(data.price),
         cost: data.cost != null ? toDecimal(data.cost) : undefined,
         vatRate: toDecimal(data.vatRate ?? 22),
@@ -268,6 +324,8 @@ router.patch("/products/:id", requirePermission("products", "UPDATE"), async (re
         name: z.string().optional(),
         description: z.string().optional(),
         category: z.string().optional(),
+        isRentable: z.boolean().optional(),
+        unit: z.string().optional(),
         price: z.number().optional(),
         cost: z.number().optional(),
         vatRate: z.number().optional(),
@@ -280,12 +338,26 @@ router.patch("/products/:id", requirePermission("products", "UPDATE"), async (re
     const existing = await prisma.product.findUnique({ where: { id: paramId(req) } });
     if (!existing) throw new NotFoundError();
 
+    const nextCategory =
+      data.category !== undefined ? data.category : existing.category;
+    const isRentable =
+      data.isRentable !== undefined
+        ? data.isRentable
+        : existing.isRentable || isRentalCategory(nextCategory);
+
     const product = await prisma.product.update({
       where: { id: paramId(req) },
       data: {
         name: data.name,
         description: data.description,
         category: data.category,
+        isRentable,
+        unit:
+          data.unit !== undefined
+            ? data.unit.trim() || null
+            : isRentable
+              ? existing.unit || RENTAL_UNIT
+              : undefined,
         price: data.price != null ? toDecimal(data.price) : undefined,
         cost: data.cost != null ? toDecimal(data.cost) : undefined,
         vatRate: data.vatRate != null ? toDecimal(data.vatRate) : undefined,

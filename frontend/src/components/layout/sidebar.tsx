@@ -13,6 +13,7 @@ import {
   Package,
   Boxes,
   Briefcase,
+  CalendarRange,
   Calendar,
   MapPin,
   Settings,
@@ -27,7 +28,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
-import { authApi, settingsApi } from "@/lib/api";
+import { authApi, leadsApi, settingsApi } from "@/lib/api";
 import { DEFAULT_APP_NAME, publicAssetUrl } from "@/lib/branding";
 import { userRoleLabels } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ const staffGroups: NavGroup[] = [
     items: [
       { href: "/inventory", label: "Giacenze", icon: Package },
       { href: "/inventory/products", label: "Prodotti", icon: Boxes },
+      { href: "/inventory/rentals", label: "Noleggio", icon: CalendarRange },
       { href: "/inventory/services", label: "Servizi", icon: Briefcase },
     ],
   },
@@ -82,13 +84,16 @@ const clientNav: NavItem[] = [
 function NavLink({
   item,
   active,
+  badge,
   onNavigate,
 }: {
   item: NavItem;
   active: boolean;
+  badge?: number;
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
+  const showBadge = badge != null && badge > 0;
   return (
     <Link href={item.href} onClick={onNavigate} className="block">
       <span
@@ -106,7 +111,15 @@ function NavLink({
           )}
           strokeWidth={active ? 2.25 : 2}
         />
-        <span className="truncate">{item.label}</span>
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        {showBadge && (
+          <span
+            className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold leading-none text-white"
+            aria-label={`${badge} richieste nuove`}
+          >
+            {badge > 99 ? "99+" : badge}
+          </span>
+        )}
       </span>
     </Link>
   );
@@ -130,6 +143,13 @@ export function Sidebar({
     queryKey: ["settings"],
     queryFn: settingsApi.get,
     enabled: isAuthenticated,
+  });
+
+  const { data: pendingLeads } = useQuery({
+    queryKey: ["leads", "pending-count"],
+    queryFn: leadsApi.pendingCount,
+    enabled: isAuthenticated && isAdmin,
+    refetchInterval: 60_000,
   });
 
   const appName =
@@ -217,6 +237,9 @@ export function Sidebar({
                 key={item.href}
                 item={item}
                 active={isActive(item.href)}
+                badge={
+                  item.href === "/leads" ? pendingLeads?.count : undefined
+                }
                 onNavigate={onNavigate}
               />
             ))}

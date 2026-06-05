@@ -22,6 +22,7 @@ import {
   SERVICE_UNIT_OPTIONS,
   serviceUnitLabel,
 } from "@/lib/labels";
+import { RENTAL_UNIT } from "@/lib/rental";
 import { dateInputToIso, toDateInputValue } from "@/lib/utils";
 
 export type QuoteItemDraft = {
@@ -86,7 +87,12 @@ export function QuoteForm({
 
   const { data: catalogProducts = [] } = useQuery({
     queryKey: ["products", "catalog"],
-    queryFn: inventoryApi.products,
+    queryFn: () => inventoryApi.products({ excludeRental: true }),
+  });
+
+  const { data: catalogRentals = [] } = useQuery({
+    queryKey: ["rentals", "catalog"],
+    queryFn: inventoryApi.rentals,
   });
 
   const { data: settingsData } = useQuery({
@@ -97,6 +103,7 @@ export function QuoteForm({
 
   const [pickService, setPickService] = useState("");
   const [pickProduct, setPickProduct] = useState("");
+  const [pickRental, setPickRental] = useState("");
 
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
@@ -256,6 +263,27 @@ export function QuoteForm({
       return blank ? [row] : [...rows, row];
     });
     setPickProduct("");
+  }
+
+  function addFromRental(p: Product) {
+    const desc = p.description
+      ? `${p.name} — ${p.description}`
+      : p.name;
+    setItems((rows) => {
+      const blank =
+        rows.length === 1 && !rows[0].description.trim();
+      const row: QuoteItemDraft = {
+        type: "product",
+        productId: p.id,
+        description: desc,
+        quantity: 1,
+        unit: p.unit || RENTAL_UNIT,
+        unitPrice: Number(p.price),
+        vatRate: 22,
+      };
+      return blank ? [row] : [...rows, row];
+    });
+    setPickRental("");
   }
 
   function lineNet(item: QuoteItemDraft) {
@@ -518,7 +546,7 @@ export function QuoteForm({
             <Plus className="h-4 w-4" /> Riga vuota
           </Button>
         </div>
-        <div className="mb-3 grid gap-2 sm:grid-cols-2">
+        <div className="mb-3 grid gap-2 lg:grid-cols-3 sm:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Catalogo servizi
@@ -582,6 +610,37 @@ export function QuoteForm({
               </Button>
             </div>
           </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Catalogo noleggio (€/gg)
+            </label>
+            <div className="flex gap-2">
+              <select
+                className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+                value={pickRental}
+                onChange={(e) => setPickRental(e.target.value)}
+              >
+                <option value="">Seleziona…</option>
+                {catalogRentals.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.category ? `[${p.category}] ` : ""}
+                    {p.name} ({Number(p.price).toFixed(2)} €/gg)
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!pickRental}
+                onClick={() => {
+                  const p = catalogRentals.find((x) => x.id === pickRental);
+                  if (p) addFromRental(p);
+                }}
+              >
+                Aggiungi
+              </Button>
+            </div>
+          </div>
         </div>
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full text-sm">
@@ -590,7 +649,12 @@ export function QuoteForm({
                 <th className="px-3 py-2 font-medium">Descrizione</th>
                 <th className="px-3 py-2 font-medium text-right w-24">Q.tà</th>
                 <th className="px-3 py-2 font-medium text-left w-24">U.M.</th>
-                <th className="px-3 py-2 font-medium text-right w-28">Prezzo</th>
+                <th className="px-3 py-2 font-medium text-right w-28">
+                  Prezzo
+                  <span className="block text-[10px] font-normal text-muted-foreground">
+                    modificabile
+                  </span>
+                </th>
                 <th className="px-3 py-2 font-medium text-right w-20">IVA</th>
                 <th className="px-3 py-2 w-10" />
               </tr>

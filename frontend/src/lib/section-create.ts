@@ -8,6 +8,7 @@ export const SECTION_CREATE = {
   payment: "Registra pagamento",
   event: "Nuovo evento",
   product: "Nuovo prodotto",
+  rental: "Nuovo articolo noleggio",
   service: "Nuovo servizio",
   user: "Nuovo utente",
   paymentTerm: "Nuovo modello",
