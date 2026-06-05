@@ -1,34 +1,17 @@
-import { PrismaClient, UserRole, PermissionAction } from "@prisma/client";
+import { PrismaClient, UserRole } from "@prisma/client";
 import bcrypt from "bcrypt";
+import {
+  ensureDefaultRolePermissions,
+  ensurePermissionCatalog,
+} from "../src/services/permissionStore.js";
 
 const prisma = new PrismaClient();
-
-const PERMISSIONS: { resource: string; action: PermissionAction; name: string }[] = [
-  { resource: "clients", action: "CREATE", name: "Crea clienti" },
-  { resource: "clients", action: "READ", name: "Leggi clienti" },
-  { resource: "clients", action: "UPDATE", name: "Modifica clienti" },
-  { resource: "clients", action: "DELETE", name: "Elimina clienti" },
-  { resource: "quotes", action: "CREATE", name: "Crea preventivi" },
-  { resource: "quotes", action: "READ", name: "Leggi preventivi" },
-  { resource: "quotes", action: "UPDATE", name: "Modifica preventivi" },
-  { resource: "quotes", action: "DELETE", name: "Elimina preventivi" },
-  { resource: "reports", action: "CREATE", name: "Crea report" },
-  { resource: "reports", action: "READ", name: "Leggi report" },
-  { resource: "inventory", action: "CREATE", name: "Gestione magazzino" },
-  { resource: "inventory", action: "READ", name: "Lettura magazzino" },
-  { resource: "users", action: "MANAGE_USERS", name: "Gestione utenti" },
-];
 
 async function main() {
   console.log("🌱 Seeding database...");
 
-  for (const p of PERMISSIONS) {
-    await prisma.permission.upsert({
-      where: { resource_action: { resource: p.resource, action: p.action } },
-      create: p,
-      update: { name: p.name },
-    });
-  }
+  await ensurePermissionCatalog();
+  await ensureDefaultRolePermissions();
 
   const roles: { slug: UserRole; name: string; description: string }[] = [
     { slug: "SUPER_ADMIN", name: "Super Admin", description: "Accesso completo" },

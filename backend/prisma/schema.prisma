@@ -138,6 +138,12 @@ enum AttachmentEntity {
   INVOICE_PREVIEW
   USER
   EVENT
+  SITE_VISIT
+}
+
+enum SiteVisitStatus {
+  DRAFT
+  COMPLETED
 }
 
 enum ActivityAction {
@@ -173,6 +179,7 @@ model User {
   quotes        Quote[] @relation("QuoteCreator")
   paymentsRecorded ClientPayment[] @relation("PaymentRecorder")
   events        Event[] @relation("EventAssignee")
+  siteVisits    SiteVisit[] @relation("SiteVisitAuthor")
   activityLogs  ActivityLog[]
   notifications Notification[]
   passwordResets PasswordReset[]
@@ -274,6 +281,8 @@ model Client {
   country         String?      @default("IT")
   vatNumber       String?
   fiscalCode      String?
+  pec             String?
+  sdiCode         String?
   notes           String?      @db.Text
   tags            String[]
   status          ClientStatus @default(LEAD)
@@ -284,6 +293,7 @@ model Client {
   interventions   Intervention[]
   reports         InterventionReport[]
   events          Event[]
+  siteVisits      SiteVisit[]
   invoicePreviews InvoicePreview[]
   payments        ClientPayment[]
   attachments     Attachment[] @relation("ClientAttachments")
@@ -437,6 +447,7 @@ model Quote {
   invoicePreviews InvoicePreview[]
   payments        ClientPayment[]
   reports         InterventionReport[]
+  siteVisits      SiteVisit[]
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -684,8 +695,10 @@ model Event {
   intervention Intervention? @relation(fields: [interventionId], references: [id])
   quoteId        String?
   quote          Quote?        @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  location     String?
   reminderAt   DateTime?
   color        String?
+  siteVisit    SiteVisit?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -693,6 +706,34 @@ model Event {
   @@index([clientId])
   @@index([assigneeId])
   @@index([quoteId])
+}
+
+model SiteVisit {
+  id             String          @id @default(cuid())
+  number         String          @unique
+  eventId        String          @unique
+  event          Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  clientId       String?
+  client         Client?         @relation(fields: [clientId], references: [id])
+  quoteId        String?
+  quote          Quote?          @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  conductedById  String?
+  conductedBy    User?           @relation("SiteVisitAuthor", fields: [conductedById], references: [id])
+  status         SiteVisitStatus @default(DRAFT)
+  location       String?
+  venueNotes     String?         @db.Text
+  audioNotes     String?         @db.Text
+  lightingNotes  String?         @db.Text
+  accessNotes    String?         @db.Text
+  generalNotes   String?         @db.Text
+  conductedAt    DateTime?
+  attachments    Attachment[]    @relation("SiteVisitAttachments")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@index([clientId])
+  @@index([quoteId])
+  @@index([conductedById])
 }
 
 model InvoicePreview {
@@ -750,6 +791,8 @@ model Attachment {
   report       InterventionReport? @relation("ReportAttachments", fields: [reportId], references: [id])
   invoiceId    String?
   invoice      InvoicePreview?  @relation("InvoiceAttachments", fields: [invoiceId], references: [id])
+  siteVisitId  String?
+  siteVisit    SiteVisit?       @relation("SiteVisitAttachments", fields: [siteVisitId], references: [id])
   createdAt    DateTime         @default(now())
 
   @@index([entityType, entityId])

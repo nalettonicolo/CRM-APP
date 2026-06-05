@@ -183,6 +183,8 @@ export interface Client {
   country?: string;
   vatNumber?: string;
   fiscalCode?: string;
+  pec?: string;
+  sdiCode?: string;
   notes?: string;
   status: string;
   tags?: string[];
@@ -414,6 +416,7 @@ export interface EventItem {
   title: string;
   type?: string;
   description?: string;
+  location?: string;
   startAt: string;
   endAt?: string;
   allDay?: boolean;
@@ -429,6 +432,7 @@ export interface EventItem {
     title?: string | null;
     status?: string;
     total?: number | string;
+    eventLocation?: string | null;
   };
 }
 
@@ -749,6 +753,109 @@ export const usersApi = {
     api<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
 };
 
+export type PermissionMatrixRole = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  editable: boolean;
+  permissionIds: string[];
+};
+
+export type PermissionMatrixEntry = {
+  id: string;
+  resource: string;
+  action: string;
+  name: string;
+  key: string;
+};
+
+export type PermissionResourceDef = {
+  key: string;
+  label: string;
+  description: string;
+  actions: string[];
+  actionLabels?: Record<string, string>;
+};
+
+export type PermissionSectionDef = {
+  key: string;
+  label: string;
+  resources: PermissionResourceDef[];
+};
+
+export type PermissionMatrix = {
+  sections: PermissionSectionDef[];
+  roles: PermissionMatrixRole[];
+  permissions: PermissionMatrixEntry[];
+};
+
+export type SiteVisitSheet = {
+  id: string;
+  number: string;
+  eventId: string;
+  clientId?: string | null;
+  quoteId?: string | null;
+  status: "DRAFT" | "COMPLETED";
+  location?: string | null;
+  venueNotes?: string | null;
+  audioNotes?: string | null;
+  lightingNotes?: string | null;
+  accessNotes?: string | null;
+  generalNotes?: string | null;
+  conductedAt?: string | null;
+  updatedAt: string;
+  event?: {
+    id: string;
+    title: string;
+    type?: string;
+    startAt: string;
+    endAt?: string | null;
+  };
+  client?: { id?: string; companyName?: string; contactName?: string };
+  quote?: {
+    id: string;
+    number: string;
+    title?: string | null;
+    eventLocation?: string | null;
+  };
+};
+
+export const siteVisitsApi = {
+  getByEvent: (eventId: string) =>
+    api<SiteVisitSheet>(`/site-visits/by-event/${eventId}`),
+  get: (id: string) => api<SiteVisitSheet>(`/site-visits/${id}`),
+  update: (
+    id: string,
+    data: Partial<{
+      location: string;
+      venueNotes: string;
+      audioNotes: string;
+      lightingNotes: string;
+      accessNotes: string;
+      generalNotes: string;
+      conductedAt: string;
+      status: "DRAFT" | "COMPLETED";
+    }>
+  ) =>
+    api<SiteVisitSheet>(`/site-visits/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+};
+
+export const permissionsApi = {
+  getMatrix: () => api<PermissionMatrix>("/permissions/matrix"),
+  updateRole: (slug: string, permissionIds: string[]) =>
+    api<Pick<PermissionMatrix, "roles" | "permissions">>(
+      `/permissions/roles/${slug}`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ permissionIds }),
+      }
+    ),
+};
+
 export const eventsApi = {
   list: (from?: string, to?: string) => {
     const params = new URLSearchParams();
@@ -763,13 +870,21 @@ export const eventsApi = {
     startAt: string;
     endAt?: string;
     description?: string;
+    location?: string;
     clientId?: string;
     allDay?: boolean;
   }) =>
     api<EventItem>("/events", { method: "POST", body: JSON.stringify(data) }),
   update: (
     id: string,
-    data: Partial<{ title: string; type: string; startAt: string; endAt: string }>
+    data: Partial<{
+      title: string;
+      description: string;
+      location: string;
+      type: string;
+      startAt: string;
+      endAt: string;
+    }>
   ) =>
     api<EventItem>(`/events/${id}`, {
       method: "PATCH",

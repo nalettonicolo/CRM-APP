@@ -26,6 +26,7 @@ export default function CalendarPage() {
   const [hubEvent, setHubEvent] = useState<EventItem | null>(null);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
+  const [location, setLocation] = useState("");
   const [type, setType] = useState("EVENT");
   const [eventFrom, setEventFrom] = useState("");
   const [eventTo, setEventTo] = useState("");
@@ -54,6 +55,7 @@ export default function CalendarPage() {
       const end = new Date(`${endDay}T18:00:00`);
       return eventsApi.create({
         title,
+        location: location.trim() || undefined,
         type,
         startAt: start.toISOString(),
         endAt: end.toISOString(),
@@ -63,6 +65,7 @@ export default function CalendarPage() {
       qc.invalidateQueries({ queryKey: ["events"] });
       setOpen(false);
       setTitle("");
+      setLocation("");
       setEventFrom("");
       setEventTo("");
     },
@@ -120,6 +123,11 @@ export default function CalendarPage() {
               placeholder="Titolo"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+            />
+            <Input
+              placeholder="Luogo (opzionale)"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
             />
             <div>
               <label className="mb-1 block text-sm font-medium">Tipo</label>

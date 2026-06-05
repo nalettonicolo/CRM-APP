@@ -157,6 +157,18 @@ export function ClientDetailDialog({
                   <dd>{client.fiscalCode}</dd>
                 </div>
               )}
+              {client.pec && (
+                <div>
+                  <dt className="text-muted-foreground">PEC</dt>
+                  <dd>{client.pec}</dd>
+                </div>
+              )}
+              {client.sdiCode && (
+                <div>
+                  <dt className="text-muted-foreground">Codice SDI</dt>
+                  <dd>{client.sdiCode}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-muted-foreground">Preventivi</dt>
                 <dd className="font-medium tabular-nums">

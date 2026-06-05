@@ -30,6 +30,8 @@ const clientSchema = z.object({
   country: z.string().optional(),
   vatNumber: z.string().optional(),
   fiscalCode: z.string().optional(),
+  pec: z.string().optional(),
+  sdiCode: z.string().optional(),
   notes: z.string().optional(),
   tags: z.array(z.string()).optional(),
   status: z

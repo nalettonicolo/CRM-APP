@@ -31,6 +31,8 @@ import paymentTermTemplatesRoutes from "./routes/paymentTermTemplates.js";
 import paymentsRoutes from "./routes/payments.js";
 import eventGalleryRoutes from "./routes/eventGallery.js";
 import privacyRoutes from "./routes/privacy.js";
+import permissionsRoutes from "./routes/permissions.js";
+import siteVisitsRoutes from "./routes/siteVisits.js";
 
 const app = express();
 
@@ -127,6 +129,8 @@ app.use("/api/payment-term-templates", paymentTermTemplatesRoutes);
 app.use("/api/payments", paymentsRoutes);
 app.use("/api/event-gallery", eventGalleryRoutes);
 app.use("/api/privacy", privacyRoutes);
+app.use("/api/permissions", permissionsRoutes);
+app.use("/api/site-visits", siteVisitsRoutes);
 
 app.use(errorHandler);
 

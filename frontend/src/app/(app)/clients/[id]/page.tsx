@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, FileText, Wrench, ClipboardList, Pencil, Trash2, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ClientBillingStatus } from "@/components/clients/client-billing-status";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
 import { Header } from "@/components/layout/header";
 import {
@@ -150,6 +151,8 @@ export default function ClientDetailPage() {
               </div>
             </div>
 
+            <ClientBillingStatus client={client} onEdit={() => setEditOpen(true)} />
+
             <div className="grid gap-6 lg:grid-cols-2">
               <DetailSection title="Contatti e sede">
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -169,10 +172,13 @@ export default function ClientDetailPage() {
                 </div>
               </DetailSection>
 
-              <DetailSection title="Dati fiscali">
+              <DetailSection title="Dati fiscali e fatturazione">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <DetailField label="Partita IVA" value={client.vatNumber} />
                   <DetailField label="Codice fiscale" value={client.fiscalCode} />
+                  <DetailField label="PEC" value={client.pec} />
+                  <DetailField label="Codice destinatario SDI" value={client.sdiCode} />
+                  <DetailField label="Nazione" value={client.country || "IT"} />
                   {client.tags && client.tags.length > 0 && (
                     <div className="sm:col-span-2">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">

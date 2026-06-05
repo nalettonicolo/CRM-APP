@@ -28,6 +28,9 @@ const emptyForm = {
   postalCode: "",
   vatNumber: "",
   fiscalCode: "",
+  country: "IT",
+  pec: "",
+  sdiCode: "",
   notes: "",
   status: "LEAD",
 };
@@ -49,6 +52,9 @@ function clientToForm(client: Client): FormState {
     postalCode: client.postalCode || "",
     vatNumber: client.vatNumber || "",
     fiscalCode: client.fiscalCode || "",
+    country: client.country || "IT",
+    pec: client.pec || "",
+    sdiCode: client.sdiCode || "",
     notes: client.notes || "",
     status: client.status || "LEAD",
   };
@@ -177,10 +183,18 @@ export function ClientFormDialog({
               onChange={(e) => setField("postalCode", e.target.value)}
             />
           </div>
+          <div className="sm:col-span-2">
+            <p className="mb-2 text-sm font-semibold">Dati fatturazione</p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Per documenti di cortesia e fatturazione elettronica: aziende con P.
+              IVA, privati con codice fiscale, più PEC o codice destinatario SDI.
+            </p>
+          </div>
           <div>
             <label className="mb-1 block text-sm font-medium">P. IVA</label>
             <Input
               value={form.vatNumber}
+              placeholder="Es. 12345678901"
               onChange={(e) => setField("vatNumber", e.target.value)}
             />
           </div>
@@ -188,7 +202,33 @@ export function ClientFormDialog({
             <label className="mb-1 block text-sm font-medium">Codice fiscale</label>
             <Input
               value={form.fiscalCode}
+              placeholder="Es. RSSMRA80A01H501U"
               onChange={(e) => setField("fiscalCode", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">PEC</label>
+            <Input
+              type="email"
+              value={form.pec}
+              placeholder="cliente@pec.it"
+              onChange={(e) => setField("pec", e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Codice SDI</label>
+            <Input
+              value={form.sdiCode}
+              placeholder="Es. ABCDEFG o 0000000"
+              onChange={(e) => setField("sdiCode", e.target.value.toUpperCase())}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Nazione</label>
+            <Input
+              value={form.country}
+              placeholder="IT"
+              onChange={(e) => setField("country", e.target.value.toUpperCase())}
             />
           </div>
           <div className="sm:col-span-2">

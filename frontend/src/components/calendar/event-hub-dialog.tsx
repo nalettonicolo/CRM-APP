@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   ClipboardList,
   ExternalLink,
   FileText,
+  MapPin,
   Receipt,
   User,
   Wrench,
@@ -15,34 +17,16 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { eventsApi, type EventItem } from "@/lib/api";
 import { calendarEventTypeOptions, eventTypeLabels } from "@/lib/labels";
-import { formatCurrency, formatEventDateRange } from "@/lib/utils";
-
-function formatEventTime(ev: EventItem) {
-  const start = new Date(ev.startAt);
-  const end = ev.endAt ? new Date(ev.endAt) : start;
-  const multiDay =
-    ev.endAt &&
-    (start.getFullYear() !== end.getFullYear() ||
-      start.getMonth() !== end.getMonth() ||
-      start.getDate() !== end.getDate());
-
-  if (ev.allDay || multiDay) return formatEventDateRange(ev.startAt, ev.endAt);
-  return start.toLocaleString("it-IT", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+import { formatCurrency, toDateInputValue } from "@/lib/utils";
 
 type HubAction = {
   href: string;
@@ -50,6 +34,27 @@ type HubAction = {
   icon: React.ComponentType<{ className?: string }>;
   variant?: "default" | "outline" | "secondary";
 };
+
+function toTimeInputValue(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function eventToForm(event: EventItem) {
+  const end = event.endAt ? new Date(event.endAt) : new Date(event.startAt);
+  return {
+    title: event.title,
+    type: event.type || "EVENT",
+    location: event.location || event.quote?.eventLocation || "",
+    description: event.description || "",
+    eventFrom: toDateInputValue(event.startAt),
+    eventTo: event.endAt
+      ? toDateInputValue(event.endAt)
+      : toDateInputValue(event.startAt),
+    startTime: toTimeInputValue(event.startAt),
+    endTime: toTimeInputValue(end.toISOString()),
+  };
+}
 
 function buildActions(event: EventItem): HubAction[] {
   const actions: HubAction[] = [];
@@ -94,29 +99,27 @@ function buildActions(event: EventItem): HubAction[] {
     });
   }
 
-  if (clientId || interventionId) {
+  if (event.type === "SITE_VISIT") {
+    actions.unshift({
+      href: `/site-visits/${event.id}`,
+      label: "Scheda sopralluogo",
+      icon: MapPin,
+      variant: "default",
+    });
+  } else if (clientId || interventionId) {
     const reportParams = new URLSearchParams();
     if (clientId) reportParams.set("clientId", clientId);
     if (quoteId) reportParams.set("quoteId", quoteId);
     if (interventionId) reportParams.set("interventionId", interventionId);
     actions.push({
       href: `/reports/new?${reportParams.toString()}`,
-      label: "Crea report",
+      label: "Crea verbale",
       icon: ClipboardList,
       variant: "secondary",
     });
   }
 
   return actions;
-}
-
-function MetaRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="font-medium">{value}</dd>
-    </div>
-  );
 }
 
 export function EventHubDialog({
@@ -130,18 +133,63 @@ export function EventHubDialog({
   onOpenChange: (open: boolean) => void;
   onEventUpdated?: (event: EventItem) => void;
 }) {
+  const router = useRouter();
   const qc = useQueryClient();
-  const [eventType, setEventType] = useState(event?.type || "EVENT");
+  const [form, setForm] = useState(() => (event ? eventToForm(event) : null));
 
   useEffect(() => {
-    if (event) setEventType(event.type || "EVENT");
-  }, [event?.id, event?.type]);
+    if (event) setForm(eventToForm(event));
+  }, [event?.id, event?.title, event?.type, event?.location, event?.description, event?.startAt, event?.endAt]);
 
-  const updateTypeMut = useMutation({
-    mutationFn: (type: string) => eventsApi.update(event!.id, { type }),
+  const updateMut = useMutation({
+    mutationFn: () => {
+      if (!event || !form) throw new Error("Evento non disponibile");
+      const [sh, sm] = form.startTime.split(":").map(Number);
+      const [eh, em] = form.endTime.split(":").map(Number);
+      const [y1, m1, d1] = form.eventFrom.split("-").map(Number);
+      const endDay = form.eventTo || form.eventFrom;
+      const [y2, m2, d2] = endDay.split("-").map(Number);
+      const startAt = new Date(y1, m1 - 1, d1, sh, sm, 0).toISOString();
+      const endAt = new Date(y2, m2 - 1, d2, eh, em, 0).toISOString();
+      return eventsApi.update(event.id, {
+        title: form.title.trim(),
+        location: form.location.trim() || undefined,
+        description: form.description.trim() || undefined,
+        type: form.type,
+        startAt,
+        endAt,
+      });
+    },
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["events"] });
       onEventUpdated?.(updated);
+      setForm(eventToForm(updated));
+    },
+  });
+
+  const openSiteVisitMut = useMutation({
+    mutationFn: async () => {
+      if (!event || !form) throw new Error("Evento non disponibile");
+      const [sh, sm] = form.startTime.split(":").map(Number);
+      const [eh, em] = form.endTime.split(":").map(Number);
+      const [y1, m1, d1] = form.eventFrom.split("-").map(Number);
+      const endDay = form.eventTo || form.eventFrom;
+      const [y2, m2, d2] = endDay.split("-").map(Number);
+      const startAt = new Date(y1, m1 - 1, d1, sh, sm, 0).toISOString();
+      const endAt = new Date(y2, m2 - 1, d2, eh, em, 0).toISOString();
+      await eventsApi.update(event.id, {
+        title: form.title.trim(),
+        location: form.location.trim() || undefined,
+        description: form.description.trim() || undefined,
+        type: "SITE_VISIT",
+        startAt,
+        endAt,
+      });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["events"] });
+      onOpenChange(false);
+      router.push(`/site-visits/${event!.id}`);
     },
   });
 
@@ -153,108 +201,220 @@ export function EventHubDialog({
     },
   });
 
-  if (!event) return null;
+  if (!event || !form) return null;
 
   const clientName =
     event.client?.companyName || event.client?.contactName || null;
   const actions = buildActions(event);
-  const typeLabel = eventTypeLabels[eventType] || eventType;
+  const hasLinks = actions.length > 0;
+  const hasLinkedEntities = !!(event.quoteId || event.clientId || event.interventionId);
+
+  const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-start gap-2 pr-6">
-            <Calendar className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
-            <span>{event.title}</span>
+          <DialogTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 shrink-0 text-primary" />
+            Modifica evento
           </DialogTitle>
         </DialogHeader>
 
-        <dl className="grid gap-2 text-sm">
-          <MetaRow label="Quando" value={formatEventTime(event)} />
+        <div className="space-y-3 text-sm">
           <div>
-            <dt className="mb-1 text-xs text-muted-foreground">Tipo</dt>
-            <dd>
-              <select
-                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
-                value={eventType}
-                disabled={updateTypeMut.isPending}
-                onChange={(e) => {
-                  const next = e.target.value;
-                  setEventType(next);
-                  updateTypeMut.mutate(next);
-                }}
-              >
-                {calendarEventTypeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-                {!calendarEventTypeOptions.some((o) => o.value === event.type) &&
-                  event.type && (
-                    <option value={event.type}>
-                      {eventTypeLabels[event.type] || event.type}
-                    </option>
-                  )}
-              </select>
-              {updateTypeMut.isError && (
-                <p className="mt-1 text-xs text-red-600">
-                  Impossibile aggiornare il tipo.
-                </p>
-              )}
-            </dd>
-          </div>
-          {clientName && <MetaRow label="Cliente" value={clientName} />}
-          {event.quote?.total != null && (
-            <MetaRow
-              label="Totale preventivo"
-              value={formatCurrency(Number(event.quote.total))}
+            <label className="mb-1 block text-xs text-muted-foreground">Titolo</label>
+            <Input
+              value={form.title}
+              onChange={(e) => setField("title", e.target.value)}
             />
-          )}
-        </dl>
-
-        {event.description && (
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-            {event.description}
-          </p>
-        )}
-
-        <p className="text-xs text-muted-foreground">
-          Etichetta in lista:{" "}
-          <span className="font-medium text-primary">{typeLabel}</span>
-        </p>
-
-        {actions.length > 0 ? (
-          <div className="flex flex-col gap-2 pt-2">
-            {actions.map((a) => (
-              <Button
-                key={a.href}
-                variant={a.variant ?? "outline"}
-                className="justify-start"
-                asChild
-              >
-                <Link href={a.href}>
-                  <a.icon className="h-4 w-4" />
-                  {a.label}
-                  <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-50" />
-                </Link>
-              </Button>
-            ))}
           </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Nessun collegamento rapido per questo evento.
-          </p>
-        )}
 
-        <div className="border-t border-border pt-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Data inizio</label>
+              <Input
+                type="date"
+                value={form.eventFrom}
+                onChange={(e) => setField("eventFrom", e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Ora inizio</label>
+              <Input
+                type="time"
+                value={form.startTime}
+                onChange={(e) => setField("startTime", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Data fine</label>
+              <Input
+                type="date"
+                value={form.eventTo}
+                min={form.eventFrom || undefined}
+                onChange={(e) => setField("eventTo", e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-muted-foreground">Ora fine</label>
+              <Input
+                type="time"
+                value={form.endTime}
+                onChange={(e) => setField("endTime", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Luogo</label>
+            <Input
+              value={form.location}
+              placeholder="Es. Villa Rossi, Via Roma 12, Milano"
+              onChange={(e) => setField("location", e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Tipo</label>
+            <select
+              className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+              value={form.type}
+              disabled={openSiteVisitMut.isPending}
+              onChange={(e) => {
+                const next = e.target.value;
+                setField("type", next);
+                if (next === "SITE_VISIT") {
+                  openSiteVisitMut.mutate();
+                }
+              }}
+            >
+              {calendarEventTypeOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+              {!calendarEventTypeOptions.some((o) => o.value === event.type) &&
+                event.type && (
+                  <option value={event.type}>
+                    {eventTypeLabels[event.type] || event.type}
+                  </option>
+                )}
+            </select>
+          </div>
+
+          {(form.type === "SITE_VISIT" || event.type === "SITE_VISIT") && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="text-sm font-medium">Scheda sopralluogo</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Annotazioni tecniche e foto del luogo — documento separato dal
+                verbale di fine lavoro.
+              </p>
+              <Button
+                className="mt-3 w-full justify-start"
+                variant="default"
+                disabled={openSiteVisitMut.isPending}
+                onClick={() => openSiteVisitMut.mutate()}
+              >
+                <MapPin className="h-4 w-4" />
+                {openSiteVisitMut.isPending
+                  ? "Apertura scheda…"
+                  : "Apri scheda sopralluogo"}
+              </Button>
+            </div>
+          )}
+
+          <div>
+            <label className="mb-1 block text-xs text-muted-foreground">Descrizione</label>
+            <textarea
+              className="flex min-h-[72px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+              value={form.description}
+              placeholder="Note sull'evento (opzionale)"
+              onChange={(e) => setField("description", e.target.value)}
+            />
+          </div>
+
+          {hasLinkedEntities && (
+            <dl className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3">
+              {clientName && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">Cliente collegato</dt>
+                  <dd className="font-medium">{clientName}</dd>
+                </div>
+              )}
+              {event.quote?.number && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">Preventivo collegato</dt>
+                  <dd className="font-medium">
+                    {event.quote.number}
+                    {event.quote.total != null &&
+                      ` · ${formatCurrency(Number(event.quote.total))}`}
+                  </dd>
+                </div>
+              )}
+              {event.intervention?.number && (
+                <div>
+                  <dt className="text-xs text-muted-foreground">Intervento collegato</dt>
+                  <dd className="font-medium">{event.intervention.number}</dd>
+                </div>
+              )}
+            </dl>
+          )}
+
+          {hasLinks && (
+            <div className="space-y-2 pt-1">
+              <p className="text-xs font-medium text-muted-foreground">Collegamenti</p>
+              {actions.map((a) => (
+                <Button
+                  key={a.href}
+                  variant={a.variant ?? "outline"}
+                  className="justify-start"
+                  asChild
+                >
+                  <Link href={a.href}>
+                    <a.icon className="h-4 w-4" />
+                    {a.label}
+                    <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-50" />
+                  </Link>
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {updateMut.isError && (
+            <p className="text-xs text-red-600">Impossibile salvare le modifiche.</p>
+          )}
+        </div>
+
+        <DialogFooter className="flex-col gap-2 sm:flex-col">
+          <div className="flex w-full gap-2">
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => onOpenChange(false)}
+            >
+              Annulla
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={!form.title.trim() || !form.eventFrom || updateMut.isPending}
+              onClick={() => updateMut.mutate()}
+            >
+              Salva
+            </Button>
+          </div>
           <DeleteEntityButton
             className="w-full"
             pending={deleteEventMut.isPending}
             confirmMessage={`Eliminare l'evento "${event.title}"?`}
             onConfirm={() => deleteEventMut.mutate()}
           />
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

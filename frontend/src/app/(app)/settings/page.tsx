@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { FileText, ImageIcon, Shield } from "lucide-react";
+import { FileText, ImageIcon, Shield, ShieldCheck } from "lucide-react";
 import { authApi, backupApi, privacyApi, settingsApi } from "@/lib/api";
 import { DEFAULT_APP_NAME } from "@/lib/branding";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
@@ -234,6 +234,20 @@ export default function SettingsPage() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <Link href="/settings/permissions">
+            <Card className="h-full transition-colors hover:border-primary/40">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  Permessi per ruolo
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Definisci per ogni tipo di account cosa può vedere e cosa può
+                  modificare nel CRM.
+                </p>
+              </CardHeader>
+            </Card>
+          </Link>
           <Link href="/settings/testi">
             <Card className="h-full transition-colors hover:border-primary/40">
               <CardHeader>

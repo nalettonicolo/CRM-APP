@@ -61,6 +61,7 @@ export async function syncQuoteCalendarEvent(quoteId: string) {
   const data = {
     title,
     description,
+    location: quote.eventLocation?.trim() || null,
     type: "EVENT" as const,
     startAt,
     endAt,

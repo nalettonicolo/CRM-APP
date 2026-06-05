@@ -167,7 +167,13 @@ export default function UsersPage() {
     <>
       <Header title="Utenti" />
       <div className="p-3 sm:p-4 md:p-6">
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href="/settings/permissions"
+            className="text-sm text-primary hover:underline"
+          >
+            Configura permessi per ruolo →
+          </Link>
           <PageCreateButton
             label={SECTION_CREATE.user}
             onClick={() => {

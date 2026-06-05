@@ -20,7 +20,14 @@ const eventInclude = {
     select: { id: true, number: true, title: true, status: true },
   },
   quote: {
-    select: { id: true, number: true, title: true, status: true, total: true },
+    select: {
+      id: true,
+      number: true,
+      title: true,
+      status: true,
+      total: true,
+      eventLocation: true,
+    },
   },
 } as const;
 
@@ -72,6 +79,7 @@ router.post("/", requirePermission("events", "CREATE"), async (req, res, next) =
         assigneeId: z.string().optional(),
         interventionId: z.string().optional(),
         quoteId: z.string().optional(),
+        location: z.string().optional(),
         color: z.string().optional(),
       })
       .parse(req.body);
@@ -79,6 +87,7 @@ router.post("/", requirePermission("events", "CREATE"), async (req, res, next) =
     const event = await prisma.event.create({
       data: {
         ...data,
+        location: data.location?.trim() || undefined,
         startAt: new Date(data.startAt),
         endAt: data.endAt ? new Date(data.endAt) : undefined,
       },
@@ -95,9 +104,11 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req, res, nex
     const data = z
       .object({
         title: z.string().optional(),
+        description: z.string().optional(),
         type: eventTypeSchema.optional(),
         startAt: z.string().datetime().optional(),
         endAt: z.string().datetime().optional(),
+        location: z.string().optional(),
         assigneeId: z.string().optional(),
       })
       .parse(req.body);
@@ -106,6 +117,12 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req, res, nex
       where: { id: paramId(req) },
       data: {
         ...(data.title !== undefined && { title: data.title }),
+        ...(data.description !== undefined && {
+          description: data.description || null,
+        }),
+        ...(data.location !== undefined && {
+          location: data.location?.trim() || null,
+        }),
         ...(data.type !== undefined && { type: data.type }),
         ...(data.assigneeId !== undefined && { assigneeId: data.assigneeId }),
         ...(data.startAt && { startAt: new Date(data.startAt) }),

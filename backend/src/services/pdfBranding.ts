@@ -182,6 +182,11 @@ export type ClientPdfInput = {
   postalCode?: string | null;
   city?: string | null;
   province?: string | null;
+  country?: string | null;
+  vatNumber?: string | null;
+  fiscalCode?: string | null;
+  pec?: string | null;
+  sdiCode?: string | null;
   email?: string | null;
   phone?: string | null;
 };
@@ -209,6 +214,10 @@ export function clientPdfDetailLines(client: ClientPdfInput): string[] {
           .join(" ")
       : null,
     referenceName ? `Referente: ${referenceName}` : null,
+    client.vatNumber ? `P. IVA: ${client.vatNumber}` : null,
+    client.fiscalCode ? `C.F.: ${client.fiscalCode}` : null,
+    client.pec ? `PEC: ${client.pec}` : null,
+    client.sdiCode ? `Cod. destinatario: ${client.sdiCode}` : null,
     client.email || null,
     client.phone || null,
   ].filter(Boolean) as string[];
