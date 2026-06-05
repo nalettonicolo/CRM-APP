@@ -15,7 +15,7 @@ export const permissionActionShortLabels: Record<string, string> = {
 
 export const permissionRoleDescriptions: Record<string, string> = {
   SUPER_ADMIN:
-    "Accesso completo a ogni funzione. I permessi non sono modificabili.",
+    "Account principale con accesso totale. I permessi non sono modificabili da questa pagina.",
   ADMIN:
     "Amministratore interno: gestione utenti, impostazioni, backup e tutte le aree operative.",
   COMMERCIAL:

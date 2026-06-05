@@ -129,7 +129,7 @@ export function formatInvoicePaymentDisplay(input: {
 }
 
 export const userRoleLabels: Record<string, string> = {
-  SUPER_ADMIN: "Admin",
+  SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
   COMMERCIAL: "Commerciale",
   TECHNICIAN: "Tecnico",

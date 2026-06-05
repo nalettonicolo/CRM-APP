@@ -822,6 +822,7 @@ export type SiteVisitSheet = {
 };
 
 export const siteVisitsApi = {
+  list: () => api<SiteVisitSheet[]>("/site-visits"),
   getByEvent: (eventId: string) =>
     api<SiteVisitSheet>(`/site-visits/by-event/${eventId}`),
   get: (id: string) => api<SiteVisitSheet>(`/site-visits/${id}`),

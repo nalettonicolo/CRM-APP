@@ -14,6 +14,7 @@ import {
   Boxes,
   Briefcase,
   Calendar,
+  MapPin,
   Settings,
   LogOut,
   ClipboardList,
@@ -50,6 +51,7 @@ const staffGroups: NavGroup[] = [
     items: [
       { href: "/interventions", label: "Interventi", icon: Wrench },
       { href: "/reports", label: "Verbali", icon: ClipboardList },
+      { href: "/site-visits", label: "Sopralluogo", icon: MapPin },
       { href: "/calendar", label: "Calendario", icon: Calendar },
     ],
   },

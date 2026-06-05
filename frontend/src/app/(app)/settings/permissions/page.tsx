@@ -18,22 +18,29 @@ import { userRoleLabels } from "@/lib/labels";
 import { useAuthStore } from "@/store/auth";
 import { cn } from "@/lib/utils";
 
-const ROLE_ORDER = [
+const EDITABLE_ROLE_ORDER = [
   "ADMIN",
   "COMMERCIAL",
   "TECHNICIAN",
   "OPERATOR",
   "WAREHOUSE",
   "CLIENT",
-  "SUPER_ADMIN",
 ] as const;
 
-function sortRoles<T extends { slug: string }>(roles: T[]): T[] {
-  return [...roles].sort(
-    (a, b) =>
-      ROLE_ORDER.indexOf(a.slug as (typeof ROLE_ORDER)[number]) -
-      ROLE_ORDER.indexOf(b.slug as (typeof ROLE_ORDER)[number])
-  );
+function sortEditableRoles<T extends { slug: string; editable: boolean }>(
+  roles: T[]
+): T[] {
+  return roles
+    .filter((r) => r.editable)
+    .sort(
+      (a, b) =>
+        EDITABLE_ROLE_ORDER.indexOf(
+          a.slug as (typeof EDITABLE_ROLE_ORDER)[number]
+        ) -
+        EDITABLE_ROLE_ORDER.indexOf(
+          b.slug as (typeof EDITABLE_ROLE_ORDER)[number]
+        )
+    );
 }
 
 export default function PermissionsSettingsPage() {
@@ -193,8 +200,16 @@ export default function PermissionsSettingsPage() {
 
             {data && (
               <>
+                {data.roles.find((r) => r.slug === "SUPER_ADMIN") && (
+                  <p className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                    <strong className="text-foreground">Super Admin</strong> —
+                    accesso completo, non modificabile da questa pagina. I
+                    permessi sotto riguardano solo gli altri tipi di account.
+                  </p>
+                )}
+
                 <div className="flex flex-wrap gap-2">
-                  {sortRoles(data.roles).map((role) => (
+                  {sortEditableRoles(data.roles).map((role) => (
                     <Button
                       key={role.slug}
                       size="sm"

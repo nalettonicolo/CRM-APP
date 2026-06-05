@@ -94,6 +94,18 @@ const updateSchema = z.object({
 const router = Router();
 router.use(authenticate);
 
+router.get("/", requirePermission("events", "READ"), async (_req, res, next) => {
+  try {
+    const sheets = await prisma.siteVisit.findMany({
+      include: siteVisitInclude,
+      orderBy: { updatedAt: "desc" },
+    });
+    res.json(sheets);
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get(
   "/by-event/:eventId",
   requirePermission("events", "READ"),
