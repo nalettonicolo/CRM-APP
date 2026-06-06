@@ -33,6 +33,7 @@ import eventGalleryRoutes from "./routes/eventGallery.js";
 import privacyRoutes from "./routes/privacy.js";
 import permissionsRoutes from "./routes/permissions.js";
 import siteVisitsRoutes from "./routes/siteVisits.js";
+import transportDocumentsRoutes from "./routes/transportDocuments.js";
 
 const app = express();
 
@@ -131,6 +132,7 @@ app.use("/api/event-gallery", eventGalleryRoutes);
 app.use("/api/privacy", privacyRoutes);
 app.use("/api/permissions", permissionsRoutes);
 app.use("/api/site-visits", siteVisitsRoutes);
+app.use("/api/transport-documents", transportDocumentsRoutes);
 
 app.use(errorHandler);
 

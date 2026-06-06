@@ -178,6 +178,7 @@ model User {
   reports       InterventionReport[] @relation("TechnicianReports")
   quotes        Quote[] @relation("QuoteCreator")
   paymentsRecorded ClientPayment[] @relation("PaymentRecorder")
+  transportDocuments TransportDocument[] @relation("TransportDocumentCreator")
   events        Event[] @relation("EventAssignee")
   siteVisits    SiteVisit[] @relation("SiteVisitAuthor")
   activityLogs  ActivityLog[]
@@ -295,11 +296,12 @@ model Client {
   events          Event[]
   siteVisits      SiteVisit[]
   invoicePreviews InvoicePreview[]
-  payments        ClientPayment[]
-  attachments     Attachment[] @relation("ClientAttachments")
-  activities      ActivityLog[]
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  payments            ClientPayment[]
+  transportDocuments  TransportDocument[]
+  attachments         Attachment[] @relation("ClientAttachments")
+  activities          ActivityLog[]
+  createdAt           DateTime     @default(now())
+  updatedAt           DateTime     @updatedAt
 
   @@index([email])
   @@index([status])
@@ -381,10 +383,11 @@ model Product {
   qrCode       String?
   isActive     Boolean             @default(true)
   inventory    Inventory?
-  quoteItems   QuoteItem[]
-  reportMaterials ReportMaterial[]
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  quoteItems              QuoteItem[]
+  reportMaterials         ReportMaterial[]
+  transportDocumentLines  TransportDocumentLine[]
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
 
   @@index([sku])
   @@index([category])
@@ -448,10 +451,11 @@ model Quote {
   attachments     Attachment[]  @relation("QuoteAttachments")
   invoicePreviews InvoicePreview[]
   payments        ClientPayment[]
-  reports         InterventionReport[]
-  siteVisits      SiteVisit[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  reports             InterventionReport[]
+  siteVisits          SiteVisit[]
+  transportDocuments  TransportDocument[]
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
 
   @@index([clientId])
   @@index([status])
@@ -845,6 +849,90 @@ model EventGalleryItem {
   updatedAt   DateTime  @updatedAt
 
   @@index([isPublished, sortOrder])
+}
+
+// ─── DDT (Documento di Trasporto) ────────────────────────────────────────────
+
+enum TransportDocumentStatus {
+  DRAFT
+  ISSUED
+  DELIVERED
+  CANCELLED
+}
+
+enum TransportReason {
+  SALE
+  RENTAL
+  DEPOSIT
+  LOAN
+  RETURN
+  REPAIR
+  OTHER
+}
+
+enum TransportCarrier {
+  SENDER
+  RECIPIENT
+  CARRIER
+}
+
+model TransportDocument {
+  id                  String                  @id @default(cuid())
+  number              String                  @unique
+  status              TransportDocumentStatus @default(DRAFT)
+  clientId            String
+  client              Client                  @relation(fields: [clientId], references: [id])
+  quoteId             String?
+  quote               Quote?                  @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  createdById         String
+  createdBy           User                    @relation("TransportDocumentCreator", fields: [createdById], references: [id])
+  issueDate           DateTime                @default(now())
+  transportStartAt    DateTime?
+  recipientName       String?
+  recipientAddress    String?
+  recipientCity       String?
+  recipientProvince   String?
+  recipientPostalCode String?
+  recipientVat        String?
+  recipientFiscalCode String?
+  destinationAddress  String?
+  destinationCity     String?
+  destinationProvince String?
+  destinationPostalCode String?
+  reason              TransportReason         @default(RENTAL)
+  carrier             TransportCarrier        @default(SENDER)
+  carrierName         String?
+  vehiclePlate        String?
+  driverName          String?
+  packagesCount       Int?
+  grossWeightKg       Decimal?                @db.Decimal(10, 2)
+  appearance          String?
+  referenceDoc        String?
+  notes               String?                 @db.Text
+  lines               TransportDocumentLine[]
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([number])
+  @@index([issueDate])
+}
+
+model TransportDocumentLine {
+  id          String            @id @default(cuid())
+  documentId  String
+  document    TransportDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sortOrder   Int               @default(0)
+  description String
+  quantity    Decimal           @db.Decimal(12, 3)
+  unit        String            @default("pz")
+  sku         String?
+  productId   String?
+  product     Product?          @relation(fields: [productId], references: [id], onDelete: SetNull)
+  notes       String?
+
+  @@index([documentId])
 }
 
 model Setting {

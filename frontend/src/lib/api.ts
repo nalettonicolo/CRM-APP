@@ -1062,6 +1062,91 @@ export async function printInvoicePdf(id: string) {
   openBlobForPrint(await fetchAuthenticatedPdf(`/invoices/${id}/pdf`));
 }
 
+export interface TransportDocumentLine {
+  id?: string;
+  description: string;
+  quantity: number | string;
+  unit: string;
+  sku?: string | null;
+  productId?: string | null;
+  notes?: string | null;
+  sortOrder?: number;
+}
+
+export interface TransportDocument {
+  id: string;
+  number: string;
+  status: string;
+  clientId: string;
+  quoteId?: string | null;
+  issueDate: string;
+  transportStartAt?: string | null;
+  recipientName?: string | null;
+  recipientAddress?: string | null;
+  recipientCity?: string | null;
+  recipientProvince?: string | null;
+  recipientPostalCode?: string | null;
+  recipientVat?: string | null;
+  recipientFiscalCode?: string | null;
+  destinationAddress?: string | null;
+  destinationCity?: string | null;
+  destinationProvince?: string | null;
+  destinationPostalCode?: string | null;
+  reason: string;
+  carrier: string;
+  carrierName?: string | null;
+  vehiclePlate?: string | null;
+  driverName?: string | null;
+  packagesCount?: number | null;
+  grossWeightKg?: number | string | null;
+  appearance?: string | null;
+  referenceDoc?: string | null;
+  notes?: string | null;
+  lines: TransportDocumentLine[];
+  client?: {
+    id: string;
+    companyName?: string | null;
+    contactName?: string | null;
+  };
+  quote?: { id: string; number: string; title?: string | null } | null;
+  createdBy?: { firstName: string; lastName: string; email: string };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export const transportDocumentsApi = {
+  list: () => api<TransportDocument[]>("/transport-documents"),
+  get: (id: string) => api<TransportDocument>(`/transport-documents/${id}`),
+  create: (data: unknown) =>
+    api<TransportDocument>("/transport-documents", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: unknown) =>
+    api<TransportDocument>(`/transport-documents/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/transport-documents/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+export async function downloadTransportDocumentPdf(id: string, filename: string) {
+  const blob = await fetchAuthenticatedPdf(`/transport-documents/${id}/pdf`);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function printTransportDocumentPdf(id: string) {
+  openBlobForPrint(await fetchAuthenticatedPdf(`/transport-documents/${id}/pdf`));
+}
+
 export interface AutomationRule {
   id: string;
   name: string;
