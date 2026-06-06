@@ -50,7 +50,12 @@ export default function QuoteDetailPage() {
 
   const fromQuote = useMutation({
     mutationFn: () => invoicesApi.fromQuote(id),
-    onSuccess: (inv) => router.push(`/invoices/${inv.id}`),
+    onSuccess: (inv) => {
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["quote", id] });
+      router.push(`/invoices/${inv.id}`);
+    },
   });
 
   const sendEmail = useMutation({
@@ -63,6 +68,8 @@ export default function QuoteDetailPage() {
     onSuccess: () => {
       setStatusError("");
       qc.invalidateQueries({ queryKey: ["quote", id] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["invoices"] });
     },
@@ -71,22 +78,12 @@ export default function QuoteDetailPage() {
     },
   });
 
-  const deleteQuote = useMutation({
-    mutationFn: () => quotesApi.delete(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      qc.invalidateQueries({ queryKey: ["payments"] });
-      qc.invalidateQueries({ queryKey: ["events"] });
-      router.push("/quotes");
-    },
-    onError: (e: Error) =>
-      setDeleteError(e.message || "Impossibile eliminare il preventivo."),
-  });
-
   const signQuote = useMutation({
     mutationFn: (signature: string) => quotesApi.sign(id, signature),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quote", id] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["events"] });
     },
   });
@@ -94,6 +91,22 @@ export default function QuoteDetailPage() {
   const { data: quote, isLoading, isError } = useQuery({
     queryKey: ["quote", id],
     queryFn: () => quotesApi.get(id),
+  });
+
+  const deleteQuote = useMutation({
+    mutationFn: () => quotesApi.delete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["payments"] });
+      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+      if (quote?.client?.id) {
+        qc.invalidateQueries({ queryKey: ["client", quote.client.id] });
+      }
+      router.push("/quotes");
+    },
+    onError: (e: Error) =>
+      setDeleteError(e.message || "Impossibile eliminare il preventivo."),
   });
 
   const clientName =

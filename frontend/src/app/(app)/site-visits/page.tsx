@@ -26,7 +26,7 @@ export default function SiteVisitsPage() {
   return (
     <>
       <Header title="Sopralluoghi" />
-      <div className="p-4 sm:p-6">
+      <div className="p-3 sm:p-4 md:p-6">
         <p className="mb-4 text-sm text-muted-foreground">
           Schede di rilevazione sul luogo con annotazioni e foto. Per crearne una
           nuova, apri il{" "}
@@ -55,12 +55,12 @@ export default function SiteVisitsPage() {
             </CardContent>
           </Card>
         ) : (
-          <ul className="divide-y divide-border rounded-xl border border-border bg-card">
+          <ul className="space-y-2 md:space-y-0 md:divide-y md:divide-border md:rounded-xl md:border md:border-border md:bg-card">
             {sheets.map((sheet) => (
               <li key={sheet.eventId}>
                 <Link
                   href={`/site-visits/${sheet.eventId}`}
-                  className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-muted/30"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-4 transition-colors hover:bg-muted/30 active:bg-muted/50 md:rounded-none md:border-0 md:py-3"
                 >
                   <div className="flex min-w-0 items-start gap-3">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />

@@ -36,10 +36,13 @@ const eventInclude = {
 const router = Router();
 router.use(authenticate);
 
-router.get("/", requirePermission("events", "READ"), async (req, res, next) => {
+router.get("/", requirePermission("events", "READ"), async (req: AuthRequest, res, next) => {
   try {
     const { from, to } = req.query;
     const where: Record<string, unknown> = {};
+    if (req.user!.role === "CLIENT" && req.user!.clientId) {
+      where.clientId = req.user!.clientId;
+    }
     const fromDate = parseOptionalDate(from);
     const toDate = parseOptionalDate(to);
     if (fromDate || toDate) {
@@ -118,8 +121,15 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req: AuthRequ
       })
       .parse(req.body);
 
+    const accessWhere: Record<string, unknown> = { id: paramId(req) };
+    if (req.user!.role === "CLIENT" && req.user!.clientId) {
+      accessWhere.clientId = req.user!.clientId;
+    }
+    const existing = await prisma.event.findFirst({ where: accessWhere });
+    if (!existing) throw new NotFoundError();
+
     const event = await prisma.event.update({
-      where: { id: paramId(req) },
+      where: { id: existing.id },
       data: {
         ...(data.title !== undefined && { title: data.title }),
         ...(data.description !== undefined && {
@@ -146,7 +156,11 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req: AuthRequ
 
 router.delete("/:id", requirePermission("events", "DELETE"), async (req: AuthRequest, res, next) => {
   try {
-    const existing = await prisma.event.findUnique({ where: { id: paramId(req) } });
+    const accessWhere: Record<string, unknown> = { id: paramId(req) };
+    if (req.user!.role === "CLIENT" && req.user!.clientId) {
+      accessWhere.clientId = req.user!.clientId;
+    }
+    const existing = await prisma.event.findFirst({ where: accessWhere });
     if (!existing) throw new NotFoundError();
 
     await prisma.event.delete({ where: { id: existing.id } });

@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Receipt } from "lucide-react";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/ui/data-card";
+import { ListCard } from "@/components/ui/list-card";
 import { InvoiceCreateDialog } from "@/components/invoices/invoice-create-dialog";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
@@ -37,8 +38,49 @@ export default function InvoicesPage() {
           </p>
           <InvoiceCreateDialog />
         </div>
-        <Card>
-          <CardContent className="p-0">
+        <div className="space-y-2 md:hidden">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Caricamento...
+            </p>
+          ) : rows.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              <Receipt className="mx-auto mb-2 h-8 w-8 opacity-40" />
+              {DOCUMENT_COPY.invoice.listEmpty}
+            </div>
+          ) : (
+            rows.map((inv) => (
+              <ListCard
+                key={inv.id}
+                onClick={() => router.push(`/invoices/${inv.id}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {formatInvoiceDocumentNumber(inv.number)}
+                    </p>
+                    <p className="mt-1 font-semibold leading-snug">
+                      {inv.client?.companyName || inv.client?.contactName || "—"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs">
+                    {formatInvoicePaymentDisplay(inv)}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="font-medium tabular-nums">
+                    {formatCurrency(Number(inv.total))}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(inv.createdAt)}
+                  </span>
+                </div>
+              </ListCard>
+            ))
+          )}
+        </div>
+
+        <DataCard className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
@@ -100,8 +142,7 @@ export default function InvoicesPage() {
                 )}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
+        </DataCard>
       </div>
     </>
   );

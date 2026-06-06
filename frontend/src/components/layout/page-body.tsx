@@ -9,6 +9,14 @@ export function PageBody({
   className?: string;
 }) {
   return (
-    <div className={cn("p-3 sm:p-4 md:p-6", className)}>{children}</div>
+    <div
+      className={cn(
+        "mx-auto w-full min-w-0 max-w-[1600px] p-3 sm:p-4 md:p-6 lg:p-8",
+        "pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+        className
+      )}
+    >
+      {children}
+    </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { DetailBack } from "@/components/detail/detail-shell";
@@ -10,6 +11,7 @@ import { quotesApi } from "@/lib/api";
 
 export default function NewQuotePage() {
   const router = useRouter();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -55,6 +57,8 @@ export default function NewQuotePage() {
                       productId: i.productId,
                     })),
                   });
+                  qc.invalidateQueries({ queryKey: ["clients"] });
+                  qc.invalidateQueries({ queryKey: ["client", data.clientId] });
                   router.push(`/quotes/${quote.id}`);
                 } catch (err: unknown) {
                   setError(err instanceof Error ? err.message : "Errore");

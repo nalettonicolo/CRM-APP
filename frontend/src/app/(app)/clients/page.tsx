@@ -7,7 +7,9 @@ import { Header } from "@/components/layout/header";
 import {
   PageCreateButton,
 } from "@/components/layout/page-create-action";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/ui/data-card";
+import { ListCard } from "@/components/ui/list-card";
+import { appSelectClass } from "@/components/ui/field-label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ClientDetailDialog } from "@/components/clients/client-detail-dialog";
@@ -79,7 +81,7 @@ export default function ClientsPage() {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              className={appSelectClass}
             >
               <option value="">Tutti gli stati</option>
               {Object.entries(clientStatusLabels).map(([k, v]) => (
@@ -95,9 +97,49 @@ export default function ClientsPage() {
           />
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <div className="space-y-2 md:hidden">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Caricamento...
+            </p>
+          ) : data?.data.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nessun cliente trovato.
+            </p>
+          ) : (
+            data?.data.map((client) => (
+              <ListCard
+                key={client.id}
+                onClick={() => setSelectedId(client.id)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold leading-snug">
+                      {clientDisplayName(client)}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      {client.email || client.phone || "—"}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                      statusColors[client.status] || statusColors.LEAD
+                    )}
+                  >
+                    {clientStatusLabels[client.status] || client.status}
+                  </span>
+                </div>
+                <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
+                  <span>{client._count?.quotes ?? 0} prev.</span>
+                  <span>{client._count?.interventions ?? 0} int.</span>
+                </div>
+              </ListCard>
+            ))
+          )}
+        </div>
+
+        <DataCard className="hidden md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
@@ -178,9 +220,7 @@ export default function ClientsPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-          </CardContent>
-        </Card>
+        </DataCard>
       </div>
       <ClientDetailDialog
         clientId={selectedId}
@@ -198,13 +238,12 @@ export default function ClientsPage() {
           if (!open) {
             setDialogOpen(false);
             setEditClient(null);
-            setSelectedId(null);
           }
         }}
         client={editClient}
         onSaved={() => {
           setEditClient(null);
-          setSelectedId(null);
+          setDialogOpen(false);
         }}
       />
     </>

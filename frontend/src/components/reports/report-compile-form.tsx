@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { FileText, MapPin, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ export function ReportCompileForm({
   quoteId?: string;
 }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const [step, setStep] = useState<Step>("form");
   const [savedReport, setSavedReport] = useState<ReportDetail | null>(initial ?? null);
   const [activeReportId, setActiveReportId] = useState(initialReportId);
@@ -223,6 +224,8 @@ export function ReportCompileForm({
       return reportsApi.createDraft(payload);
     },
     onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["report", data.id] });
       setSavedReport(data);
       setActiveReportId(data.id);
       setStep("preview");

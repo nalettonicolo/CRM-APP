@@ -25,6 +25,14 @@ const statusColors: Record<string, string> = {
   ARCHIVED: "bg-red-500/15 text-red-600",
 };
 
+function relationCount(
+  count: number | undefined,
+  items: unknown[] | undefined
+) {
+  if (typeof count === "number") return count;
+  return items?.length ?? 0;
+}
+
 function displayName(client: {
   companyName?: string | null;
   contactName?: string | null;
@@ -172,13 +180,16 @@ export function ClientDetailDialog({
               <div>
                 <dt className="text-muted-foreground">Preventivi</dt>
                 <dd className="font-medium tabular-nums">
-                  {client._count?.quotes ?? 0}
+                  {relationCount(client._count?.quotes, client.quotes)}
                 </dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Interventi</dt>
                 <dd className="font-medium tabular-nums">
-                  {client._count?.interventions ?? 0}
+                  {relationCount(
+                    client._count?.interventions,
+                    client.interventions
+                  )}
                 </dd>
               </div>
               {client.createdAt && (
@@ -188,6 +199,31 @@ export function ClientDetailDialog({
                 </div>
               )}
             </dl>
+
+            {client.quotes && client.quotes.length > 0 && (
+              <div>
+                <p className="mb-2 font-medium">Preventivi recenti</p>
+                <ul className="space-y-2">
+                  {client.quotes.slice(0, 5).map((q) => (
+                    <li key={q.id}>
+                      <Link
+                        href={`/quotes/${q.id}`}
+                        className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 transition-colors hover:bg-muted/30"
+                        onClick={() => onOpenChange(false)}
+                      >
+                        <span className="min-w-0 truncate font-medium">
+                          {q.number}
+                          {q.title ? ` — ${q.title}` : ""}
+                        </span>
+                        <span className="shrink-0 text-xs text-muted-foreground">
+                          {formatDate(q.createdAt)}
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {client.notes && (
               <div>

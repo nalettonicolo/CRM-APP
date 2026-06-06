@@ -205,9 +205,20 @@ router.get("/:id", requirePermission("quotes", "READ"), async (req: AuthRequest,
     ) {
       throw new NotFoundError();
     }
+    const canEditCreatedAt = await canEditDocumentCreatedAt(
+      "quote",
+      quote.number
+    );
+    if (req.user!.role === "CLIENT") {
+      const { internalNotes, createdBy, ...safe } = quote;
+      void internalNotes;
+      void createdBy;
+      res.json({ ...safe, canEditCreatedAt: false });
+      return;
+    }
     res.json({
       ...quote,
-      canEditCreatedAt: await canEditDocumentCreatedAt("quote", quote.number),
+      canEditCreatedAt,
     });
   } catch (e) {
     next(e);

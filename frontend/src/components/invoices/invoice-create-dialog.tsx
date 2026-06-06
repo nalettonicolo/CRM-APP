@@ -63,6 +63,8 @@ export function InvoiceCreateDialog() {
     mutationFn: () => invoicesApi.createFromQuote(quoteId),
     onSuccess: (inv) => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      if (quoteId) qc.invalidateQueries({ queryKey: ["quote", quoteId] });
       setOpen(false);
       setQuoteId("");
       router.push(`/invoices/${inv.id}`);

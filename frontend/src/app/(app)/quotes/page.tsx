@@ -7,7 +7,8 @@ import {
   PageCreateBar,
   PageCreateLink,
 } from "@/components/layout/page-create-action";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/ui/data-card";
+import { ListCard } from "@/components/ui/list-card";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { quotesApi } from "@/lib/api";
@@ -33,7 +34,10 @@ export default function QuotesPage() {
   const qc = useQueryClient();
   const deleteQuote = useMutation({
     mutationFn: (id: string) => quotesApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quotes"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["quotes"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
   });
   const { data, isLoading } = useQuery({
     queryKey: ["quotes"],
@@ -52,9 +56,63 @@ export default function QuotesPage() {
           <PageCreateLink href="/quotes/new" label={SECTION_CREATE.quote} />
         </PageCreateBar>
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <div className="space-y-2 md:hidden">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Caricamento...
+            </p>
+          ) : !data?.data.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nessun preventivo.
+            </p>
+          ) : (
+            data.data.map((q) => (
+              <ListCard
+                key={q.id}
+                onClick={() => router.push(`/quotes/${q.id}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {formatQuoteDocumentNumber(q.number)}
+                    </p>
+                    <p className="mt-1 font-semibold leading-snug line-clamp-2">
+                      {q.title || "Senza oggetto"}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      {q.client?.companyName || q.client?.contactName || "—"}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                      statusStyle[q.status]
+                    )}
+                  >
+                    {quoteStatusLabels[q.status] || q.status}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  <span className="font-medium tabular-nums">
+                    {formatCurrency(Number(q.total))}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(q.createdAt)}
+                  </span>
+                </div>
+                {(formatQuoteServicePeriod(q) || q.eventLocation?.trim()) && (
+                  <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+                    {[formatQuoteServicePeriod(q), q.eventLocation?.trim()]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                )}
+              </ListCard>
+            ))
+          )}
+        </div>
+
+        <DataCard className="hidden md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
@@ -136,9 +194,7 @@ export default function QuotesPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-          </CardContent>
-        </Card>
+        </DataCard>
       </div>
     </>
   );

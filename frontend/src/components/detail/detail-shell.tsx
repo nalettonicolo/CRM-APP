@@ -26,9 +26,16 @@ export function DetailSection({
   className?: string;
 }) {
   return (
-    <section className={cn("rounded-xl border border-border bg-card", className)}>
-      <h2 className="border-b border-border px-5 py-3 text-sm font-semibold">{title}</h2>
-      <div className="p-5">{children}</div>
+    <section
+      className={cn(
+        "rounded-xl border border-border bg-card shadow-sm ring-1 ring-black/[0.03] dark:ring-white/[0.04]",
+        className
+      )}
+    >
+      <h2 className="border-b border-border px-4 py-3 text-sm font-semibold sm:px-5">
+        {title}
+      </h2>
+      <div className="p-4 sm:p-5">{children}</div>
     </section>
   );
 }

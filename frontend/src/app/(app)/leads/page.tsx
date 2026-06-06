@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/ui/data-card";
+import { ListCard } from "@/components/ui/list-card";
+import { appSelectClass } from "@/components/ui/field-label";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -20,6 +22,12 @@ import { cn, formatDate } from "@/lib/utils";
 
 function statusLabel(status: string) {
   return leadStatusLabels[status] || status;
+}
+
+function leadStatusStyle(status: string) {
+  if (status === "CONVERTED") return "bg-green-500/15 text-green-700";
+  if (status === "new" || status === "NEW") return "bg-blue-500/15 text-blue-700";
+  return "bg-muted text-muted-foreground";
 }
 
 function servicesSummary(lead: LeadItem) {
@@ -58,6 +66,7 @@ export default function LeadsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["leads", "pending-count"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
       qc.invalidateQueries({ queryKey: ["lead", selectedId] });
       setSelectedId(null);
     },
@@ -82,9 +91,64 @@ export default function LeadsPage() {
     <>
       <Header title="Richieste contatto" />
       <div className="p-3 sm:p-4 md:p-6">
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <div className="space-y-2 md:hidden">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Caricamento...
+            </p>
+          ) : !data?.data.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nessuna richiesta
+            </p>
+          ) : (
+            data.data.map((lead) => (
+              <ListCard
+                key={lead.id}
+                onClick={() => openLead(lead.id, lead.status)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold leading-snug">{lead.name}</p>
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      {lead.email}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                      leadStatusStyle(lead.status)
+                    )}
+                  >
+                    {statusLabel(lead.status)}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground line-clamp-1">
+                  {servicesSummary(lead)}
+                </p>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(lead.createdAt)}
+                  </span>
+                  {lead.status !== "CONVERTED" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={convert.isPending}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        convert.mutate(lead.id);
+                      }}
+                    >
+                      Crea cliente
+                    </Button>
+                  )}
+                </div>
+              </ListCard>
+            ))
+          )}
+        </div>
+
+        <DataCard className="hidden md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
@@ -125,11 +189,7 @@ export default function LeadsPage() {
                           <span
                             className={cn(
                               "inline-flex rounded-full px-2 py-0.5 text-xs font-medium",
-                              lead.status === "CONVERTED"
-                                ? "bg-green-500/15 text-green-700"
-                                : lead.status === "new" || lead.status === "NEW"
-                                  ? "bg-blue-500/15 text-blue-700"
-                                  : "bg-muted text-muted-foreground"
+                              leadStatusStyle(lead.status)
                             )}
                           >
                             {statusLabel(lead.status)}
@@ -164,9 +224,7 @@ export default function LeadsPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-          </CardContent>
-        </Card>
+        </DataCard>
       </div>
 
       <Dialog
@@ -262,7 +320,7 @@ export default function LeadsPage() {
               <div>
                 <label className="mb-1 block text-sm font-medium">Stato</label>
                 <select
-                  className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+                  className={appSelectClass}
                   value={statusDraft}
                   onChange={(e) => setStatusDraft(e.target.value)}
                 >

@@ -22,8 +22,9 @@ import {
   SERVICE_UNIT_OPTIONS,
   serviceUnitLabel,
 } from "@/lib/labels";
+import { appSelectClass } from "@/components/ui/field-label";
 import { RENTAL_UNIT } from "@/lib/rental";
-import { dateInputToIso, toDateInputValue } from "@/lib/utils";
+import { cn, dateInputToIso, toDateInputValue } from "@/lib/utils";
 
 export type QuoteItemDraft = {
   type: "custom" | "service" | "product";
@@ -553,7 +554,7 @@ export function QuoteForm({
             </label>
             <div className="flex gap-2">
               <select
-                className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+                className={cn(appSelectClass, "min-w-0 flex-1")}
                 value={pickService}
                 onChange={(e) => setPickService(e.target.value)}
               >
@@ -586,7 +587,7 @@ export function QuoteForm({
             </label>
             <div className="flex gap-2">
               <select
-                className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+                className={cn(appSelectClass, "min-w-0 flex-1")}
                 value={pickProduct}
                 onChange={(e) => setPickProduct(e.target.value)}
               >
@@ -616,7 +617,7 @@ export function QuoteForm({
             </label>
             <div className="flex gap-2">
               <select
-                className="flex h-10 min-w-0 flex-1 rounded-lg border border-border bg-background px-3 text-sm"
+                className={cn(appSelectClass, "min-w-0 flex-1")}
                 value={pickRental}
                 onChange={(e) => setPickRental(e.target.value)}
               >
@@ -642,7 +643,7 @@ export function QuoteForm({
             </div>
           </div>
         </div>
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="app-table-wrap rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50 text-left">

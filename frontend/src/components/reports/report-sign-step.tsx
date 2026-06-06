@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   SignaturePad,
@@ -25,6 +25,7 @@ export function ReportSignStep({
   onDone: (message?: string) => void;
   onBack?: () => void;
 }) {
+  const qc = useQueryClient();
   const techGetRef = useRef<(() => string | undefined) | undefined>(undefined);
   const clientGetRef = useRef<(() => string | undefined) | undefined>(undefined);
   const [error, setError] = useState("");
@@ -49,6 +50,8 @@ export function ReportSignStep({
       return null;
     },
     onSuccess: (sendResult) => {
+      qc.invalidateQueries({ queryKey: ["reports"] });
+      qc.invalidateQueries({ queryKey: ["report", reportId] });
       if (sendResult?.message) {
         onDone(sendResult.message);
       } else if (sendByEmail && !clientEmail?.trim()) {

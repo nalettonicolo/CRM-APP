@@ -178,6 +178,19 @@ router.patch(
       if (!existing) throw new NotFoundError();
 
       const data = paymentBody.partial().parse(req.body);
+      const clientId = data.clientId ?? existing.clientId;
+      const quoteId =
+        data.quoteId !== undefined ? data.quoteId : existing.quoteId;
+      if (quoteId) {
+        const quote = await prisma.quote.findFirst({
+          where: { id: quoteId, clientId },
+        });
+        if (!quote) {
+          throw new ValidationError(
+            "Preventivo non valido per questo cliente"
+          );
+        }
+      }
       const payment = await prisma.clientPayment.update({
         where: { id },
         data: {

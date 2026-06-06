@@ -74,6 +74,8 @@ export default function EditQuotePage() {
                       qc.setQueryData(["quote", id], updated);
                       await qc.invalidateQueries({ queryKey: ["quote", id] });
                       await qc.invalidateQueries({ queryKey: ["quotes"] });
+                      await qc.invalidateQueries({ queryKey: ["clients"] });
+                      await qc.invalidateQueries({ queryKey: ["events"] });
                       router.push(`/quotes/${id}`);
                     } catch (err: unknown) {
                       setError(err instanceof Error ? err.message : "Errore");

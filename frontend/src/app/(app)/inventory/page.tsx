@@ -46,6 +46,7 @@ export default function InventoryPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
+            <div className="app-table-wrap">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
@@ -108,6 +109,7 @@ export default function InventoryPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </CardContent>
         </Card>
       </div>

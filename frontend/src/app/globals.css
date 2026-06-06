@@ -39,7 +39,11 @@
 body {
   background: var(--color-background);
   color: var(--color-foreground);
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
 .scrollbar-hide {
@@ -247,6 +251,45 @@ body {
   }
 }
 
+/* Safe area iPhone / iPad */
+.app-safe-top {
+  padding-top: max(env(safe-area-inset-top, 0px), 0px);
+}
+
+.app-safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
+}
+
+/* Scroll tabelle touch (tablet / phone) */
+.app-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+.app-table-wrap > table {
+  min-width: 100%;
+}
+
+/* Select e input coerenti — 16px su mobile evita zoom iOS */
+.app-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.65rem center;
+  padding-right: 2.25rem;
+}
+
+@media (max-width: 767px) {
+  .app-select,
+  main input:not([type="checkbox"]):not([type="radio"]),
+  main select,
+  main textarea {
+    font-size: 16px;
+  }
+}
+
+/* Padding responsive pagine legacy con p-6 fisso */
 @media (max-width: 1023px) {
   main .p-6 {
     padding: 0.75rem;
@@ -256,5 +299,11 @@ body {
 @media (min-width: 640px) and (max-width: 1023px) {
   main .p-6 {
     padding: 1rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  main .p-6 {
+    padding: 1.25rem;
   }
 }

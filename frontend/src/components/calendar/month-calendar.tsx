@@ -160,7 +160,7 @@ export function MonthCalendar({
                 handleDrop(date);
               }}
               className={cn(
-                "min-h-[72px] cursor-pointer bg-card p-1 text-left transition-colors sm:min-h-[88px]",
+                "min-h-[80px] cursor-pointer bg-card p-1.5 text-left transition-colors active:bg-muted/40 sm:min-h-[88px] sm:p-1",
                 !inMonth && "bg-muted/20 text-muted-foreground",
                 isToday && "ring-1 ring-inset ring-primary/40",
                 isSelected && "bg-primary/10"

@@ -90,6 +90,7 @@ export default function ReportDetailPage() {
               onBack={() => setDraftView("preview")}
               onDone={(message) => {
                 qc.invalidateQueries({ queryKey: ["report", id] });
+                qc.invalidateQueries({ queryKey: ["reports"] });
                 setDraftView("detail");
                 if (message) setBanner(message);
               }}

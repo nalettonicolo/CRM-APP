@@ -22,6 +22,51 @@ function requireClient(req: AuthRequest) {
   return req.user!.clientId;
 }
 
+const portalQuoteSelect = {
+  id: true,
+  number: true,
+  title: true,
+  status: true,
+  total: true,
+  createdAt: true,
+  validUntil: true,
+  eventAt: true,
+  eventEndAt: true,
+  eventLocation: true,
+  signedByClient: true,
+  signedAt: true,
+  acceptedAt: true,
+} as const;
+
+const portalInvoiceSelect = {
+  id: true,
+  number: true,
+  total: true,
+  status: true,
+  createdAt: true,
+} as const;
+
+router.get("/documents", async (req: AuthRequest, res, next) => {
+  try {
+    const clientId = requireClient(req);
+    const [quotes, invoices] = await Promise.all([
+      prisma.quote.findMany({
+        where: { clientId },
+        orderBy: { createdAt: "desc" },
+        select: portalQuoteSelect,
+      }),
+      prisma.invoicePreview.findMany({
+        where: { clientId },
+        orderBy: { createdAt: "desc" },
+        select: portalInvoiceSelect,
+      }),
+    ]);
+    res.json({ quotes, invoices });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get("/dashboard", async (req: AuthRequest, res, next) => {
   try {
     const clientId = requireClient(req);
@@ -32,26 +77,52 @@ router.get("/dashboard", async (req: AuthRequest, res, next) => {
           where: { clientId },
           orderBy: { createdAt: "desc" },
           take: 5,
+          select: portalQuoteSelect,
         }),
         prisma.interventionReport.findMany({
           where: { clientId },
           orderBy: { createdAt: "desc" },
           take: 5,
+          select: {
+            id: true,
+            number: true,
+            status: true,
+            workHours: true,
+            createdAt: true,
+            submittedAt: true,
+          },
         }),
         prisma.intervention.findMany({
           where: { clientId },
           orderBy: { scheduledAt: "desc" },
           take: 5,
+          select: {
+            id: true,
+            number: true,
+            title: true,
+            status: true,
+            scheduledAt: true,
+          },
         }),
         prisma.invoicePreview.findMany({
           where: { clientId },
           orderBy: { createdAt: "desc" },
           take: 5,
+          select: portalInvoiceSelect,
         }),
         prisma.event.findMany({
           where: { clientId, startAt: { gte: new Date() } },
           orderBy: { startAt: "asc" },
           take: 5,
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            startAt: true,
+            endAt: true,
+            location: true,
+            color: true,
+          },
         }),
       ]);
 

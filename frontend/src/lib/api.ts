@@ -418,8 +418,8 @@ export const dashboardApi = {
   stats: () => api<DashboardStats>("/dashboard/stats"),
   saveLayout: (layout: DashboardLayout) =>
     api<{ success: boolean }>("/dashboard/layout", {
-      method: "PUT",
-      body: JSON.stringify(layout),
+      method: "PATCH",
+      body: JSON.stringify({ layout }),
     }),
 };
 
@@ -1073,19 +1073,19 @@ export interface AutomationRule {
 }
 
 export const automationApi = {
-  list: () => api<AutomationRule[]>("/automation/rules"),
+  list: () => api<AutomationRule[]>("/automation"),
   create: (data: Partial<AutomationRule>) =>
-    api<AutomationRule>("/automation/rules", {
+    api<AutomationRule>("/automation", {
       method: "POST",
       body: JSON.stringify(data),
     }),
   update: (id: string, data: Partial<AutomationRule>) =>
-    api<AutomationRule>(`/automation/rules/${id}`, {
+    api<AutomationRule>(`/automation/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
     }),
   delete: (id: string) =>
-    api<{ success: boolean }>(`/automation/rules/${id}`, {
+    api<{ success: boolean }>(`/automation/${id}`, {
       method: "DELETE",
     }),
 };
@@ -1098,9 +1098,32 @@ export interface SearchResult {
   href: string;
 }
 
+import { flattenSearchResults } from "./search-results";
+
 export const searchApi = {
-  query: (q: string) =>
-    api<SearchResult[]>(`/search?${new URLSearchParams({ q })}`),
+  query: async (q: string) => {
+    const data = await api<{
+      clients: Array<{
+        id: string;
+        companyName?: string | null;
+        contactName?: string | null;
+        email?: string | null;
+      }>;
+      quotes: Array<{
+        id: string;
+        number: string;
+        title?: string | null;
+        client?: { companyName?: string | null; contactName?: string | null };
+      }>;
+      interventions: Array<{
+        id: string;
+        number: string;
+        title?: string | null;
+        client?: { companyName?: string | null; contactName?: string | null };
+      }>;
+    }>(`/search?${new URLSearchParams({ q })}`);
+    return flattenSearchResults(data);
+  },
 };
 
 export const backupApi = {

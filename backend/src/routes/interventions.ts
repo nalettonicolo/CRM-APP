@@ -85,6 +85,23 @@ async function assertQuoteForClient(
   }
 }
 
+async function assertInterventionForClient(
+  interventionId: string | undefined | null,
+  clientId: string
+) {
+  if (!interventionId) return;
+  const intervention = await prisma.intervention.findUnique({
+    where: { id: interventionId },
+    select: { clientId: true },
+  });
+  if (!intervention) throw new ValidationError("Intervento non trovato");
+  if (intervention.clientId !== clientId) {
+    throw new ValidationError(
+      "L'intervento non appartiene al cliente selezionato"
+    );
+  }
+}
+
 async function loadReportForAction(req: AuthRequest, id: string) {
   const report = await prisma.interventionReport.findFirst({
     where: reportAccessWhere(req, id),
@@ -210,6 +227,7 @@ router.post(
     try {
       const data = reportBodySchema.parse(req.body);
       await assertQuoteForClient(data.quoteId, data.clientId);
+      await assertInterventionForClient(data.interventionId, data.clientId);
       const number = await generateNumber("RPT", "report");
 
       const report = await prisma.interventionReport.create({
@@ -474,12 +492,15 @@ router.delete(
 router.post("/reports", requirePermission("reports", "CREATE"), async (req: AuthRequest, res, next) => {
   try {
     const data = reportBodySchema.parse(req.body);
+    await assertQuoteForClient(data.quoteId, data.clientId);
+    await assertInterventionForClient(data.interventionId, data.clientId);
 
     const number = await generateNumber("RPT", "report");
     const report = await prisma.interventionReport.create({
       data: {
         number,
         clientId: data.clientId,
+        quoteId: data.quoteId || null,
         interventionId: data.interventionId,
         technicianId: req.user!.userId,
         description: data.description,

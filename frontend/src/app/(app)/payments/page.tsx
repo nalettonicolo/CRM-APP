@@ -75,8 +75,9 @@ export default function PaymentsPage() {
   });
 
   const { data: summary } = useQuery({
-    queryKey: ["payments", "summary", filterClient],
+    queryKey: ["payments", "summary"],
     queryFn: () => paymentsApi.summary(),
+    enabled: !filterClient,
   });
 
   const { data: openOverview } = useQuery({
@@ -153,17 +154,26 @@ export default function PaymentsPage() {
       qc.invalidateQueries({ queryKey: ["payments"] });
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["payments", "open-overview"] });
+      if (form.quoteId) {
+        qc.invalidateQueries({ queryKey: ["quote", form.quoteId] });
+      }
+      if (editing?.quoteId && editing.quoteId !== form.quoteId) {
+        qc.invalidateQueries({ queryKey: ["quote", editing.quoteId] });
+      }
       setOpen(false);
       setEditing(null);
     },
   });
 
   const deleteMut = useMutation({
-    mutationFn: (id: string) => paymentsApi.delete(id),
-    onSuccess: () => {
+    mutationFn: (p: ClientPayment) => paymentsApi.delete(p.id),
+    onSuccess: (_data, payment) => {
       qc.invalidateQueries({ queryKey: ["payments"] });
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["payments", "open-overview"] });
+      if (payment.quoteId) {
+        qc.invalidateQueries({ queryKey: ["quote", payment.quoteId] });
+      }
     },
   });
 
@@ -174,6 +184,11 @@ export default function PaymentsPage() {
     }
     return map;
   }, [payments]);
+
+  const filteredReceived = useMemo(
+    () => payments.reduce((sum, p) => sum + Number(p.amount), 0),
+    [payments]
+  );
 
   return (
     <>
@@ -202,10 +217,13 @@ export default function PaymentsPage() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold tabular-nums">
-                {formatCurrency(summary?.totalReceived ?? 0)}
+                {formatCurrency(
+                  filterClient ? filteredReceived : (summary?.totalReceived ?? 0)
+                )}
               </p>
               <p className="text-xs text-muted-foreground">
-                {summary?.count ?? 0} movimenti registrati
+                {filterClient ? payments.length : (summary?.count ?? 0)} movimenti
+                registrati
               </p>
             </CardContent>
           </Card>
@@ -324,7 +342,7 @@ export default function PaymentsPage() {
                             ) {
                               return;
                             }
-                            deleteMut.mutate(p.id);
+                            deleteMut.mutate(p);
                           }}
                         >
                           <Trash2 className="h-4 w-4" />

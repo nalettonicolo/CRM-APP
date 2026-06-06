@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Header } from "@/components/layout/header";
 import { Card, CardContent } from "@/components/ui/card";
 import { DetailBack } from "@/components/detail/detail-shell";
@@ -11,6 +12,7 @@ import { SECTION_CREATE } from "@/lib/section-create";
 
 export default function NewInterventionPage() {
   const router = useRouter();
+  const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,6 +36,9 @@ export default function NewInterventionPage() {
                 setError("");
                 try {
                   const intervention = await interventionsApi.create(data);
+                  qc.invalidateQueries({ queryKey: ["interventions"] });
+                  qc.invalidateQueries({ queryKey: ["clients"] });
+                  qc.invalidateQueries({ queryKey: ["client", data.clientId] });
                   router.push(`/interventions/${intervention.id}`);
                 } catch (err: unknown) {
                   setError(err instanceof Error ? err.message : "Errore");

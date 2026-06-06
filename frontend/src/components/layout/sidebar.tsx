@@ -100,7 +100,7 @@ function NavLink({
     <Link href={item.href} onClick={onNavigate} className="block">
       <span
         className={cn(
-          "flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
+          "flex min-h-11 items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors sm:min-h-0 sm:rounded-md sm:py-1.5",
           active
             ? "bg-white/12 text-white shadow-sm ring-1 ring-white/10"
             : "text-white/65 hover:bg-white/8 hover:text-white"

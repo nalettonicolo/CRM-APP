@@ -94,6 +94,9 @@ router.get("/:id", requirePermission("clients", "READ"), async (req, res, next) 
     const client = await prisma.client.findUnique({
       where: { id: paramId(req) },
       include: {
+        _count: {
+          select: { quotes: true, interventions: true, reports: true },
+        },
         quotes: { take: 10, orderBy: { createdAt: "desc" } },
         interventions: { take: 10, orderBy: { createdAt: "desc" } },
         reports: { take: 10, orderBy: { createdAt: "desc" } },
@@ -149,6 +152,11 @@ router.patch("/:id", requirePermission("clients", "UPDATE"), async (req: AuthReq
     const client = await prisma.client.update({
       where: { id: paramId(req) },
       data,
+      include: {
+        _count: {
+          select: { quotes: true, interventions: true, reports: true },
+        },
+      },
     });
     await logActivity({
       userId: req.user!.userId,

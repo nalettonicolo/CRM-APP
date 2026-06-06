@@ -7,7 +7,8 @@ import {
   PageCreateBar,
   PageCreateLink,
 } from "@/components/layout/page-create-action";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/ui/data-card";
+import { ListCard } from "@/components/ui/list-card";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { interventionsApi, reportsApi } from "@/lib/api";
@@ -30,7 +31,6 @@ export default function ReportsPage() {
     mutationFn: (id: string) => reportsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["reports"] });
-      qc.invalidateQueries({ queryKey: ["intervention-reports"] });
     },
   });
   const { data, isLoading } = useQuery({
@@ -45,8 +45,53 @@ export default function ReportsPage() {
         <PageCreateBar>
           <PageCreateLink href="/reports/new" label={SECTION_CREATE.report} />
         </PageCreateBar>
-        <Card>
-          <CardContent className="p-0">
+        <div className="space-y-2 md:hidden">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Caricamento...
+            </p>
+          ) : !data?.length ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nessun verbale.
+            </p>
+          ) : (
+            data.map((r) => (
+              <ListCard
+                key={r.id}
+                onClick={() => router.push(`/reports/${r.id}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {r.number}
+                    </p>
+                    <p className="mt-1 font-semibold leading-snug">
+                      {r.client?.companyName || "—"}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                      statusColors[r.status] || statusColors.DRAFT
+                    )}
+                  >
+                    {reportStatusLabels[r.status] || r.status}
+                  </span>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {Number(r.workHours)}h lavorate
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatDate(r.createdAt)}
+                  </span>
+                </div>
+              </ListCard>
+            ))
+          )}
+        </div>
+
+        <DataCard className="hidden md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
@@ -100,8 +145,7 @@ export default function ReportsPage() {
                 )}
               </tbody>
             </table>
-          </CardContent>
-        </Card>
+        </DataCard>
       </div>
     </>
   );

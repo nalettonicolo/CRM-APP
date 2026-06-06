@@ -7,7 +7,8 @@ import {
   PageCreateBar,
   PageCreateLink,
 } from "@/components/layout/page-create-action";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataCard } from "@/components/ui/data-card";
+import { ListCard } from "@/components/ui/list-card";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { interventionsApi } from "@/lib/api";
@@ -27,7 +28,10 @@ export default function InterventionsPage() {
   const qc = useQueryClient();
   const deleteIntervention = useMutation({
     mutationFn: (id: string) => interventionsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["interventions"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["interventions"] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
   });
   const { data, isLoading } = useQuery({
     queryKey: ["interventions"],
@@ -44,9 +48,51 @@ export default function InterventionsPage() {
             label={SECTION_CREATE.intervention}
           />
         </PageCreateBar>
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        <div className="space-y-2 md:hidden">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Caricamento...
+            </p>
+          ) : data?.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Nessun intervento.
+            </p>
+          ) : (
+            data?.map((item) => (
+              <ListCard
+                key={item.id}
+                onClick={() => router.push(`/interventions/${item.id}`)}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-mono text-xs text-muted-foreground">
+                      {item.number}
+                    </p>
+                    <p className="mt-1 font-semibold leading-snug line-clamp-2">
+                      {item.title}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                      {item.client?.companyName || item.client?.contactName || "—"}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                      statusColors[item.status] || statusColors.SCHEDULED
+                    )}
+                  >
+                    {interventionStatusLabels[item.status] || item.status}
+                  </span>
+                </div>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  {item.scheduledAt ? formatDate(item.scheduledAt) : "Data da definire"}
+                </p>
+              </ListCard>
+            ))
+          )}
+        </div>
+
+        <DataCard className="hidden md:block">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
@@ -114,9 +160,7 @@ export default function InterventionsPage() {
                   )}
                 </tbody>
               </table>
-            </div>
-          </CardContent>
-        </Card>
+        </DataCard>
       </div>
     </>
   );
