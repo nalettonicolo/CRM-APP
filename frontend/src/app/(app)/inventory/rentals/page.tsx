@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Headphones, Lightbulb, Pencil, Plus, Trash2 } from "lucide-react";
@@ -28,6 +28,7 @@ import {
   matchesRentalFilter,
   parseRentalName,
   rentalDepartmentFromCategory,
+  isStandardRentalSku,
   rentalDepartmentId,
   rentalFamilyLabel,
   skuPrefixForCategory,
@@ -168,10 +169,10 @@ export default function RentalsPage() {
   const department = RENTAL_DEPARTMENTS.find((d) => d.id === form.departmentId);
   const categoryForSku = department?.category ?? "Noleggio - Audio";
 
-  const { data: nextSkuData } = useQuery({
+  const { data: nextSkuData, refetch: refetchNextSku } = useQuery({
     queryKey: ["next-sku", categoryForSku],
     queryFn: () => inventoryApi.nextSku(categoryForSku),
-    enabled: open && !editing,
+    enabled: open,
   });
 
   useEffect(() => {
@@ -354,7 +355,14 @@ export default function RentalsPage() {
                             <ListCard key={p.id}>
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                  <p className="font-mono text-xs text-muted-foreground">
+                                  <p
+                                    className={cn(
+                                      "inline-block min-w-[5.5rem] font-mono text-xs tabular-nums tracking-tight",
+                                      !isStandardRentalSku(p.sku, p.category)
+                                        ? "rounded bg-amber-500/15 px-1.5 py-0.5 text-amber-900 dark:text-amber-200"
+                                        : "text-muted-foreground"
+                                    )}
+                                  >
                                     {p.sku}
                                   </p>
                                   <p className="mt-1 font-semibold leading-snug">
@@ -413,23 +421,42 @@ export default function RentalsPage() {
                           articoli
                         </span>
                       </div>
-                      {group.families.map(({ family, items }) => (
-                        <div key={family}>
-                          <p className="border-b border-border/60 bg-muted/15 px-4 py-1.5 text-xs font-medium text-muted-foreground">
-                            {family}
-                          </p>
-                          <table className="w-full text-sm">
-                            <thead>
-                              <tr className="border-b border-border bg-muted/10">
-                                <th className="px-4 py-2 text-left">Articolo</th>
-                                <th className="px-4 py-2 text-left">SKU</th>
-                                <th className="px-4 py-2 text-right">€/gg</th>
-                                <th className="w-24 px-4 py-2 text-right">
-                                  Azioni
-                                </th>
+                      <table className="w-full table-fixed text-sm">
+                        <colgroup>
+                          <col className="w-auto" />
+                          <col className="w-[7.5rem]" />
+                          <col className="w-[6.5rem]" />
+                          <col className="w-24" />
+                        </colgroup>
+                        <thead>
+                          <tr className="border-b border-border bg-muted/10">
+                            <th className="px-4 py-2 text-left font-medium">
+                              Articolo
+                            </th>
+                            <th className="px-4 py-2 text-left font-medium">
+                              SKU
+                            </th>
+                            <th className="px-4 py-2 text-right font-medium">
+                              €/gg
+                            </th>
+                            <th className="px-4 py-2 text-right font-medium">
+                              Azioni
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.families.map(({ family, items }) => (
+                            <Fragment key={`${group.departmentId}-${family}`}>
+                              <tr
+                                className="border-b border-border/60 bg-muted/15"
+                              >
+                                <td
+                                  colSpan={4}
+                                  className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                                >
+                                  {family}
+                                </td>
                               </tr>
-                            </thead>
-                            <tbody>
                               {items.map((p) => (
                                 <tr
                                   key={p.id}
@@ -438,8 +465,21 @@ export default function RentalsPage() {
                                   <td className="px-4 py-3 font-medium">
                                     {parseRentalName(p.name).model || p.name}
                                   </td>
-                                  <td className="px-4 py-3 font-mono text-xs">
-                                    {p.sku}
+                                  <td className="px-4 py-3 align-middle">
+                                    <span
+                                      className={cn(
+                                        "inline-block min-w-[5.5rem] font-mono text-xs tabular-nums tracking-tight",
+                                        !isStandardRentalSku(p.sku, p.category) &&
+                                          "rounded bg-amber-500/15 px-1.5 py-0.5 text-amber-900 dark:text-amber-200"
+                                      )}
+                                      title={
+                                        !isStandardRentalSku(p.sku, p.category)
+                                          ? "SKU non standard — modifica l'articolo per assegnare un codice AUD/LUC"
+                                          : undefined
+                                      }
+                                    >
+                                      {p.sku}
+                                    </span>
                                   </td>
                                   <td className="px-4 py-3 text-right tabular-nums">
                                     {formatCurrency(Number(p.price))}
@@ -468,10 +508,10 @@ export default function RentalsPage() {
                                   </td>
                                 </tr>
                               ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ))}
+                            </Fragment>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   ))}
                 </div>
@@ -564,10 +604,33 @@ export default function RentalsPage() {
                     : undefined
                 }
               />
-              {!editing && (
+              {!editing ? (
                 <p className="mt-1 text-[11px] text-muted-foreground">
                   Prossimo: {skuPrefixForCategory(categoryForSku)}-####
                 </p>
+              ) : (
+                !isStandardRentalSku(form.sku, categoryForSku) && (
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                      SKU non standard (es. 1, 2, 3). Consigliato formato{" "}
+                      {skuPrefixForCategory(categoryForSku)}-####
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      onClick={async () => {
+                        const { data } = await refetchNextSku();
+                        if (data?.sku) {
+                          setForm((f) => ({ ...f, sku: data.sku }));
+                        }
+                      }}
+                    >
+                      Assegna {skuPrefixForCategory(categoryForSku)}-####
+                    </Button>
+                  </div>
+                )
               )}
             </div>
 

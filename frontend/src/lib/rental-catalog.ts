@@ -232,6 +232,15 @@ export function groupRentalCatalog<T extends RentalCatalogItem>(
     });
 }
 
+/** SKU nel formato AUD-0001 / LUC-0001 in base al reparto. */
+export function isStandardRentalSku(
+  sku: string,
+  category?: string | null
+): boolean {
+  const prefix = skuPrefixForCategory(category);
+  return new RegExp(`^${prefix}-\\d{4}$`, "i").test(sku.trim());
+}
+
 /** Etichetta breve per select preventivo: `Audio · Diffusione · nome` */
 export function rentalPickerLabel(p: {
   name: string;

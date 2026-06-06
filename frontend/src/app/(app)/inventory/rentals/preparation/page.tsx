@@ -70,7 +70,14 @@ export default function RentalPreparationPage() {
                     <h3 className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground print:text-black">
                       {family}
                     </h3>
-                    <table className="w-full border-collapse text-sm">
+                    <table className="w-full table-fixed border-collapse text-sm">
+                      <colgroup>
+                        <col className="w-[7.5rem]" />
+                        <col />
+                        <col className="w-24" />
+                        <col className="w-28" />
+                        <col className="w-16" />
+                      </colgroup>
                       <thead>
                         <tr className="border-b border-border bg-muted/40 print:bg-gray-100">
                           <th className="px-3 py-2 text-left font-medium">SKU</th>
@@ -96,8 +103,10 @@ export default function RentalPreparationPage() {
                               key={row.id}
                               className="border-b border-border/70"
                             >
-                              <td className="px-3 py-2 font-mono text-xs">
-                                {row.sku}
+                              <td className="px-3 py-2">
+                                <span className="inline-block min-w-[5.5rem] font-mono text-xs tabular-nums tracking-tight">
+                                  {row.sku}
+                                </span>
                               </td>
                               <td className="px-3 py-2 font-medium">
                                 {parseRentalName(row.name).model || row.name}
