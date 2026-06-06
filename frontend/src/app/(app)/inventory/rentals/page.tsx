@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Headphones, Lightbulb, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ListCard } from "@/components/ui/list-card";
+import { appSelectClass } from "@/components/ui/field-label";
 import {
   Dialog,
   DialogContent,
@@ -18,23 +20,72 @@ import {
 } from "@/components/ui/dialog";
 import { inventoryApi, type Product } from "@/lib/api";
 import {
-  RENTAL_CATEGORY_OPTIONS,
-  RENTAL_CATEGORY_PREFIX,
+  RENTAL_DEPARTMENTS,
+  RENTAL_FAMILIES,
   RENTAL_UNIT,
+  formatRentalName,
+  groupRentalCatalog,
+  matchesRentalFilter,
+  parseRentalName,
+  rentalDepartmentFromCategory,
+  rentalDepartmentId,
+  rentalFamilyLabel,
   skuPrefixForCategory,
-} from "@/lib/rental";
+  type RentalDepartmentId,
+  type RentalFilter,
+} from "@/lib/rental-catalog";
 import { SECTION_CREATE } from "@/lib/section-create";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
-const ADD_CATEGORY = "__add_category__";
+const FILTER_TABS: { id: RentalFilter; label: string }[] = [
+  { id: "all", label: "Tutti" },
+  { id: "audio", label: "Audio" },
+  { id: "luci", label: "Luci" },
+  { id: "video", label: "Video" },
+  { id: "strutture", label: "Strutture" },
+  { id: "altro", label: "Altro" },
+];
 
-const empty = {
-  name: "",
+const emptyForm = {
+  departmentId: "audio" as RentalDepartmentId,
+  family: RENTAL_FAMILIES.audio[0],
+  modelName: "",
   sku: "",
   price: "",
-  category: RENTAL_CATEGORY_PREFIX,
   description: "",
 };
+
+function DepartmentIcon({ id }: { id: RentalDepartmentId | "altro" }) {
+  if (id === "audio") return <Headphones className="h-4 w-4" />;
+  if (id === "luci") return <Lightbulb className="h-4 w-4" />;
+  return null;
+}
+
+function RentalRowActions({
+  product,
+  onEdit,
+  onDelete,
+}: {
+  product: Product;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex justify-end gap-1">
+      <Button variant="ghost" size="icon" onClick={onEdit}>
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-destructive hover:text-destructive"
+        onClick={onDelete}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
 
 export default function RentalsPage() {
   const router = useRouter();
@@ -42,18 +93,26 @@ export default function RentalsPage() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState(empty);
-  const [addingCategory, setAddingCategory] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [filter, setFilter] = useState<RentalFilter>("all");
+  const [search, setSearch] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  const openCreateDialog = useCallback(() => {
+  const openCreateDialog = useCallback((departmentId?: RentalDepartmentId) => {
     setEditing(null);
+    setForm({
+      ...emptyForm,
+      departmentId: departmentId ?? "audio",
+      family: RENTAL_FAMILIES[departmentId ?? "audio"][0],
+    });
     setOpen(true);
   }, []);
 
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
-    openCreateDialog();
+    const dept = searchParams.get("dept");
+    const validDept = RENTAL_DEPARTMENTS.find((d) => d.id === dept)?.id;
+    openCreateDialog(validDept);
     router.replace("/inventory/rentals");
   }, [searchParams, router, openCreateDialog]);
 
@@ -62,54 +121,52 @@ export default function RentalsPage() {
     queryFn: inventoryApi.rentals,
   });
 
-  const existingCategories = useMemo(() => {
-    const set = new Set<string>(RENTAL_CATEGORY_OPTIONS);
-    for (const p of rentals) {
-      const c = p.category?.trim();
-      if (c) set.add(c);
-    }
-    return set;
-  }, [rentals]);
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return rentals.filter((p) => {
+      if (!matchesRentalFilter(p, filter)) return false;
+      if (!q) return true;
+      const family = rentalFamilyLabel(p.name);
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.sku.toLowerCase().includes(q) ||
+        (family?.toLowerCase().includes(q) ?? false) ||
+        (p.category?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [rentals, filter, search]);
 
-  const categoryOptions = useMemo(() => {
-    const set = new Set(existingCategories);
-    const current = form.category.trim();
-    if (current) set.add(current);
-    return Array.from(set).sort((a, b) => a.localeCompare(b, "it"));
-  }, [existingCategories, form.category]);
+  const grouped = useMemo(() => groupRentalCatalog(filtered), [filtered]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, Product[]>();
+  const counts = useMemo(() => {
+    const map = new Map<RentalFilter, number>([["all", rentals.length]]);
     for (const p of rentals) {
-      const key = p.category?.trim() || RENTAL_CATEGORY_PREFIX;
-      const list = map.get(key) ?? [];
-      list.push(p);
-      map.set(key, list);
+      const id = rentalDepartmentId(p.category);
+      map.set(id, (map.get(id) ?? 0) + 1);
     }
-    return Array.from(map.entries()).sort(([a], [b]) =>
-      a.localeCompare(b, "it")
-    );
+    return map;
   }, [rentals]);
 
   useEffect(() => {
     if (!open) return;
     if (editing) {
+      const dept = rentalDepartmentFromCategory(editing.category);
+      const { family, model } = parseRentalName(editing.name);
       setForm({
-        name: editing.name,
+        departmentId: (dept?.id ?? "audio") as RentalDepartmentId,
+        family:
+          family ||
+          RENTAL_FAMILIES[(dept?.id ?? "audio") as RentalDepartmentId][0],
+        modelName: model || editing.name,
         sku: editing.sku,
         price: String(Number(editing.price)),
-        category: editing.category?.trim() || RENTAL_CATEGORY_PREFIX,
         description: editing.description || "",
       });
-      const cat = editing.category?.trim() || "";
-      setAddingCategory(Boolean(cat) && !RENTAL_CATEGORY_OPTIONS.includes(cat as (typeof RENTAL_CATEGORY_OPTIONS)[number]));
-    } else {
-      setForm(empty);
-      setAddingCategory(false);
     }
   }, [open, editing]);
 
-  const categoryForSku = form.category.trim() || RENTAL_CATEGORY_PREFIX;
+  const department = RENTAL_DEPARTMENTS.find((d) => d.id === form.departmentId);
+  const categoryForSku = department?.category ?? "Noleggio - Audio";
 
   const { data: nextSkuData } = useQuery({
     queryKey: ["next-sku", categoryForSku],
@@ -122,17 +179,19 @@ export default function RentalsPage() {
     setForm((f) => ({ ...f, sku: nextSkuData.sku }));
   }, [open, editing, nextSkuData?.sku]);
 
+  const previewName = formatRentalName(form.family, form.modelName);
+
   const saveMut = useMutation({
     mutationFn: () => {
       const payload = {
-        name: form.name.trim(),
+        name: previewName.trim(),
         ...(editing
           ? { sku: form.sku.trim() || editing.sku }
           : form.sku.trim()
             ? { sku: form.sku.trim() }
             : {}),
         price: Number(form.price),
-        category: form.category.trim() || RENTAL_CATEGORY_PREFIX,
+        category: categoryForSku,
         description: form.description.trim() || undefined,
         isRentable: true,
         unit: RENTAL_UNIT,
@@ -160,6 +219,8 @@ export default function RentalsPage() {
       setDeleteError(e.message || "Impossibile eliminare l'articolo."),
   });
 
+  const familyOptions = RENTAL_FAMILIES[form.departmentId];
+
   return (
     <>
       <Header title="Noleggio" />
@@ -183,8 +244,10 @@ export default function RentalsPage() {
         </div>
 
         <p className="mt-3 text-sm text-muted-foreground">
-          Articoli a noleggio con <strong>prezzo al giorno (€/gg)</strong>. In
-          fase di preventivo il prezzo resta sempre modificabile riga per riga.
+          Catalogo professionale a reparti <strong>Audio</strong> e{" "}
+          <strong>Luci</strong> (codici <strong>AUD</strong> / <strong>LUC</strong>),
+          con famiglie tecniche e prezzo <strong>€/gg</strong> modificabile in
+          preventivo.
         </p>
 
         {deleteError && (
@@ -194,144 +257,299 @@ export default function RentalsPage() {
         )}
 
         <Card className="mt-4">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Catalogo noleggio</CardTitle>
-            <Button size="sm" onClick={openCreateDialog}>
-              <Plus className="h-4 w-4" /> {SECTION_CREATE.rental}
-            </Button>
+          <CardHeader className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <CardTitle>Catalogo noleggio</CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openCreateDialog("audio")}
+                >
+                  <Plus className="h-4 w-4" /> Audio
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openCreateDialog("luci")}
+                >
+                  <Plus className="h-4 w-4" /> Luci
+                </Button>
+                <Button size="sm" onClick={() => openCreateDialog()}>
+                  <Plus className="h-4 w-4" /> {SECTION_CREATE.rental}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex flex-wrap gap-1.5">
+                {FILTER_TABS.map((tab) => {
+                  const count =
+                    tab.id === "all"
+                      ? rentals.length
+                      : (counts.get(tab.id) ?? 0);
+                  if (tab.id === "altro" && count === 0) return null;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setFilter(tab.id)}
+                      className={cn(
+                        "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                        filter === tab.id
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      )}
+                    >
+                      {tab.label}
+                      <span className="ml-1 tabular-nums opacity-80">
+                        ({count})
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <Input
+                placeholder="Cerca nome, SKU, famiglia…"
+                className="sm:max-w-xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
           </CardHeader>
-          <CardContent className="p-0 overflow-x-auto">
+
+          <CardContent className="p-0">
             {isLoading ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                 Caricamento…
               </p>
-            ) : rentals.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-                Nessun articolo a noleggio. Aggiungi il primo con il pulsante sopra.
+                {rentals.length === 0
+                  ? "Nessun articolo a noleggio. Aggiungi il primo con i pulsanti sopra."
+                  : "Nessun risultato per i filtri selezionati."}
               </p>
             ) : (
-              <div className="divide-y divide-border">
-                {grouped.map(([category, items]) => (
-                  <div key={category}>
-                    <p className="bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {category}
-                    </p>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-border bg-muted/20">
-                          <th className="px-4 py-2 text-left">Nome</th>
-                          <th className="px-4 py-2 text-left">SKU</th>
-                          <th className="px-4 py-2 text-right">€/gg</th>
-                          <th className="px-4 py-2 text-right">Azioni</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((p) => (
-                          <tr key={p.id} className="border-b border-border/60">
-                            <td className="px-4 py-3 font-medium">{p.name}</td>
-                            <td className="px-4 py-3 font-mono text-xs">{p.sku}</td>
-                            <td className="px-4 py-3 text-right tabular-nums">
-                              {formatCurrency(Number(p.price))}
-                              <span className="ml-1 text-xs text-muted-foreground">
-                                /gg
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => {
-                                  setEditing(p);
-                                  setOpen(true);
-                                }}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => {
-                                  if (
-                                    !window.confirm(
-                                      `Eliminare "${p.name}" dal catalogo noleggio?`
-                                    )
-                                  ) {
-                                    return;
-                                  }
-                                  deleteMut.mutate(p.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className="space-y-4 p-3 md:hidden">
+                  {grouped.map((group) => (
+                    <div key={group.departmentId}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                            group.badgeClass
+                          )}
+                        >
+                          <DepartmentIcon id={group.departmentId} />
+                          {group.departmentLabel}
+                        </span>
+                      </div>
+                      {group.families.map(({ family, items }) => (
+                        <div key={family} className="mb-3 space-y-2">
+                          <p className="text-xs font-medium text-muted-foreground">
+                            {family}
+                          </p>
+                          {items.map((p) => (
+                            <ListCard key={p.id}>
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="font-mono text-xs text-muted-foreground">
+                                    {p.sku}
+                                  </p>
+                                  <p className="mt-1 font-semibold leading-snug">
+                                    {parseRentalName(p.name).model || p.name}
+                                  </p>
+                                </div>
+                                <span className="shrink-0 text-sm font-medium tabular-nums">
+                                  {formatCurrency(Number(p.price))}
+                                  <span className="text-xs text-muted-foreground">
+                                    /gg
+                                  </span>
+                                </span>
+                              </div>
+                              <div className="mt-3">
+                                <RentalRowActions
+                                  product={p}
+                                  onEdit={() => {
+                                    setEditing(p);
+                                    setOpen(true);
+                                  }}
+                                  onDelete={() => {
+                                    if (
+                                      !window.confirm(
+                                        `Eliminare "${p.name}" dal catalogo noleggio?`
+                                      )
+                                    ) {
+                                      return;
+                                    }
+                                    deleteMut.mutate(p.id);
+                                  }}
+                                />
+                              </div>
+                            </ListCard>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="hidden divide-y divide-border md:block">
+                  {grouped.map((group) => (
+                    <div key={group.departmentId}>
+                      <div className="flex items-center gap-2 bg-muted/40 px-4 py-2.5">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                            group.badgeClass
+                          )}
+                        >
+                          <DepartmentIcon id={group.departmentId} />
+                          {group.departmentLabel}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {group.families.reduce((n, f) => n + f.items.length, 0)}{" "}
+                          articoli
+                        </span>
+                      </div>
+                      {group.families.map(({ family, items }) => (
+                        <div key={family}>
+                          <p className="border-b border-border/60 bg-muted/15 px-4 py-1.5 text-xs font-medium text-muted-foreground">
+                            {family}
+                          </p>
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-border bg-muted/10">
+                                <th className="px-4 py-2 text-left">Articolo</th>
+                                <th className="px-4 py-2 text-left">SKU</th>
+                                <th className="px-4 py-2 text-right">€/gg</th>
+                                <th className="w-24 px-4 py-2 text-right">
+                                  Azioni
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map((p) => (
+                                <tr
+                                  key={p.id}
+                                  className="border-b border-border/60"
+                                >
+                                  <td className="px-4 py-3 font-medium">
+                                    {parseRentalName(p.name).model || p.name}
+                                  </td>
+                                  <td className="px-4 py-3 font-mono text-xs">
+                                    {p.sku}
+                                  </td>
+                                  <td className="px-4 py-3 text-right tabular-nums">
+                                    {formatCurrency(Number(p.price))}
+                                    <span className="ml-1 text-xs text-muted-foreground">
+                                      /gg
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right">
+                                    <RentalRowActions
+                                      product={p}
+                                      onEdit={() => {
+                                        setEditing(p);
+                                        setOpen(true);
+                                      }}
+                                      onDelete={() => {
+                                        if (
+                                          !window.confirm(
+                                            `Eliminare "${p.name}" dal catalogo noleggio?`
+                                          )
+                                        ) {
+                                          return;
+                                        }
+                                        deleteMut.mutate(p.id);
+                                      }}
+                                    />
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editing ? "Modifica articolo noleggio" : "Nuovo articolo noleggio"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <Input
-              placeholder="Nome articolo"
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Categoria
+                Reparto *
               </label>
-              {addingCategory ? (
-                <Input
-                  placeholder="Es. Noleggio - Audio"
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, category: e.target.value }))
-                  }
-                />
-              ) : (
-                <select
-                  className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
-                  value={
-                    categoryOptions.includes(form.category)
-                      ? form.category
-                      : ADD_CATEGORY
-                  }
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === ADD_CATEGORY) {
-                      setAddingCategory(true);
-                      setForm((f) => ({ ...f, category: "" }));
-                      return;
-                    }
-                    setForm((f) => ({ ...f, category: v }));
-                  }}
-                >
-                  {categoryOptions.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                  <option value={ADD_CATEGORY}>+ Nuova categoria…</option>
-                </select>
-              )}
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Audio → codice <strong>AUD</strong>, Luci → codice <strong>LUC</strong>
-              </p>
+              <select
+                className={appSelectClass}
+                value={form.departmentId}
+                onChange={(e) => {
+                  const id = e.target.value as RentalDepartmentId;
+                  setForm((f) => ({
+                    ...f,
+                    departmentId: id,
+                    family: RENTAL_FAMILIES[id][0],
+                  }));
+                }}
+              >
+                {RENTAL_DEPARTMENTS.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.label} — codice {d.skuPrefix}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Famiglia tecnica *
+              </label>
+              <select
+                className={appSelectClass}
+                value={form.family}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, family: e.target.value }))
+                }
+              >
+                {familyOptions.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Modello / descrizione breve *
+              </label>
+              <Input
+                placeholder="Es. RCF ART 912-A — cassa attiva 12″"
+                value={form.modelName}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, modelName: e.target.value }))
+                }
+              />
+              {previewName && (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  In catalogo: <strong>{previewName}</strong>
+                </p>
+              )}
+            </div>
+
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 SKU {editing ? "" : "(automatico)"}
@@ -339,7 +557,7 @@ export default function RentalsPage() {
               <Input
                 value={form.sku}
                 readOnly={!editing}
-                className={!editing ? "bg-muted font-mono" : "font-mono"}
+                className={cn("font-mono", !editing && "bg-muted")}
                 onChange={
                   editing
                     ? (e) => setForm((f) => ({ ...f, sku: e.target.value }))
@@ -348,13 +566,14 @@ export default function RentalsPage() {
               />
               {!editing && (
                 <p className="mt-1 text-[11px] text-muted-foreground">
-                  Prossimo: {skuPrefixForCategory(form.category)}-####
+                  Prossimo: {skuPrefixForCategory(categoryForSku)}-####
                 </p>
               )}
             </div>
+
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Prezzo al giorno (€/gg)
+                Prezzo al giorno (€/gg) *
               </label>
               <Input
                 type="number"
@@ -362,11 +581,14 @@ export default function RentalsPage() {
                 min="0"
                 placeholder="0.00"
                 value={form.price}
-                onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, price: e.target.value }))
+                }
               />
             </div>
+
             <Input
-              placeholder="Descrizione (opzionale)"
+              placeholder="Note tecniche (opzionale)"
               value={form.description}
               onChange={(e) =>
                 setForm((f) => ({ ...f, description: e.target.value }))
@@ -379,7 +601,10 @@ export default function RentalsPage() {
             </Button>
             <Button
               disabled={
-                !form.name.trim() || !form.price || saveMut.isPending
+                !form.modelName.trim() ||
+                !form.family.trim() ||
+                !form.price ||
+                saveMut.isPending
               }
               onClick={() => saveMut.mutate()}
             >

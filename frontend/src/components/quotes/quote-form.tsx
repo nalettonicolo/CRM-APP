@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
 } from "@/lib/labels";
 import { appSelectClass } from "@/components/ui/field-label";
 import { RENTAL_UNIT } from "@/lib/rental";
+import { groupRentalCatalog, rentalPickerLabel } from "@/lib/rental-catalog";
 import { cn, dateInputToIso, toDateInputValue } from "@/lib/utils";
 
 export type QuoteItemDraft = {
@@ -95,6 +96,11 @@ export function QuoteForm({
     queryKey: ["rentals", "catalog"],
     queryFn: inventoryApi.rentals,
   });
+
+  const rentalGroups = useMemo(
+    () => groupRentalCatalog(catalogRentals),
+    [catalogRentals]
+  );
 
   const { data: settingsData } = useQuery({
     queryKey: ["settings", "quote-defaults"],
@@ -622,11 +628,16 @@ export function QuoteForm({
                 onChange={(e) => setPickRental(e.target.value)}
               >
                 <option value="">Seleziona…</option>
-                {catalogRentals.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.category ? `[${p.category}] ` : ""}
-                    {p.name} ({Number(p.price).toFixed(2)} €/gg)
-                  </option>
+                {rentalGroups.map((group) => (
+                  <optgroup key={group.departmentId} label={group.departmentLabel}>
+                    {group.families.flatMap((f) =>
+                      f.items.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {rentalPickerLabel(p)}
+                        </option>
+                      ))
+                    )}
+                  </optgroup>
                 ))}
               </select>
               <Button

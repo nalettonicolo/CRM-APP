@@ -13,6 +13,10 @@ import { paramId } from "../utils/params.js";
 import { hasPermission } from "../utils/permissions.js";
 import { isRentalCategory, RENTAL_UNIT } from "../constants/rental.js";
 import {
+  isAllowedRentalCategory,
+  normalizeRentalCategory,
+} from "../constants/rentalCatalog.js";
+import {
   generateProductSku,
   skuPrefixForCategory,
 } from "../services/productSku.js";
@@ -333,14 +337,22 @@ router.post("/products", requirePermission("products", "CREATE"), async (req: Au
 
     const isRentable =
       data.isRentable === true || isRentalCategory(data.category);
+    const category = isRentable
+      ? normalizeRentalCategory(data.category)
+      : data.category?.trim() || undefined;
+    if (isRentable && !isAllowedRentalCategory(category)) {
+      throw new ValidationError(
+        "Reparto noleggio obbligatorio: Audio, Luci, Video o Strutture"
+      );
+    }
     const sku =
-      data.sku?.trim() || (await generateProductSku(data.category));
+      data.sku?.trim() || (await generateProductSku(category));
     const product = await prisma.product.create({
       data: {
         name: data.name,
         sku,
         description: data.description,
-        category: data.category,
+        category,
         isRentable,
         unit: isRentable ? data.unit?.trim() || RENTAL_UNIT : data.unit?.trim(),
         price: toDecimal(data.price),
@@ -395,19 +407,27 @@ router.patch("/products/:id", requirePermission("products", "UPDATE"), async (re
     const existing = await prisma.product.findUnique({ where: { id: paramId(req) } });
     if (!existing) throw new NotFoundError();
 
-    const nextCategory =
+    const rawCategory =
       data.category !== undefined ? data.category : existing.category;
     const isRentable =
       data.isRentable !== undefined
         ? data.isRentable
-        : existing.isRentable || isRentalCategory(nextCategory);
+        : existing.isRentable || isRentalCategory(rawCategory);
+    const nextCategory = isRentable
+      ? normalizeRentalCategory(rawCategory)
+      : rawCategory?.trim() || null;
+    if (isRentable && !isAllowedRentalCategory(nextCategory)) {
+      throw new ValidationError(
+        "Reparto noleggio obbligatorio: Audio, Luci, Video o Strutture"
+      );
+    }
 
     const product = await prisma.product.update({
       where: { id: paramId(req) },
       data: {
         name: data.name,
         description: data.description,
-        category: data.category,
+        category: data.category !== undefined ? nextCategory : undefined,
         isRentable,
         unit:
           data.unit !== undefined
