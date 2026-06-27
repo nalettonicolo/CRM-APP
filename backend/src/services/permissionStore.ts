@@ -2,6 +2,8 @@ import type { PermissionAction, UserRole } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import {
   ALL_CATALOG_ENTRIES,
+  DEFAULT_ACTION_LABELS,
+  PERMISSION_SECTIONS,
   permissionKey,
 } from "../constants/permissionCatalog.js";
 
@@ -252,6 +254,55 @@ export async function getPermissionMatrix() {
       name: p.name,
       key: permissionKey(p.resource, p.action),
     })),
+  };
+}
+
+export function getRolePermissionKeys(role: UserRole): Set<string> {
+  if (role === "SUPER_ADMIN") {
+    return new Set(
+      ALL_CATALOG_ENTRIES.map((e) => permissionKey(e.resource, e.action))
+    );
+  }
+
+  const cached = rolePermissionCache.get(role);
+  if (cached && cached.size > 0) return cached;
+
+  return expandPatterns(DEFAULT_ROLE_PERMISSIONS[role] || []);
+}
+
+export async function getMyPermissions(role: UserRole) {
+  const keys = getRolePermissionKeys(role);
+  const roleRow = await prisma.role.findUnique({ where: { slug: role } });
+
+  const sections = PERMISSION_SECTIONS.map((section) => ({
+    key: section.key,
+    label: section.label,
+    resources: section.resources
+      .map((resource) => {
+        const grantedActions = resource.actions
+          .filter((action) => checkPermissionSet(keys, resource.key, action))
+          .map((action) => ({
+            action,
+            label:
+              resource.actionLabels?.[action] ||
+              DEFAULT_ACTION_LABELS[action],
+          }));
+        return {
+          key: resource.key,
+          label: resource.label,
+          description: resource.description,
+          grantedActions,
+        };
+      })
+      .filter((r) => r.grantedActions.length > 0),
+  })).filter((s) => s.resources.length > 0);
+
+  return {
+    role,
+    roleName: roleRow?.name || role,
+    description: roleRow?.description,
+    sections,
+    permissionKeys: [...keys],
   };
 }
 

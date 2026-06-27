@@ -15,7 +15,6 @@
     "db:studio": "prisma studio",
     "db:push": "prisma db push",
     "db:test": "tsx scripts/test-connection.ts",
-    "db:debug": "tsx scripts/debug-databases.ts",
     "db:normalize:invoice-numbers": "tsx scripts/normalize-invoice-numbers.ts",
     "backup": "tsx scripts/backup.ts",
     "test": "tsx --test src/**/*.test.ts",

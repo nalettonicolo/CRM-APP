@@ -158,7 +158,7 @@ npm run db:push --workspace=backend
 npm run db:seed --workspace=backend
 ```
 
-Diagnostica (prova più nomi DB con `pg`): `npm run db:debug`
+Test connessione DB: `npm run db:test`
 
 ## Come entrare come amministratore
 
@@ -202,8 +202,7 @@ In **produzione** usa password lunghe e diverse; puoi rimuovere gli utenti di es
 
 ## Deploy produzione
 
-**Checklist “voglio andare online ora”:** [`docs/andare-online-ora.md`](docs/andare-online-ora.md)  
-**Mint (API + tunnel PM2):** sul server `git pull` poi `backend/scripts/deploy-completo-mint.sh` — vedi [`docs/COSA-FARE.md`](docs/COSA-FARE.md).  
+**Checklist deploy:** [`docs/COSA-FARE.md`](docs/COSA-FARE.md)  
 **VPN privata (SSH/deploy da fuori casa):** [`docs/guida-vpn-privata-tailscale.md`](docs/guida-vpn-privata-tailscale.md)  
 **API pubblica (Tailscale Funnel):** [`docs/guida-tailscale-funnel.md`](docs/guida-tailscale-funnel.md)  
 Indice documentazione: [`docs/README.md`](docs/README.md)  

@@ -118,6 +118,7 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req: AuthRequ
         endAt: z.string().datetime().optional(),
         location: z.string().optional(),
         assigneeId: z.string().optional(),
+        clientId: z.string().nullable().optional(),
       })
       .parse(req.body);
 
@@ -140,6 +141,7 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req: AuthRequ
         }),
         ...(data.type !== undefined && { type: data.type }),
         ...(data.assigneeId !== undefined && { assigneeId: data.assigneeId }),
+        ...(data.clientId !== undefined && { clientId: data.clientId }),
         ...(data.startAt && { startAt: new Date(data.startAt) }),
         ...(data.endAt && { endAt: new Date(data.endAt) }),
       },

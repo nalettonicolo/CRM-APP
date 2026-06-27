@@ -4,8 +4,7 @@
 
 | Guida | Quando usarla |
 |-------|----------------|
-| [`COSA-FARE.md`](./COSA-FARE.md) | Checklist operativa: push Git, deploy Mint, primo avvio |
-| [`andare-online-ora.md`](./andare-online-ora.md) | Mettere online in fretta |
+| [`COSA-FARE.md`](./COSA-FARE.md) | Checklist operativa: push Git, deploy Mint, Netlify, primo avvio |
 | [`guida-vpn-privata-tailscale.md`](./guida-vpn-privata-tailscale.md) | **SSH e admin Mint da fuori casa** (VPN privata) |
 | [`guida-tailscale-funnel.md`](./guida-tailscale-funnel.md) | API pubblica HTTPS (URL `.ts.net` fisso) |
 | [`netlify-guida-completa.md`](./netlify-guida-completa.md) | Frontend su Netlify |
@@ -21,6 +20,5 @@
 | [`guida-tunnel-permanente-pm2.md`](./guida-tunnel-permanente-pm2.md) | Cloudflare tunnel nominato (legacy) |
 | [`guida-tunnel-da-sito-cloudflare.md`](./guida-tunnel-da-sito-cloudflare.md) | Tunnel da pannello Cloudflare |
 | [`guida-deploy-autonomo-mint-dominio.md`](./guida-deploy-autonomo-mint-dominio.md) | Mint + dominio proprio, senza Netlify |
-| [`deploy-production.md`](./deploy-production.md) | Indice deploy + variabili |
 
 File locale (gitignored): `RIFERIMENTI-PRODUZIONE.local.md` nella root del repo — token e note private.

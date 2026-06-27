@@ -17,7 +17,6 @@
     "db:migrate": "npm run db:migrate --workspace=backend",
     "db:seed": "npm run db:seed --workspace=backend",
     "db:test": "npm run db:test --workspace=backend",
-    "db:debug": "npm run db:debug --workspace=backend",
     "db:studio": "npm run db:studio --workspace=backend",
     "setup": "node scripts/setup.js"
   },

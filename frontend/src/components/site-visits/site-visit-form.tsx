@@ -82,8 +82,10 @@ export function SiteVisitForm({ sheet }: { sheet: SiteVisitSheet }) {
             Scheda sopralluogo {sheet.number}
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Documento di rilevazione sul luogo — distinto dal verbale di fine
-            lavoro. Annota spazio, impianti, accessi e allega foto.
+            <strong>Scheda sopralluogo</strong> — documento di rilevazione sul
+            luogo (annotazioni e foto). Non confonderla con il{" "}
+            <strong>verbale</strong> di fine lavoro: quello si crea dopo
+            l&apos;intervento dalla sezione Verbali.
           </p>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {sheet.event?.title && (

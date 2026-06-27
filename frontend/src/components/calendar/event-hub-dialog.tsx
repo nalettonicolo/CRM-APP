@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   ClipboardList,
@@ -23,9 +23,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { appSelectClass } from "@/components/ui/field-label";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
-import { eventsApi, type EventItem } from "@/lib/api";
-import { calendarEventTypeOptions, eventTypeLabels } from "@/lib/labels";
+import { clientsApi, eventsApi, siteVisitsApi, type EventItem } from "@/lib/api";
+import {
+  allEventTypeOptions,
+  eventTypeLabels,
+} from "@/lib/labels";
 import { formatCurrency, toDateInputValue } from "@/lib/utils";
 
 type HubAction = {
@@ -47,12 +51,32 @@ function eventToForm(event: EventItem) {
     type: event.type || "EVENT",
     location: event.location || event.quote?.eventLocation || "",
     description: event.description || "",
+    clientId: event.clientId || "",
     eventFrom: toDateInputValue(event.startAt),
     eventTo: event.endAt
       ? toDateInputValue(event.endAt)
       : toDateInputValue(event.startAt),
     startTime: toTimeInputValue(event.startAt),
     endTime: toTimeInputValue(end.toISOString()),
+  };
+}
+
+function buildPayload(form: ReturnType<typeof eventToForm>) {
+  const [sh, sm] = form.startTime.split(":").map(Number);
+  const [eh, em] = form.endTime.split(":").map(Number);
+  const [y1, m1, d1] = form.eventFrom.split("-").map(Number);
+  const endDay = form.eventTo || form.eventFrom;
+  const [y2, m2, d2] = endDay.split("-").map(Number);
+  const startAt = new Date(y1, m1 - 1, d1, sh, sm, 0).toISOString();
+  const endAt = new Date(y2, m2 - 1, d2, eh, em, 0).toISOString();
+  return {
+    title: form.title.trim(),
+    location: form.location.trim() || undefined,
+    description: form.description.trim() || undefined,
+    type: form.type,
+    clientId: form.clientId || null,
+    startAt,
+    endAt,
   };
 }
 
@@ -77,11 +101,11 @@ function buildActions(event: EventItem): HubAction[] {
         ? `Preventivo ${event.quote.number}`
         : "Apri preventivo",
       icon: FileText,
-      variant: "default",
+      variant: "outline",
     });
     actions.push({
       href: `/payments?quoteId=${quoteId}`,
-      label: "Pagamenti",
+      label: "Pagamenti preventivo",
       icon: Receipt,
       variant: "outline",
     });
@@ -95,7 +119,7 @@ function buildActions(event: EventItem): HubAction[] {
         ? `Intervento ${event.intervention.number}`
         : "Apri intervento",
       icon: Wrench,
-      variant: quoteId ? "outline" : "default",
+      variant: "outline",
     });
   }
 
@@ -137,28 +161,30 @@ export function EventHubDialog({
   const qc = useQueryClient();
   const [form, setForm] = useState(() => (event ? eventToForm(event) : null));
 
+  const { data: clientsRes } = useQuery({
+    queryKey: ["clients", "event-hub"],
+    queryFn: () => clientsApi.list({ limit: "500" }),
+    enabled: open,
+  });
+  const clients = clientsRes?.data ?? [];
+
   useEffect(() => {
     if (event) setForm(eventToForm(event));
-  }, [event?.id, event?.title, event?.type, event?.location, event?.description, event?.startAt, event?.endAt]);
+  }, [
+    event?.id,
+    event?.title,
+    event?.type,
+    event?.location,
+    event?.description,
+    event?.startAt,
+    event?.endAt,
+    event?.clientId,
+  ]);
 
   const updateMut = useMutation({
     mutationFn: () => {
       if (!event || !form) throw new Error("Evento non disponibile");
-      const [sh, sm] = form.startTime.split(":").map(Number);
-      const [eh, em] = form.endTime.split(":").map(Number);
-      const [y1, m1, d1] = form.eventFrom.split("-").map(Number);
-      const endDay = form.eventTo || form.eventFrom;
-      const [y2, m2, d2] = endDay.split("-").map(Number);
-      const startAt = new Date(y1, m1 - 1, d1, sh, sm, 0).toISOString();
-      const endAt = new Date(y2, m2 - 1, d2, eh, em, 0).toISOString();
-      return eventsApi.update(event.id, {
-        title: form.title.trim(),
-        location: form.location.trim() || undefined,
-        description: form.description.trim() || undefined,
-        type: form.type,
-        startAt,
-        endAt,
-      });
+      return eventsApi.update(event.id, buildPayload(form));
     },
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["events"] });
@@ -170,32 +196,31 @@ export function EventHubDialog({
     },
   });
 
-  const openSiteVisitMut = useMutation({
-    mutationFn: async () => {
-      if (!event || !form) throw new Error("Evento non disponibile");
-      const [sh, sm] = form.startTime.split(":").map(Number);
-      const [eh, em] = form.endTime.split(":").map(Number);
-      const [y1, m1, d1] = form.eventFrom.split("-").map(Number);
-      const endDay = form.eventTo || form.eventFrom;
-      const [y2, m2, d2] = endDay.split("-").map(Number);
-      const startAt = new Date(y1, m1 - 1, d1, sh, sm, 0).toISOString();
-      const endAt = new Date(y2, m2 - 1, d2, eh, em, 0).toISOString();
-      await eventsApi.update(event.id, {
-        title: form.title.trim(),
-        location: form.location.trim() || undefined,
-        description: form.description.trim() || undefined,
-        type: "SITE_VISIT",
-        startAt,
-        endAt,
-      });
+  const saveAndOpenSiteVisit = useMutation({
+    mutationFn: async (formSnapshot: NonNullable<typeof form>) => {
+      if (!event) throw new Error("Evento non disponibile");
+      const payload = { ...buildPayload(formSnapshot), type: "SITE_VISIT" };
+      const updated = await eventsApi.update(event.id, payload);
+      await siteVisitsApi.getByEvent(updated.id);
+      return updated;
     },
-    onSuccess: () => {
+    onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ["events"] });
       qc.invalidateQueries({ queryKey: ["site-visits"] });
       onOpenChange(false);
-      router.push(`/site-visits/${event!.id}`);
+      router.push(`/site-visits/${updated.id}`);
     },
   });
+
+  const handleTypeChange = (nextType: string) => {
+    if (!form) return;
+    const nextForm = { ...form, type: nextType };
+    setForm(nextForm);
+    if (nextType === "SITE_VISIT") {
+      if (!nextForm.title.trim() || !nextForm.eventFrom) return;
+      saveAndOpenSiteVisit.mutate(nextForm);
+    }
+  };
 
   const deleteEventMut = useMutation({
     mutationFn: () => eventsApi.delete(event!.id),
@@ -207,21 +232,30 @@ export function EventHubDialog({
 
   if (!event || !form) return null;
 
-  const clientName =
-    event.client?.companyName || event.client?.contactName || null;
   const actions = buildActions(event);
-  const hasLinks = actions.length > 0;
-  const hasLinkedEntities = !!(event.quoteId || event.clientId || event.interventionId);
+  const hasQuote = !!(event.quoteId || event.quote?.id);
+  const typeOptions = allEventTypeOptions.some((o) => o.value === form.type)
+    ? allEventTypeOptions
+    : [
+        ...allEventTypeOptions,
+        {
+          value: form.type,
+          label: eventTypeLabels[form.type] || form.type,
+        },
+      ];
 
-  const setField = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+  const setField = <K extends keyof typeof form>(
+    key: K,
+    value: (typeof form)[K]
+  ) => {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 pr-6">
             <Calendar className="h-5 w-5 shrink-0 text-primary" />
             Modifica evento
           </DialogTitle>
@@ -229,16 +263,21 @@ export function EventHubDialog({
 
         <div className="space-y-3 text-sm">
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Titolo</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Titolo
+            </label>
             <Input
               value={form.title}
+              placeholder="Es. Sopralluogo villa Rossi"
               onChange={(e) => setField("title", e.target.value)}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Data inizio</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Data inizio
+              </label>
               <Input
                 type="date"
                 value={form.eventFrom}
@@ -246,7 +285,9 @@ export function EventHubDialog({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Ora inizio</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Ora inizio
+              </label>
               <Input
                 type="time"
                 value={form.startTime}
@@ -257,7 +298,9 @@ export function EventHubDialog({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Data fine</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Data fine
+              </label>
               <Input
                 type="date"
                 value={form.eventTo}
@@ -266,7 +309,9 @@ export function EventHubDialog({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-muted-foreground">Ora fine</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Ora fine
+              </label>
               <Input
                 type="time"
                 value={form.endTime}
@@ -276,65 +321,75 @@ export function EventHubDialog({
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Luogo</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Luogo
+            </label>
             <Input
               value={form.location}
-              placeholder="Es. Villa Rossi, Via Roma 12, Milano"
+              placeholder="Indirizzo o nome location"
               onChange={(e) => setField("location", e.target.value)}
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Tipo</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Cliente (opzionale)
+            </label>
             <select
-              className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
-              value={form.type}
-              disabled={openSiteVisitMut.isPending}
-              onChange={(e) => {
-                const next = e.target.value;
-                setField("type", next);
-                if (next === "SITE_VISIT") {
-                  openSiteVisitMut.mutate();
-                }
-              }}
+              className={appSelectClass}
+              value={form.clientId}
+              onChange={(e) => setField("clientId", e.target.value)}
             >
-              {calendarEventTypeOptions.map((opt) => (
+              <option value="">Nessun cliente collegato</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.companyName || c.contactName || c.email || c.id}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Gli eventi possono essere creati anche senza cliente o preventivo.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Tipo
+            </label>
+            <select
+              className={appSelectClass}
+              value={form.type}
+              disabled={saveAndOpenSiteVisit.isPending}
+              onChange={(e) => handleTypeChange(e.target.value)}
+            >
+              {typeOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>
               ))}
-              {!calendarEventTypeOptions.some((o) => o.value === event.type) &&
-                event.type && (
-                  <option value={event.type}>
-                    {eventTypeLabels[event.type] || event.type}
-                  </option>
-                )}
             </select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {form.type === "SITE_VISIT"
+                ? "Si apre la scheda sopralluogo con annotazioni e foto (non è un verbale)."
+                : eventTypeLabels[form.type] || form.type}
+            </p>
+            {form.type === "SITE_VISIT" &&
+              (!form.title.trim() || !form.eventFrom) && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Inserisci titolo e data per aprire la scheda.
+                </p>
+              )}
+            {saveAndOpenSiteVisit.isPending && (
+              <p className="mt-1 text-xs text-primary">
+                Apertura scheda sopralluogo…
+              </p>
+            )}
           </div>
 
-          {(form.type === "SITE_VISIT" || event.type === "SITE_VISIT") && (
-            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
-              <p className="text-sm font-medium">Scheda sopralluogo</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Annotazioni tecniche e foto del luogo — documento separato dal
-                verbale di fine lavoro.
-              </p>
-              <Button
-                className="mt-3 w-full justify-start"
-                variant="default"
-                disabled={openSiteVisitMut.isPending}
-                onClick={() => openSiteVisitMut.mutate()}
-              >
-                <MapPin className="h-4 w-4" />
-                {openSiteVisitMut.isPending
-                  ? "Apertura scheda…"
-                  : "Apri scheda sopralluogo"}
-              </Button>
-            </div>
-          )}
-
           <div>
-            <label className="mb-1 block text-xs text-muted-foreground">Descrizione</label>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              Descrizione
+            </label>
             <textarea
               className="flex min-h-[72px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
               value={form.description}
@@ -343,41 +398,65 @@ export function EventHubDialog({
             />
           </div>
 
-          {hasLinkedEntities && (
-            <dl className="grid gap-2 rounded-lg border border-border bg-muted/30 p-3">
-              {clientName && (
-                <div>
-                  <dt className="text-xs text-muted-foreground">Cliente collegato</dt>
-                  <dd className="font-medium">{clientName}</dd>
-                </div>
-              )}
-              {event.quote?.number && (
-                <div>
-                  <dt className="text-xs text-muted-foreground">Preventivo collegato</dt>
-                  <dd className="font-medium">
+          {(hasQuote || event.intervention?.number) && (
+            <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              {hasQuote && event.quote?.number && (
+                <p>
+                  Collegato al preventivo{" "}
+                  <strong className="text-foreground">
                     {event.quote.number}
-                    {event.quote.total != null &&
-                      ` · ${formatCurrency(Number(event.quote.total))}`}
-                  </dd>
-                </div>
+                  </strong>
+                  {event.quote.total != null &&
+                    ` · ${formatCurrency(Number(event.quote.total))}`}
+                </p>
               )}
               {event.intervention?.number && (
-                <div>
-                  <dt className="text-xs text-muted-foreground">Intervento collegato</dt>
-                  <dd className="font-medium">{event.intervention.number}</dd>
-                </div>
+                <p className={hasQuote ? "mt-1" : undefined}>
+                  Collegato all&apos;intervento{" "}
+                  <strong className="text-foreground">
+                    {event.intervention.number}
+                  </strong>
+                </p>
               )}
-            </dl>
+            </div>
           )}
 
-          {hasLinks && (
-            <div className="space-y-2 pt-1">
-              <p className="text-xs font-medium text-muted-foreground">Collegamenti</p>
+          {(form.type === "SITE_VISIT" || event.type === "SITE_VISIT") && (
+            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+              <p className="text-sm font-medium">Scheda sopralluogo</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Documento di rilevazione sul luogo: spazio, audio, luci, accessi
+                e foto. Diverso dal verbale di fine lavoro.
+              </p>
+              <Button
+                className="mt-3 w-full justify-start"
+                variant="default"
+                disabled={
+                  saveAndOpenSiteVisit.isPending ||
+                  updateMut.isPending ||
+                  !form.title.trim() ||
+                  !form.eventFrom
+                }
+                onClick={() => saveAndOpenSiteVisit.mutate(form)}
+              >
+                <MapPin className="h-4 w-4" />
+                {saveAndOpenSiteVisit.isPending
+                  ? "Apertura scheda…"
+                  : "Apri scheda sopralluogo"}
+              </Button>
+            </div>
+          )}
+
+          {actions.length > 0 && (
+            <div className="space-y-2 border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground">
+                Collegamenti rapidi
+              </p>
               {actions.map((a) => (
                 <Button
                   key={a.href}
                   variant={a.variant ?? "outline"}
-                  className="justify-start"
+                  className="w-full justify-start"
                   asChild
                 >
                   <Link href={a.href}>
@@ -391,7 +470,9 @@ export function EventHubDialog({
           )}
 
           {updateMut.isError && (
-            <p className="text-xs text-red-600">Impossibile salvare le modifiche.</p>
+            <p className="text-xs text-red-600">
+              Impossibile salvare le modifiche.
+            </p>
           )}
         </div>
 
@@ -406,10 +487,12 @@ export function EventHubDialog({
             </Button>
             <Button
               className="flex-1"
-              disabled={!form.title.trim() || !form.eventFrom || updateMut.isPending}
+              disabled={
+                !form.title.trim() || !form.eventFrom || updateMut.isPending
+              }
               onClick={() => updateMut.mutate()}
             >
-              Salva
+              {updateMut.isPending ? "Salvataggio…" : "Salva"}
             </Button>
           </div>
           <DeleteEntityButton

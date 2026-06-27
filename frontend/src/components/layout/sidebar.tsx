@@ -18,6 +18,7 @@ import {
   Printer,
   MapPin,
   Settings,
+  ShieldCheck,
   LogOut,
   ClipboardList,
   UserCircle,
@@ -30,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth";
 import { authApi, leadsApi, settingsApi } from "@/lib/api";
+import { usePermissions } from "@/hooks/use-permissions";
 import { DEFAULT_APP_NAME, publicAssetUrl } from "@/lib/branding";
 import { userRoleLabels } from "@/lib/labels";
 import { Button } from "@/components/ui/button";
@@ -53,7 +55,7 @@ const staffGroups: NavGroup[] = [
     items: [
       { href: "/interventions", label: "Interventi", icon: Wrench },
       { href: "/reports", label: "Verbali", icon: ClipboardList },
-      { href: "/site-visits", label: "Sopralluogo", icon: MapPin },
+      { href: "/site-visits", label: "Sopralluoghi", icon: MapPin },
       { href: "/calendar", label: "Calendario", icon: Calendar },
     ],
   },
@@ -73,6 +75,7 @@ const adminItems: NavItem[] = [
   { href: "/leads", label: "Richieste", icon: Inbox },
   { href: "/activity-logs", label: "Audit", icon: History },
   { href: "/users", label: "Utenti", icon: UserCog },
+  { href: "/settings/permissions", label: "Permessi", icon: ShieldCheck },
 ];
 
 const clientNav: NavItem[] = [
@@ -138,8 +141,8 @@ export function Sidebar({
 }) {
   const pathname = usePathname();
   const { user, logout, isAuthenticated } = useAuthStore();
+  const { canAccessHref, isAdmin } = usePermissions();
   const isClient = user?.role === "CLIENT";
-  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
@@ -160,16 +163,45 @@ export function Sidebar({
   const logoSrc = publicAssetUrl((settings?.logo as { url?: string })?.url);
   const initial = appName.charAt(0).toUpperCase() || "N";
 
+  const filterItems = (items: NavItem[]) =>
+    items.filter((item) => canAccessHref(item.href));
+
   const groups: NavGroup[] = isClient
     ? [{ items: clientNav }]
     : [
-        ...staffGroups,
-        ...(isAdmin ? [{ title: "Amministrazione", items: adminItems }] : []),
-        {
-          items: [
-            { href: "/settings", label: "Impostazioni", icon: Settings },
-          ],
-        },
+        ...staffGroups
+          .map((g) => ({ ...g, items: filterItems(g.items) }))
+          .filter((g) => g.items.length > 0),
+        ...(isAdmin
+          ? [
+              {
+                title: "Amministrazione",
+                items: filterItems(adminItems),
+              },
+            ].filter((g) => g.items.length > 0)
+          : []),
+        ...(canAccessHref("/settings")
+          ? [
+              {
+                items: filterItems([
+                  { href: "/settings", label: "Impostazioni", icon: Settings },
+                ]),
+              },
+            ]
+          : []),
+        ...(!isAdmin
+          ? [
+              {
+                items: [
+                  {
+                    href: "/settings/permissions",
+                    label: "Permessi account",
+                    icon: ShieldCheck,
+                  },
+                ],
+              },
+            ]
+          : []),
       ];
 
   const handleLogout = async () => {

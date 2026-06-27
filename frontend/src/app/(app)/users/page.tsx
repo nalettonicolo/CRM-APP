@@ -19,6 +19,7 @@ import {
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
 import { usersApi, type StaffUser } from "@/lib/api";
 import { userRoleLabels, userStatusLabels } from "@/lib/labels";
+import { permissionRoleDescriptions } from "@/lib/permissions";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { PageCreateButton } from "@/components/layout/page-create-action";
 import { useAuthStore } from "@/store/auth";
@@ -35,6 +36,24 @@ const ROLES = [
 
 function userDisplayName(u: StaffUser) {
   return [u.firstName, u.lastName].filter(Boolean).join(" ") || u.email;
+}
+
+function RolePermissionHint({ role }: { role: string }) {
+  if (role === "SUPER_ADMIN") return null;
+  return (
+    <div className="rounded-lg border border-border bg-muted/20 px-3 py-2 text-xs">
+      <p className="text-muted-foreground">
+        {permissionRoleDescriptions[role] ||
+          "Tipo di account con permessi configurabili."}
+      </p>
+      <Link
+        href={`/settings/permissions?role=${role}`}
+        className="mt-1 inline-block font-medium text-primary hover:underline"
+      >
+        Configura permessi per {userRoleLabels[role] || role} →
+      </Link>
+    </div>
+  );
 }
 
 export default function UsersPage() {
@@ -304,6 +323,9 @@ export default function UsersPage() {
                     {userRoleLabels[selectedUser.role] || selectedUser.role}
                   </dd>
                 </div>
+                <div className="sm:col-span-2">
+                  <RolePermissionHint role={selectedUser.role} />
+                </div>
                 <div>
                   <dt className="text-muted-foreground">Stato</dt>
                   <dd>
@@ -401,6 +423,7 @@ export default function UsersPage() {
                   </option>
                 ))}
               </select>
+              <RolePermissionHint role={editForm.role} />
             </div>
           )}
 
@@ -503,6 +526,7 @@ export default function UsersPage() {
                 </option>
               ))}
             </select>
+            <RolePermissionHint role={form.role} />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <DialogFooter>

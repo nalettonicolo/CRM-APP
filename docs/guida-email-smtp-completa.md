@@ -365,7 +365,7 @@ Stampa o segna questa lista:
 | Sicurezza Google | https://myaccount.google.com/security |
 | Template variabili `.env` | `backend/.env.example` |
 | Backup (questa guida, sezione backup) | sotto in questo file |
-| Deploy Mint + Netlify | `docs/COSA-FARE.md`, `docs/andare-online-ora.md` |
+| Deploy Mint + Netlify | `docs/COSA-FARE.md` |
 
 ---
 

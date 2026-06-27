@@ -288,6 +288,6 @@ pm2 restart crm-api --update-env
 
 ## Collegamenti
 
-- Deploy generale Mint + Netlify: [`COSA-FARE.md`](./COSA-FARE.md), [`andare-online-ora.md`](./andare-online-ora.md)  
+- Deploy generale Mint + Netlify: [`COSA-FARE.md`](./COSA-FARE.md)  
 - Email SMTP: [`guida-email-smtp-completa.md`](./guida-email-smtp-completa.md)  
 - Esempio config: [`cloudflared-config.example.yml`](./cloudflared-config.example.yml)  

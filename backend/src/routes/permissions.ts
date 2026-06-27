@@ -5,12 +5,24 @@ import { authenticate, adminOnly, type AuthRequest } from "../middleware/auth.js
 import { PERMISSION_SECTIONS } from "../constants/permissionCatalog.js";
 import {
   getPermissionMatrix,
+  getMyPermissions,
   updateRolePermissions,
 } from "../services/permissionStore.js";
 import { logActivity } from "../services/activityLog.js";
 
 const router = Router();
-router.use(authenticate, adminOnly);
+router.use(authenticate);
+
+router.get("/mine", async (req: AuthRequest, res, next) => {
+  try {
+    const data = await getMyPermissions(req.user!.role);
+    res.json(data);
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.use(adminOnly);
 
 router.get("/matrix", async (_req, res, next) => {
   try {

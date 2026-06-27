@@ -843,6 +843,23 @@ export type PermissionMatrix = {
   permissions: PermissionMatrixEntry[];
 };
 
+export type MyPermissions = {
+  role: string;
+  roleName: string;
+  description?: string | null;
+  permissionKeys: string[];
+  sections: {
+    key: string;
+    label: string;
+    resources: {
+      key: string;
+      label: string;
+      description: string;
+      grantedActions: { action: string; label: string }[];
+    }[];
+  }[];
+};
+
 export type SiteVisitSheet = {
   id: string;
   number: string;
@@ -901,6 +918,7 @@ export const siteVisitsApi = {
 
 export const permissionsApi = {
   getMatrix: () => api<PermissionMatrix>("/permissions/matrix"),
+  getMine: () => api<MyPermissions>("/permissions/mine"),
   updateRole: (slug: string, permissionIds: string[]) =>
     api<Pick<PermissionMatrix, "roles" | "permissions">>(
       `/permissions/roles/${slug}`,
@@ -939,6 +957,7 @@ export const eventsApi = {
       type: string;
       startAt: string;
       endAt: string;
+      clientId: string | null;
     }>
   ) =>
     api<EventItem>(`/events/${id}`, {

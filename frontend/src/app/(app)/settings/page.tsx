@@ -12,6 +12,7 @@ import { authApi, backupApi, privacyApi, settingsApi } from "@/lib/api";
 import { DEFAULT_APP_NAME } from "@/lib/branding";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { cn } from "@/lib/utils";
+import { useAuthStore } from "@/store/auth";
 
 const textareaClass =
   "flex min-h-[88px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
@@ -22,6 +23,8 @@ function asText(value: unknown): string {
 
 export default function SettingsPage() {
   const qc = useQueryClient();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
   const { data, isLoading } = useQuery({
     queryKey: ["settings"],
     queryFn: settingsApi.get,
@@ -234,20 +237,36 @@ export default function SettingsPage() {
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Link href="/settings/permissions">
-            <Card className="h-full transition-colors hover:border-primary/40">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <ShieldCheck className="h-5 w-5 text-primary" />
-                  Permessi per ruolo
-                </CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Definisci per ogni tipo di account cosa può vedere e cosa può
-                  modificare nel CRM.
-                </p>
-              </CardHeader>
-            </Card>
-          </Link>
+          {isAdmin ? (
+            <Link href="/settings/permissions">
+              <Card className="h-full transition-colors hover:border-primary/40">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    Permessi per ruolo
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Definisci per ogni tipo di account cosa può vedere e cosa
+                    può modificare nel CRM.
+                  </p>
+                </CardHeader>
+              </Card>
+            </Link>
+          ) : (
+            <Link href="/settings/permissions">
+              <Card className="h-full transition-colors hover:border-primary/40">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    Permessi account
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Consulta cosa può fare il tuo tipo di account nel CRM.
+                  </p>
+                </CardHeader>
+              </Card>
+            </Link>
+          )}
           <Link href="/settings/testi">
             <Card className="h-full transition-colors hover:border-primary/40">
               <CardHeader>

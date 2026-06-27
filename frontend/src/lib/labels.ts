@@ -184,7 +184,12 @@ export const eventTypeLabels: Record<string, string> = {
   OTHER: "Altro",
 };
 
-/** Tipi principali per creazione / modifica eventi in calendario */
+/** Tutti i tipi evento per modifica completa */
+export const allEventTypeOptions = Object.entries(eventTypeLabels).map(
+  ([value, label]) => ({ value, label })
+);
+
+/** Tipi principali per creazione rapida in calendario */
 export const calendarEventTypeOptions = [
   { value: "MEETING", label: "Riunione" },
   { value: "SITE_VISIT", label: "Sopralluogo" },

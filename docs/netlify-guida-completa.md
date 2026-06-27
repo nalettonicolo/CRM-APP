@@ -161,5 +161,5 @@ Non è parte di Netlify, ma è obbligatorio perché il sito funzioni:
 
 - Variabili template API: `backend/.env.example`
 - Variabili template Netlify: `frontend/.env.example`
-- Panoramica deploy: [`deploy-production.md`](deploy-production.md)
+- Panoramica deploy: [`COSA-FARE.md`](COSA-FARE.md)
 - CI GitHub: `.github/workflows/ci.yml`

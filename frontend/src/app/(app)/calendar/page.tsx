@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MonthCalendar } from "@/components/calendar/month-calendar";
 import { EventHubDialog } from "@/components/calendar/event-hub-dialog";
@@ -9,6 +10,7 @@ import { UpcomingEventsPanel } from "@/components/events/upcoming-events-panel";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { appSelectClass } from "@/components/ui/field-label";
 import {
   Dialog,
   DialogContent,
@@ -17,20 +19,32 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { eventsApi } from "@/lib/api";
-import { calendarEventTypeOptions } from "@/lib/labels";
+import { clientsApi, eventsApi } from "@/lib/api";
+import { allEventTypeOptions } from "@/lib/labels";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { PageCreateButton } from "@/components/layout/page-create-action";
 
 export default function CalendarPage() {
+  const router = useRouter();
   const [hubEvent, setHubEvent] = useState<EventItem | null>(null);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
+  const [description, setDescription] = useState("");
+  const [clientId, setClientId] = useState("");
   const [type, setType] = useState("EVENT");
   const [eventFrom, setEventFrom] = useState("");
   const [eventTo, setEventTo] = useState("");
+  const [startTime, setStartTime] = useState("10:00");
+  const [endTime, setEndTime] = useState("18:00");
   const qc = useQueryClient();
+
+  const { data: clientsRes } = useQuery({
+    queryKey: ["clients", "calendar-create"],
+    queryFn: () => clientsApi.list({ limit: "500" }),
+    enabled: open,
+  });
+  const clients = clientsRes?.data ?? [];
 
   const upcomingFrom = useMemo(() => new Date().toISOString(), []);
 
@@ -48,26 +62,44 @@ export default function CalendarPage() {
     },
   });
 
+  function resetCreateForm() {
+    setTitle("");
+    setLocation("");
+    setDescription("");
+    setClientId("");
+    setType("EVENT");
+    setEventFrom("");
+    setEventTo("");
+    setStartTime("10:00");
+    setEndTime("18:00");
+  }
+
   const createMut = useMutation({
     mutationFn: () => {
-      const start = new Date(`${eventFrom}T10:00:00`);
+      const [sh, sm] = startTime.split(":").map(Number);
+      const [eh, em] = endTime.split(":").map(Number);
+      const [y1, m1, d1] = eventFrom.split("-").map(Number);
       const endDay = eventTo || eventFrom;
-      const end = new Date(`${endDay}T18:00:00`);
+      const [y2, m2, d2] = endDay.split("-").map(Number);
+      const startAt = new Date(y1, m1 - 1, d1, sh, sm, 0).toISOString();
+      const endAt = new Date(y2, m2 - 1, d2, eh, em, 0).toISOString();
       return eventsApi.create({
         title,
+        description: description.trim() || undefined,
         location: location.trim() || undefined,
+        clientId: clientId || undefined,
         type,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
+        startAt,
+        endAt,
       });
     },
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ["events"] });
       setOpen(false);
-      setTitle("");
-      setLocation("");
-      setEventFrom("");
-      setEventTo("");
+      resetCreateForm();
+      if (created.type === "SITE_VISIT") {
+        router.push(`/site-visits/${created.id}`);
+      }
     },
   });
 
@@ -114,13 +146,13 @@ export default function CalendarPage() {
       />
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nuovo evento</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <Input
-              placeholder="Titolo"
+              placeholder="Titolo *"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
             />
@@ -130,39 +162,95 @@ export default function CalendarPage() {
               onChange={(e) => setLocation(e.target.value)}
             />
             <div>
-              <label className="mb-1 block text-sm font-medium">Tipo</label>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Cliente (opzionale)
+              </label>
               <select
-                className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
+                className={appSelectClass}
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
               >
-                {calendarEventTypeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
+                <option value="">Nessun cliente</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.companyName || c.contactName || c.email || c.id}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium">Data evento (da)</label>
-              <Input
-                type="date"
-                value={eventFrom}
-                onChange={(e) => setEventFrom(e.target.value)}
-              />
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Tipo
+              </label>
+              <select
+                className={appSelectClass}
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                {allEventTypeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              {type === "SITE_VISIT" && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Dopo la creazione si apre la scheda sopralluogo per
+                  annotazioni e foto (non è un verbale).
+                </p>
+              )}
             </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium">Data evento (a)</label>
-              <Input
-                type="date"
-                value={eventTo}
-                min={eventFrom || undefined}
-                onChange={(e) => setEventTo(e.target.value)}
-              />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Orario predefinito: inizio 10:00, fine 18:00 (ultimo giorno).
-              </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Data inizio *
+                </label>
+                <Input
+                  type="date"
+                  value={eventFrom}
+                  onChange={(e) => setEventFrom(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Ora inizio
+                </label>
+                <Input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
+              </div>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Data fine
+                </label>
+                <Input
+                  type="date"
+                  value={eventTo}
+                  min={eventFrom || undefined}
+                  onChange={(e) => setEventTo(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Ora fine
+                </label>
+                <Input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </div>
+            </div>
+            <textarea
+              className="flex min-h-[64px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+              placeholder="Descrizione (opzionale)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
