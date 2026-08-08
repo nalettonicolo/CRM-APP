@@ -3,9 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { PrintToolbar } from "@/components/print/print-toolbar";
 import { Button } from "@/components/ui/button";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { inventoryApi } from "@/lib/api";
 import { skuPrefixForCategory } from "@/lib/rental";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 type Source = "rentals" | "products";
 
 export default function LabelsPrintPage() {
+  const routes = useWorkspaceRoutes();
   const [source, setSource] = useState<Source>("rentals");
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
@@ -50,10 +52,10 @@ export default function LabelsPrintPage() {
 
   return (
     <>
-      <Header title="Etichette SKU" />
+      <WorkspaceHeader title="Etichette SKU" />
       <div className="p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap gap-3 text-sm print:hidden">
-          <Link href="/inventory/print" className="text-primary hover:underline">
+          <Link href={routes.print} className="text-primary hover:underline">
             ← Area stampa
           </Link>
         </div>

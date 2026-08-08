@@ -6,6 +6,7 @@ import rateLimit from "express-rate-limit";
 import path from "path";
 import { config } from "./config/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import { workspaceDbMiddleware } from "./middleware/workspaceDb.js";
 
 import authRoutes from "./routes/auth.js";
 import clientRoutes from "./routes/clients.js";
@@ -34,6 +35,11 @@ import privacyRoutes from "./routes/privacy.js";
 import permissionsRoutes from "./routes/permissions.js";
 import siteVisitsRoutes from "./routes/siteVisits.js";
 import transportDocumentsRoutes from "./routes/transportDocuments.js";
+import jobOrdersRoutes from "./routes/jobOrders.js";
+import dailyReportsRoutes from "./routes/dailyReports.js";
+import supplierCatalogsRoutes from "./routes/supplierCatalogs.js";
+import supplierBillsRoutes from "./routes/supplierBills.js";
+import clientExpensesRoutes from "./routes/clientExpenses.js";
 
 const app = express();
 
@@ -65,6 +71,7 @@ app.use(
       callback(null, false);
     },
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "X-Workspace"],
   })
 );
 app.use(express.json({ limit: "10mb" }));
@@ -77,6 +84,7 @@ const limiter = rateLimit({
   message: { error: "Troppe richieste" },
 });
 app.use("/api/", limiter);
+app.use("/api", workspaceDbMiddleware);
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -133,6 +141,11 @@ app.use("/api/privacy", privacyRoutes);
 app.use("/api/permissions", permissionsRoutes);
 app.use("/api/site-visits", siteVisitsRoutes);
 app.use("/api/transport-documents", transportDocumentsRoutes);
+app.use("/api/job-orders", jobOrdersRoutes);
+app.use("/api/daily-reports", dailyReportsRoutes);
+app.use("/api/supplier-catalogs", supplierCatalogsRoutes);
+app.use("/api/supplier-bills", supplierBillsRoutes);
+app.use("/api/client-expenses", clientExpensesRoutes);
 
 app.use(errorHandler);
 

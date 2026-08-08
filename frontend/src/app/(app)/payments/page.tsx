@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OpenPaymentsPanel } from "@/components/payments/open-payments-panel";
+import { ClientSearchSelect } from "@/components/clients/client-search-select";
 import {
   Dialog,
   DialogContent,
@@ -367,33 +368,27 @@ export default function PaymentsPage() {
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogContent className="max-h-[90vh] overflow-visible sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
               {editing ? "Modifica pagamento" : "Nuovo pagamento"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-visible">
             <div>
               <label className="mb-1 block text-sm font-medium">Cliente *</label>
-              <select
-                className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm"
+              <ClientSearchSelect
                 value={form.clientId}
-                onChange={(e) =>
+                required
+                onChange={(id) =>
                   setForm((f) => ({
                     ...f,
-                    clientId: e.target.value,
+                    clientId: id,
                     quoteId: "",
                   }))
                 }
-              >
-                <option value="">Seleziona…</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.companyName || c.contactName || c.email}
-                  </option>
-                ))}
-              </select>
+                placeholder="Cerca o crea cliente…"
+              />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium">

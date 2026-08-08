@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { Prisma } from "@prisma/client";
-import { AppError } from "../utils/errors.js";
+import { AppError, ConflictError } from "../utils/errors.js";
 import { ZodError } from "zod";
 
 export function errorHandler(
@@ -10,10 +10,14 @@ export function errorHandler(
   _next: NextFunction
 ): void {
   if (err instanceof AppError) {
-    res.status(err.statusCode).json({
+    const body: Record<string, unknown> = {
       error: err.message,
       code: err.code,
-    });
+    };
+    if (err instanceof ConflictError) {
+      body.conflicts = err.conflicts;
+    }
+    res.status(err.statusCode).json(body);
     return;
   }
 

@@ -139,11 +139,43 @@ enum AttachmentEntity {
   USER
   EVENT
   SITE_VISIT
+  JOB_ORDER
+  SUPPLIER_CATALOG
+  SUPPLIER_BILL
+  CLIENT_EXPENSE
 }
 
 enum SiteVisitStatus {
   DRAFT
   COMPLETED
+}
+
+enum JobOrderStatus {
+  DRAFT
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  INVOICED
+}
+
+enum SupplierCatalogKind {
+  PDF
+  PRICE_LIST
+}
+
+enum SupplierBillStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum ExpenseStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  OVERDUE
 }
 
 enum ActivityAction {
@@ -179,6 +211,8 @@ model User {
   quotes        Quote[] @relation("QuoteCreator")
   paymentsRecorded ClientPayment[] @relation("PaymentRecorder")
   transportDocuments TransportDocument[] @relation("TransportDocumentCreator")
+  jobOrders     JobOrder[] @relation("JobOrderCreator")
+  dailyReports  JobDailyReport[] @relation("DailyReportAuthor")
   events        Event[] @relation("EventAssignee")
   siteVisits    SiteVisit[] @relation("SiteVisitAuthor")
   activityLogs  ActivityLog[]
@@ -298,6 +332,8 @@ model Client {
   invoicePreviews InvoicePreview[]
   payments            ClientPayment[]
   transportDocuments  TransportDocument[]
+  jobOrders           JobOrder[]
+  expenses            ClientExpense[]
   attachments         Attachment[] @relation("ClientAttachments")
   activities          ActivityLog[]
   createdAt           DateTime     @default(now())
@@ -402,8 +438,174 @@ model Supplier {
   address   String?
   notes     String?   @db.Text
   products  Product[]
+  catalogs  SupplierCatalog[]
+  bills     SupplierBill[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+}
+
+// ─── COMMESSE IMPIANTI / CATALOGHI FORNITORI ─────────────────────────────────
+
+model JobOrder {
+  id            String         @id @default(cuid())
+  number        String         @unique
+  clientId      String
+  client        Client         @relation(fields: [clientId], references: [id])
+  createdById   String
+  createdBy     User           @relation("JobOrderCreator", fields: [createdById], references: [id])
+  quoteId       String?
+  quote         Quote?         @relation(fields: [quoteId], references: [id], onDelete: SetNull)
+  title         String
+  description   String?        @db.Text
+  workType      String?
+  status        JobOrderStatus @default(DRAFT)
+  plannedStart  DateTime?
+  plannedEnd    DateTime?
+  estimatedDays Int?
+  location      String?
+  notes         String?        @db.Text
+  dailyReports  JobDailyReport[]
+  invoicePreviews InvoicePreview[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([clientId])
+  @@index([status])
+  @@index([number])
+  @@index([plannedStart])
+}
+
+model JobDailyReport {
+  id           String      @id @default(cuid())
+  number       String      @unique
+  jobOrderId   String?
+  jobOrder     JobOrder?   @relation(fields: [jobOrderId], references: [id], onDelete: SetNull)
+  authorId     String?
+  author       User?       @relation("DailyReportAuthor", fields: [authorId], references: [id])
+  workDate     DateTime
+  status       ReportStatus @default(DRAFT)
+  description  String?     @db.Text
+  workHours    Decimal     @default(0) @db.Decimal(8, 2)
+  expensesAmount Decimal   @default(0) @db.Decimal(12, 2)
+  expensesNotes String?    @db.Text
+  materials    Json?
+  checklist    Json?
+  notes        String?     @db.Text
+  submittedAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([jobOrderId, workDate])
+  @@index([jobOrderId])
+  @@index([workDate])
+  @@index([status])
+}
+
+model SupplierCatalog {
+  id              String              @id @default(cuid())
+  supplierId      String?
+  supplier        Supplier?           @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierName    String
+  title           String
+  kind            SupplierCatalogKind @default(PDF)
+  description     String?             @db.Text
+  filePath        String?
+  fileName        String?
+  mimeType        String?
+  fileSize        Int?
+  defaultDiscountPercent Decimal      @default(0) @db.Decimal(5, 2)
+  validFrom       DateTime?
+  validTo         DateTime?
+  isActive        Boolean             @default(true)
+  items           SupplierCatalogItem[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([supplierId])
+  @@index([kind])
+  @@index([supplierName])
+}
+
+model SupplierCatalogItem {
+  id              String          @id @default(cuid())
+  catalogId       String
+  catalog         SupplierCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  sortOrder       Int             @default(0)
+  sku             String?
+  name            String
+  unit            String?
+  listPrice       Decimal         @db.Decimal(12, 2)
+  discountPercent Decimal         @default(0) @db.Decimal(5, 2)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([catalogId])
+  @@index([sku])
+}
+
+/// Ricevute / fatture fornitore (scadenze in entrata — area IE).
+model SupplierBill {
+  id            String             @id @default(cuid())
+  number        String             @unique
+  supplierId    String?
+  supplier      Supplier?          @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierName  String
+  description   String?
+  invoiceDate   DateTime           @default(now())
+  dueDate       DateTime?
+  amount        Decimal            @db.Decimal(12, 2)
+  vatAmount     Decimal            @default(0) @db.Decimal(12, 2)
+  total         Decimal            @db.Decimal(12, 2)
+  paidAmount    Decimal            @default(0) @db.Decimal(12, 2)
+  status        SupplierBillStatus @default(UNPAID)
+  paidAt        DateTime?
+  reference     String?
+  notes         String?            @db.Text
+  /// Documento allegato (PDF/immagine della fattura/ricevuta)
+  filePath      String?
+  fileName      String?
+  mimeType      String?
+  fileSize      Int?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([supplierId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([invoiceDate])
+}
+
+/// Spese / costi legati a un cliente (con documento e scadenza).
+model ClientExpense {
+  id            String        @id @default(cuid())
+  number        String        @unique
+  clientId      String?
+  client        Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientName    String
+  category      String?
+  description   String?
+  expenseDate   DateTime      @default(now())
+  dueDate       DateTime?
+  amount        Decimal       @db.Decimal(12, 2)
+  vatAmount     Decimal       @default(0) @db.Decimal(12, 2)
+  total         Decimal       @db.Decimal(12, 2)
+  paidAmount    Decimal       @default(0) @db.Decimal(12, 2)
+  status        ExpenseStatus @default(UNPAID)
+  paidAt        DateTime?
+  reference     String?
+  notes         String?       @db.Text
+  filePath      String?
+  fileName      String?
+  mimeType      String?
+  fileSize      Int?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([clientId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([expenseDate])
 }
 
 // ─── QUOTES ──────────────────────────────────────────────────────────────────
@@ -454,6 +656,7 @@ model Quote {
   reports             InterventionReport[]
   siteVisits          SiteVisit[]
   transportDocuments  TransportDocument[]
+  jobOrders           JobOrder[]
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
@@ -749,6 +952,8 @@ model InvoicePreview {
   client        Client        @relation(fields: [clientId], references: [id])
   quoteId       String?
   quote         Quote?        @relation(fields: [quoteId], references: [id])
+  jobOrderId    String?
+  jobOrder      JobOrder?     @relation(fields: [jobOrderId], references: [id], onDelete: SetNull)
   subtotal      Decimal       @db.Decimal(12, 2)
   vatAmount     Decimal       @db.Decimal(12, 2)
   total         Decimal       @db.Decimal(12, 2)
@@ -775,6 +980,7 @@ model InvoicePreview {
   updatedAt     DateTime      @updatedAt
 
   @@index([clientId])
+  @@index([jobOrderId])
 }
 
 // ─── SHARED ──────────────────────────────────────────────────────────────────

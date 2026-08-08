@@ -1,7 +1,12 @@
 import { prisma } from "../lib/prisma.js";
 import { ValidationError } from "../utils/errors.js";
 
-export type DocumentEntityType = "invoice" | "quote" | "report";
+export type DocumentEntityType =
+  | "invoice"
+  | "quote"
+  | "report"
+  | "jobOrder"
+  | "dailyReport";
 
 export function parseDocumentNumber(number: string): {
   prefix: string;
@@ -21,6 +26,8 @@ const LOG_ENTITY_BY_TYPE: Record<DocumentEntityType, string> = {
   invoice: "invoice",
   quote: "quote",
   report: "report",
+  jobOrder: "jobOrder",
+  dailyReport: "dailyReport",
 };
 
 /** Visualizzazione uniforme (es. PRV-2026-003, 2026-003). */
@@ -120,6 +127,20 @@ async function fetchActiveNumbers(
   }
   if (entityType === "quote") {
     const rows = await prisma.quote.findMany({
+      where: { number: { startsWith: prefix } },
+      select: { number: true },
+    });
+    return rows.map((row) => row.number);
+  }
+  if (entityType === "jobOrder") {
+    const rows = await prisma.jobOrder.findMany({
+      where: { number: { startsWith: prefix } },
+      select: { number: true },
+    });
+    return rows.map((row) => row.number);
+  }
+  if (entityType === "dailyReport") {
+    const rows = await prisma.jobDailyReport.findMany({
       where: { number: { startsWith: prefix } },
       select: { number: true },
     });

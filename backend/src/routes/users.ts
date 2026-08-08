@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
 import { z } from "zod";
-import { prisma } from "../lib/prisma.js";
+import { prismaCrm as prisma } from "../lib/prisma.js";
 import { authenticate, adminOnly, type AuthRequest } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";

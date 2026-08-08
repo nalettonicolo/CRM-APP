@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Pencil, Printer, Trash2 } from "lucide-react";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import {
   downloadTransportDocumentPdf,
   printTransportDocumentPdf,
@@ -24,6 +25,7 @@ export default function TransportDocumentDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
 
   const { data, isLoading, isError } = useQuery({
@@ -35,16 +37,16 @@ export default function TransportDocumentDetailPage() {
     mutationFn: () => transportDocumentsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["transport-documents"] });
-      router.push("/inventory/print/ddt");
+      router.push(routes.printDdt);
     },
   });
 
   return (
     <>
-      <Header title="Dettaglio DDT" />
+      <WorkspaceHeader title="Dettaglio DDT" />
       <div className="p-3 sm:p-4 md:p-6">
         <Link
-          href="/inventory/print/ddt"
+          href={routes.printDdt}
           className="mb-4 inline-block text-sm text-primary hover:underline"
         >
           ← Elenco DDT
@@ -96,7 +98,7 @@ export default function TransportDocumentDetailPage() {
                   <Download className="h-4 w-4" /> PDF
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href={`/inventory/print/ddt/${id}/edit`}>
+                  <Link href={routes.printDdtEdit(id)}>
                     <Pencil className="h-4 w-4" /> Modifica
                   </Link>
                 </Button>

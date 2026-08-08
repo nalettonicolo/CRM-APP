@@ -8,10 +8,11 @@ import {
 } from "../middleware/auth.js";
 import { logActivity } from "../services/activityLog.js";
 import { ensureSiteVisitForEvent } from "../services/siteVisit.js";
-import { NotFoundError } from "../utils/errors.js";
+import { NotFoundError, ConflictError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
 import { parseOptionalDate } from "../utils/queryInput.js";
 import { EVENT_TYPE_VALUES } from "../constants/eventTypes.js";
+import { findScheduleConflicts } from "../services/eventConflicts.js";
 
 const eventTypeSchema = z.enum(EVENT_TYPE_VALUES);
 
@@ -86,15 +87,30 @@ router.post("/", requirePermission("events", "CREATE"), async (req: AuthRequest,
         quoteId: z.string().optional(),
         location: z.string().optional(),
         color: z.string().optional(),
+        allowOverlap: z.boolean().optional(),
       })
       .parse(req.body);
 
+    const startAt = new Date(data.startAt);
+    const endAt = data.endAt ? new Date(data.endAt) : undefined;
+
+    if (!data.allowOverlap) {
+      const conflicts = await findScheduleConflicts({ startAt, endAt });
+      if (conflicts.length) {
+        throw new ConflictError(
+          "Esistono già impegni in questo orario. Conferma per sovrascrivere la regola.",
+          conflicts
+        );
+      }
+    }
+
+    const { allowOverlap: _allow, ...createData } = data;
     const event = await prisma.event.create({
       data: {
-        ...data,
+        ...createData,
         location: data.location?.trim() || undefined,
-        startAt: new Date(data.startAt),
-        endAt: data.endAt ? new Date(data.endAt) : undefined,
+        startAt,
+        endAt,
       },
       include: eventInclude,
     });
@@ -119,6 +135,7 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req: AuthRequ
         location: z.string().optional(),
         assigneeId: z.string().optional(),
         clientId: z.string().nullable().optional(),
+        allowOverlap: z.boolean().optional(),
       })
       .parse(req.body);
 
@@ -128,6 +145,31 @@ router.patch("/:id", requirePermission("events", "UPDATE"), async (req: AuthRequ
     }
     const existing = await prisma.event.findFirst({ where: accessWhere });
     if (!existing) throw new NotFoundError();
+
+    const startAt = data.startAt ? new Date(data.startAt) : existing.startAt;
+    const endAt =
+      data.endAt !== undefined
+        ? data.endAt
+          ? new Date(data.endAt)
+          : null
+        : existing.endAt;
+
+    if (
+      !data.allowOverlap &&
+      (data.startAt !== undefined || data.endAt !== undefined)
+    ) {
+      const conflicts = await findScheduleConflicts({
+        startAt,
+        endAt,
+        excludeEventId: existing.id,
+      });
+      if (conflicts.length) {
+        throw new ConflictError(
+          "Esistono già impegni in questo orario. Conferma per sovrascrivere la regola.",
+          conflicts
+        );
+      }
+    }
 
     const event = await prisma.event.update({
       where: { id: existing.id },

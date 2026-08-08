@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText, Plus, Printer, Trash2 } from "lucide-react";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Button } from "@/components/ui/button";
 import { DataCard } from "@/components/ui/data-card";
 import { ListCard } from "@/components/ui/list-card";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import {
   printTransportDocumentPdf,
   transportDocumentsApi,
@@ -20,6 +21,7 @@ import { cn, formatDate } from "@/lib/utils";
 
 export default function TransportDocumentsPage() {
   const qc = useQueryClient();
+  const routes = useWorkspaceRoutes();
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["transport-documents"],
     queryFn: transportDocumentsApi.list,
@@ -33,10 +35,10 @@ export default function TransportDocumentsPage() {
 
   return (
     <>
-      <Header title="Documenti di trasporto (DDT)" />
+      <WorkspaceHeader title="Documenti di trasporto (DDT)" />
       <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-4 flex flex-wrap gap-3 text-sm">
-          <Link href="/inventory/print" className="text-primary hover:underline">
+          <Link href={routes.print} className="text-primary hover:underline">
             ← Centro stampa
           </Link>
         </div>
@@ -48,7 +50,7 @@ export default function TransportDocumentsPage() {
             o al catalogo noleggio.
           </p>
           <Button asChild>
-            <Link href="/inventory/print/ddt/new">
+            <Link href={routes.printDdtNew}>
               <Plus className="h-4 w-4" /> Nuovo DDT
             </Link>
           </Button>
@@ -91,7 +93,7 @@ export default function TransportDocumentsPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" variant="outline" asChild>
-                      <Link href={`/inventory/print/ddt/${doc.id}`}>Apri</Link>
+                      <Link href={routes.printDdtDetail(doc.id)}>Apri</Link>
                     </Button>
                     <Button
                       size="sm"
@@ -157,7 +159,7 @@ export default function TransportDocumentsPage() {
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-1">
                           <Button size="sm" variant="outline" asChild>
-                            <Link href={`/inventory/print/ddt/${doc.id}`}>
+                            <Link href={routes.printDdtDetail(doc.id)}>
                               <FileText className="h-4 w-4" />
                             </Link>
                           </Button>

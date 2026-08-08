@@ -1,9 +1,14 @@
 import type { Request, Response, NextFunction } from "express";
-import { prisma } from "../lib/prisma.js";
+import { prismaCrm as prisma } from "../lib/prisma.js";
 import { verifyAccessToken, type TokenPayload } from "../utils/jwt.js";
 import { UnauthorizedError, ForbiddenError } from "../utils/errors.js";
 import { hasPermission } from "../utils/permissions.js";
 import type { UserRole, PermissionAction } from "@prisma/client";
+import {
+  ensureIeActor,
+  ensureIeWarehouse,
+  wantsIeWorkspace,
+} from "./workspaceDb.js";
 
 export interface AuthRequest extends Request {
   user?: TokenPayload & { id: string };
@@ -35,6 +40,12 @@ export async function authenticate(
     }
 
     req.user = { ...payload, id: user.id, clientId: user.clientId };
+
+    if (wantsIeWorkspace(req)) {
+      await ensureIeActor(user.id);
+      await ensureIeWarehouse();
+    }
+
     next();
   } catch (err) {
     if (err instanceof UnauthorizedError) {

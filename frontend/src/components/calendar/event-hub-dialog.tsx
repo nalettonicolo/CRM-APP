@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Calendar,
   ClipboardList,
@@ -25,7 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { appSelectClass } from "@/components/ui/field-label";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
-import { clientsApi, eventsApi, siteVisitsApi, type EventItem } from "@/lib/api";
+import { ClientSearchSelect } from "@/components/clients/client-search-select";
+import { eventsApi, siteVisitsApi, type EventItem } from "@/lib/api";
 import {
   allEventTypeOptions,
   eventTypeLabels,
@@ -160,13 +161,6 @@ export function EventHubDialog({
   const router = useRouter();
   const qc = useQueryClient();
   const [form, setForm] = useState(() => (event ? eventToForm(event) : null));
-
-  const { data: clientsRes } = useQuery({
-    queryKey: ["clients", "event-hub"],
-    queryFn: () => clientsApi.list({ limit: "500" }),
-    enabled: open,
-  });
-  const clients = clientsRes?.data ?? [];
 
   useEffect(() => {
     if (event) setForm(eventToForm(event));
@@ -335,18 +329,11 @@ export function EventHubDialog({
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Cliente (opzionale)
             </label>
-            <select
-              className={appSelectClass}
+            <ClientSearchSelect
               value={form.clientId}
-              onChange={(e) => setField("clientId", e.target.value)}
-            >
-              <option value="">Nessun cliente collegato</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.companyName || c.contactName || c.email || c.id}
-                </option>
-              ))}
-            </select>
+              onChange={(id) => setField("clientId", id)}
+              placeholder="Cerca o crea cliente…"
+            />
             <p className="mt-1 text-xs text-muted-foreground">
               Gli eventi possono essere creati anche senza cliente o preventivo.
             </p>

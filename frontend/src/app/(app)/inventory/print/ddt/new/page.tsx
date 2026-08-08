@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -12,10 +12,12 @@ import {
   emptyTransportForm,
   transportFormToPayload,
 } from "@/components/transport/transport-document-form";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { transportDocumentsApi } from "@/lib/api";
 
 export default function NewTransportDocumentPage() {
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const [form, setForm] = useState(emptyTransportForm());
   const [error, setError] = useState("");
 
@@ -28,16 +30,16 @@ export default function NewTransportDocumentPage() {
       }
       return transportDocumentsApi.create(payload);
     },
-    onSuccess: (doc) => router.push(`/inventory/print/ddt/${doc.id}`),
+    onSuccess: (doc) => router.push(routes.printDdtDetail(doc.id)),
     onError: (e: Error) => setError(e.message || "Salvataggio non riuscito."),
   });
 
   return (
     <>
-      <Header title="Nuovo DDT" />
+      <WorkspaceHeader title="Nuovo DDT" />
       <div className="p-3 sm:p-4 md:p-6">
         <Link
-          href="/inventory/print/ddt"
+          href={routes.printDdt}
           className="mb-4 inline-block text-sm text-primary hover:underline"
         >
           ← Elenco DDT
@@ -62,7 +64,7 @@ export default function NewTransportDocumentPage() {
                 Crea DDT
               </Button>
               <Button variant="outline" asChild>
-                <Link href="/inventory/print/ddt">Annulla</Link>
+                <Link href={routes.printDdt}>Annulla</Link>
               </Button>
             </div>
           </CardContent>

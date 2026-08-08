@@ -32,3 +32,12 @@ export class ValidationError extends AppError {
     super(400, message, "VALIDATION_ERROR");
   }
 }
+
+export class ConflictError extends AppError {
+  constructor(
+    message = "Conflitto",
+    public conflicts: unknown[] = []
+  ) {
+    super(409, message, "SCHEDULE_CONFLICT");
+  }
+}

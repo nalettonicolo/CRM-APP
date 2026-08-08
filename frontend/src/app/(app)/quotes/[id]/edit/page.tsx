@@ -3,16 +3,18 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { DetailBack } from "@/components/detail/detail-shell";
 import { QuoteForm } from "@/components/quotes/quote-form";
 import { quotesApi } from "@/lib/api";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 
 export default function EditQuotePage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -24,9 +26,9 @@ export default function EditQuotePage() {
 
   return (
     <>
-      <Header title="Modifica preventivo" />
+      <WorkspaceHeader title="Modifica preventivo" />
       <div className="p-6">
-        <DetailBack href={`/quotes/${id}`} label="Torna al preventivo" />
+        <DetailBack href={routes.quote(id)} label="Torna al preventivo" />
         <Card className="max-w-4xl">
           <CardContent className="p-6">
             {isLoading ? (
@@ -76,7 +78,7 @@ export default function EditQuotePage() {
                       await qc.invalidateQueries({ queryKey: ["quotes"] });
                       await qc.invalidateQueries({ queryKey: ["clients"] });
                       await qc.invalidateQueries({ queryKey: ["events"] });
-                      router.push(`/quotes/${id}`);
+                      router.push(routes.quote(id));
                     } catch (err: unknown) {
                       setError(err instanceof Error ? err.message : "Errore");
                     } finally {

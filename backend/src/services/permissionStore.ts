@@ -1,5 +1,5 @@
 import type { PermissionAction, UserRole } from "@prisma/client";
-import { prisma } from "../lib/prisma.js";
+import { prismaCrm as prisma } from "../lib/prisma.js";
 import {
   ALL_CATALOG_ENTRIES,
   DEFAULT_ACTION_LABELS,

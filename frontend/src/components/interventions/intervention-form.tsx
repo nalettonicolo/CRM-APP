@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { clientsApi, usersApi } from "@/lib/api";
+import { ClientSearchSelect } from "@/components/clients/client-search-select";
+import { usersApi } from "@/lib/api";
 import { dateInputToIso } from "@/lib/utils";
 
 export type InterventionFormData = {
@@ -26,11 +28,7 @@ export function InterventionForm({
   onSubmit: (data: InterventionFormData) => void | Promise<void>;
   initial?: Partial<InterventionFormData & { scheduledDate?: string; scheduledTime?: string }>;
 }) {
-  const { data: clientsRes } = useQuery({
-    queryKey: ["clients", "intervention-form"],
-    queryFn: () => clientsApi.list({ limit: "500" }),
-  });
-  const clients = clientsRes?.data ?? [];
+  const [clientId, setClientId] = useState(initial?.clientId || "");
 
   const { data: users = [] } = useQuery({
     queryKey: ["users", "intervention-form"],
@@ -51,7 +49,6 @@ export function InterventionForm({
       onSubmit={(e) => {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
-        const clientId = String(fd.get("clientId") || "");
         const title = String(fd.get("title") || "").trim();
         const description = String(fd.get("description") || "").trim();
         const location = String(fd.get("location") || "").trim();
@@ -84,19 +81,12 @@ export function InterventionForm({
     >
       <div>
         <label className="mb-1 block text-sm font-medium">Cliente *</label>
-        <select
-          name="clientId"
+        <ClientSearchSelect
+          value={clientId}
+          onChange={(id) => setClientId(id)}
+          placeholder="Cerca o crea cliente…"
           required
-          defaultValue={initial?.clientId || ""}
-          className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
-        >
-          <option value="">Seleziona cliente</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.companyName || c.contactName || c.email || c.id}
-            </option>
-          ))}
-        </select>
+        />
       </div>
 
       <div>

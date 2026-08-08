@@ -1,7 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcrypt";
 import { z } from "zod";
-import { prisma } from "../lib/prisma.js";
+import { prismaCrm as prisma } from "../lib/prisma.js";
 import {
   signAccessToken,
   signRefreshToken,

@@ -15,6 +15,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { invoicesApi, quotesApi } from "@/lib/api";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { formatCurrency } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ function clientLabel(c: {
 
 export function InvoiceCreateDialog() {
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [quoteId, setQuoteId] = useState("");
@@ -67,7 +69,7 @@ export function InvoiceCreateDialog() {
       if (quoteId) qc.invalidateQueries({ queryKey: ["quote", quoteId] });
       setOpen(false);
       setQuoteId("");
-      router.push(`/invoices/${inv.id}`);
+      router.push(routes.invoice(inv.id));
     },
   });
 

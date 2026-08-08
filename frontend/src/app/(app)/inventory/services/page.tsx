@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,7 @@ import {
   SERVICE_UNIT_OPTIONS,
   serviceUnitLabel,
 } from "@/lib/labels";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -54,6 +55,7 @@ function resolveUnit(unit: string, customUnit: string) {
 
 export default function ServicesPage() {
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const searchParams = useSearchParams();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -69,8 +71,8 @@ export default function ServicesPage() {
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
     openCreateDialog();
-    router.replace("/inventory/services");
-  }, [searchParams, router, openCreateDialog]);
+    router.replace(routes.services);
+  }, [searchParams, router, openCreateDialog, routes.services]);
 
   const { data: services = [], isLoading } = useQuery({
     queryKey: ["services", "all"],
@@ -211,9 +213,9 @@ export default function ServicesPage() {
 
   return (
     <>
-      <Header title="Catalogo servizi" />
+      <WorkspaceHeader title="Catalogo servizi" />
       <div className="p-3 sm:p-4 md:p-6">
-        <Link href="/inventory" className="text-sm text-primary hover:underline">
+        <Link href={routes.inventory} className="text-sm text-primary hover:underline">
           ← Magazzino
         </Link>
         <p className="mt-2 max-w-2xl text-sm text-muted-foreground">

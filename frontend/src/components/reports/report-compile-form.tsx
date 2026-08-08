@@ -7,10 +7,10 @@ import Link from "next/link";
 import { FileText, MapPin, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ClientSearchSelect } from "@/components/clients/client-search-select";
 import { ReportPreviewStep } from "@/components/reports/report-preview-step";
 import { ReportSignStep } from "@/components/reports/report-sign-step";
 import {
-  clientsApi,
   interventionsApi,
   quotesApi,
   reportsApi,
@@ -139,11 +139,6 @@ export function ReportCompileForm({
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quotePrefill, initial]);
-
-  const { data: clientsData } = useQuery({
-    queryKey: ["clients-select"],
-    queryFn: () => clientsApi.list({ limit: "200" }),
-  });
 
   const { data: clientQuotes } = useQuery({
     queryKey: ["quotes-by-client", clientId],
@@ -316,22 +311,15 @@ export function ReportCompileForm({
 
       <div>
         <label className="mb-1 block text-sm font-medium">Cliente</label>
-        <select
-          className="flex h-10 w-full rounded-lg border border-border bg-card px-3 text-sm"
+        <ClientSearchSelect
           value={clientId}
-          onChange={(e) => {
-            setClientId(e.target.value);
+          required
+          onChange={(id) => {
+            setClientId(id);
             setQuoteId("");
           }}
-          required
-        >
-          <option value="">Seleziona…</option>
-          {clientsData?.data?.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.companyName || c.contactName || c.email}
-            </option>
-          ))}
-        </select>
+          placeholder="Cerca o crea cliente…"
+        />
       </div>
 
       {clientId && (

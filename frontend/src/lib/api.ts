@@ -1,4 +1,5 @@
 import { apiUrl, apiUrlDirect } from "./api-origin";
+import { getApiWorkspace } from "./api-workspace";
 
 /** Solo per asset statici (/uploads); le fetch API usano apiUrl(). */
 export const API_ASSET_ORIGIN =
@@ -10,7 +11,8 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
-    public details?: Record<string, string[] | undefined>
+    public details?: Record<string, string[] | undefined>,
+    public conflicts?: unknown[]
   ) {
     super(message);
   }
@@ -36,19 +38,31 @@ async function apiHealthFeatures(): Promise<{
   }
 }
 
+function apiAuthHeaders(includeJson = false): Record<string, string> {
+  const headers: Record<string, string> = {};
+  if (includeJson) headers["Content-Type"] = "application/json";
+  const token = getToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (getApiWorkspace() === "ie") headers["X-Workspace"] = "ie";
+  return headers;
+}
+
+function apiHeaders(extra?: HeadersInit): HeadersInit {
+  return {
+    ...apiAuthHeaders(true),
+    ...(extra as Record<string, string> | undefined),
+  };
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit = {},
   config?: { direct?: boolean }
 ): Promise<T> {
-  const token = getToken();
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
+    ...apiHeaders(),
     ...(options.headers || {}),
   };
-  if (token) {
-    (headers as Record<string, string>)["Authorization"] = `Bearer ${token}`;
-  }
 
   const url = config?.direct ? apiUrlDirect(path) : apiUrl(path);
   const res = await fetch(url, {
@@ -81,7 +95,8 @@ export async function api<T>(
       res.status,
       data.error || fallback,
       data.code,
-      data.details as Record<string, string[] | undefined> | undefined
+      data.details as Record<string, string[] | undefined> | undefined,
+      Array.isArray(data.conflicts) ? data.conflicts : undefined
     );
   }
   return data as T;
@@ -251,9 +266,8 @@ export const quotesApi = {
 };
 
 async function fetchAuthenticatedPdf(path: string): Promise<Blob> {
-  const token = getToken();
   const res = await fetch(apiUrl(path), {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers: apiAuthHeaders(),
     credentials: "include",
   });
   if (!res.ok) throw new ApiError(res.status, "PDF non disponibile");
@@ -946,6 +960,7 @@ export const eventsApi = {
     location?: string;
     clientId?: string;
     allDay?: boolean;
+    allowOverlap?: boolean;
   }) =>
     api<EventItem>("/events", { method: "POST", body: JSON.stringify(data) }),
   update: (
@@ -958,6 +973,7 @@ export const eventsApi = {
       startAt: string;
       endAt: string;
       clientId: string | null;
+      allowOverlap: boolean;
     }>
   ) =>
     api<EventItem>(`/events/${id}`, {
@@ -1057,6 +1073,11 @@ export const invoicesApi = {
       body: JSON.stringify({ quoteId }),
     }),
   fromQuote: (quoteId: string) => invoicesApi.createFromQuote(quoteId),
+  createFromJobOrder: (jobOrderId: string, reportIds: string[]) =>
+    api<Invoice>("/invoices", {
+      method: "POST",
+      body: JSON.stringify({ jobOrderId, reportIds }),
+    }),
   sendEmail: (id: string) =>
     api<{ success: boolean; invoice: Invoice }>(`/invoices/${id}/send-email`, {
       method: "POST",
@@ -1510,14 +1531,13 @@ export const attachmentsApi = {
       `/attachments?${new URLSearchParams({ entityType, entityId })}`
     ),
   upload: async (file: File, entityType: string, entityId: string) => {
-    const token = getToken();
     const fd = new FormData();
     fd.append("file", file);
     fd.append("entityType", entityType);
     fd.append("entityId", entityId);
     const res = await fetch(apiUrl("/attachments"), {
       method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: apiAuthHeaders(),
       body: fd,
       credentials: "include",
     });
@@ -1684,6 +1704,285 @@ export const privacyApi = {
       deletedLeads: number;
       deletedActivityLogs: number;
     }>("/privacy/maintenance", { method: "POST" }),
+};
+
+export interface JobDailyReport {
+  id: string;
+  number: string;
+  jobOrderId?: string | null;
+  workDate: string;
+  status: string;
+  description?: string | null;
+  workHours: number | string;
+  expensesAmount: number | string;
+  expensesNotes?: string | null;
+  materials?: unknown;
+  notes?: string | null;
+  jobOrder?: {
+    id: string;
+    number: string;
+    title: string;
+    clientId?: string;
+    client?: { id: string; companyName?: string | null; contactName?: string | null };
+  } | null;
+}
+
+export interface JobOrder {
+  id: string;
+  number: string;
+  clientId: string;
+  title: string;
+  description?: string | null;
+  workType?: string | null;
+  status: string;
+  plannedStart?: string | null;
+  plannedEnd?: string | null;
+  estimatedDays?: number | null;
+  location?: string | null;
+  notes?: string | null;
+  quoteId?: string | null;
+  client?: { id: string; companyName?: string | null; contactName?: string | null };
+  quote?: { id: string; number: string; title?: string | null } | null;
+  dailyReports?: JobDailyReport[];
+  _count?: { dailyReports: number; invoicePreviews: number };
+}
+
+export const jobOrdersApi = {
+  list: (params?: { status?: string; clientId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.status) q.set("status", params.status);
+    if (params?.clientId) q.set("clientId", params.clientId);
+    const qs = q.toString() ? `?${q}` : "";
+    return api<JobOrder[]>(`/job-orders${qs}`);
+  },
+  get: (id: string) => api<JobOrder>(`/job-orders/${id}`),
+  create: (data: Record<string, unknown>) =>
+    api<JobOrder>("/job-orders", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: Record<string, unknown>) =>
+    api<JobOrder>(`/job-orders/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/job-orders/${id}`, { method: "DELETE" }),
+  addReport: (id: string, data: Record<string, unknown>) =>
+    api<JobDailyReport>(`/job-orders/${id}/reports`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateReport: (id: string, reportId: string, data: Record<string, unknown>) =>
+    api<JobDailyReport>(`/job-orders/${id}/reports/${reportId}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+};
+
+export const dailyReportsApi = {
+  list: (params?: { unlinked?: boolean; jobOrderId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.unlinked) q.set("unlinked", "1");
+    if (params?.jobOrderId) q.set("jobOrderId", params.jobOrderId);
+    const qs = q.toString() ? `?${q}` : "";
+    return api<JobDailyReport[]>(`/daily-reports${qs}`);
+  },
+  get: (id: string) => api<JobDailyReport>(`/daily-reports/${id}`),
+  create: (data: Record<string, unknown>) =>
+    api<JobDailyReport>("/daily-reports", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Record<string, unknown>) =>
+    api<JobDailyReport>(`/daily-reports/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/daily-reports/${id}`, { method: "DELETE" }),
+  linkToJob: (id: string, jobOrderId: string | null) =>
+    dailyReportsApi.update(id, { jobOrderId }),
+};
+
+export interface SupplierCatalogItem {
+  id?: string;
+  sku?: string | null;
+  name: string;
+  unit?: string | null;
+  listPrice: number | string;
+  discountPercent?: number | string;
+  notes?: string | null;
+}
+
+export interface SupplierCatalog {
+  id: string;
+  supplierId?: string | null;
+  supplierName: string;
+  title: string;
+  kind: "PDF" | "PRICE_LIST";
+  description?: string | null;
+  filePath?: string | null;
+  fileName?: string | null;
+  defaultDiscountPercent: number | string;
+  isActive: boolean;
+  items: SupplierCatalogItem[];
+}
+
+export const supplierCatalogsApi = {
+  list: (kind?: string) => {
+    const q = kind ? `?kind=${encodeURIComponent(kind)}` : "";
+    return api<SupplierCatalog[]>(`/supplier-catalogs${q}`);
+  },
+  get: (id: string) => api<SupplierCatalog>(`/supplier-catalogs/${id}`),
+  create: (data: Record<string, unknown>) =>
+    api<SupplierCatalog>("/supplier-catalogs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Record<string, unknown>) =>
+    api<SupplierCatalog>(`/supplier-catalogs/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/supplier-catalogs/${id}`, { method: "DELETE" }),
+  uploadPdf: async (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(apiUrl(`/supplier-catalogs/${id}/pdf`), {
+      method: "POST",
+      headers: apiAuthHeaders(),
+      body: fd,
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data.error || "Upload fallito");
+    return data as SupplierCatalog;
+  },
+};
+
+export interface SupplierBill {
+  id: string;
+  number: string;
+  supplierId?: string | null;
+  supplierName: string;
+  description?: string | null;
+  invoiceDate: string;
+  dueDate?: string | null;
+  amount: number | string;
+  vatAmount: number | string;
+  total: number | string;
+  paidAmount: number | string;
+  status: "UNPAID" | "PARTIAL" | "PAID" | "OVERDUE";
+  paidAt?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  filePath?: string | null;
+  fileName?: string | null;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  supplier?: { id: string; name: string; email?: string | null } | null;
+}
+
+export const supplierBillsApi = {
+  list: (params?: { open?: boolean; status?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.open) q.set("open", "1");
+    if (params?.status) q.set("status", params.status);
+    const qs = q.toString() ? `?${q}` : "";
+    return api<SupplierBill[]>(`/supplier-bills${qs}`);
+  },
+  get: (id: string) => api<SupplierBill>(`/supplier-bills/${id}`),
+  create: (data: Record<string, unknown>) =>
+    api<SupplierBill>("/supplier-bills", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Record<string, unknown>) =>
+    api<SupplierBill>(`/supplier-bills/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/supplier-bills/${id}`, { method: "DELETE" }),
+  uploadDocument: async (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(apiUrl(`/supplier-bills/${id}/document`), {
+      method: "POST",
+      headers: apiAuthHeaders(),
+      body: fd,
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data.error || "Upload fallito");
+    return data as SupplierBill;
+  },
+};
+
+export interface ClientExpense {
+  id: string;
+  number: string;
+  clientId?: string | null;
+  clientName: string;
+  category?: string | null;
+  description?: string | null;
+  expenseDate: string;
+  dueDate?: string | null;
+  amount: number | string;
+  vatAmount: number | string;
+  total: number | string;
+  paidAmount: number | string;
+  status: "UNPAID" | "PARTIAL" | "PAID" | "OVERDUE";
+  paidAt?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+  filePath?: string | null;
+  fileName?: string | null;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  client?: {
+    id: string;
+    companyName?: string | null;
+    contactName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
+}
+
+export const clientExpensesApi = {
+  list: (params?: { open?: boolean; status?: string; clientId?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.open) q.set("open", "1");
+    if (params?.status) q.set("status", params.status);
+    if (params?.clientId) q.set("clientId", params.clientId);
+    const qs = q.toString() ? `?${q}` : "";
+    return api<ClientExpense[]>(`/client-expenses${qs}`);
+  },
+  get: (id: string) => api<ClientExpense>(`/client-expenses/${id}`),
+  create: (data: Record<string, unknown>) =>
+    api<ClientExpense>("/client-expenses", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Record<string, unknown>) =>
+    api<ClientExpense>(`/client-expenses/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    api<{ success: boolean }>(`/client-expenses/${id}`, { method: "DELETE" }),
+  uploadDocument: async (id: string, file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch(apiUrl(`/client-expenses/${id}/document`), {
+      method: "POST",
+      headers: apiAuthHeaders(),
+      body: fd,
+      credentials: "include",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new ApiError(res.status, data.error || "Upload fallito");
+    return data as ClientExpense;
+  },
 };
 
 export async function downloadClientExport(id: string, filename: string) {

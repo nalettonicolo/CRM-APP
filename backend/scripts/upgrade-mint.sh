@@ -67,15 +67,26 @@ if [[ ! -d "$CRM_ROOT/node_modules/@types/node" ]]; then
   exit 1
 fi
 
-echo "==> Schema database (nuove tabelle/colonne)"
+echo "==> Schema database CRM (nuove tabelle/colonne)"
 (
   cd "$BACKEND"
   npx prisma db push --schema=prisma/schema.prisma
   if [[ "${RUN_DB_SEED:-}" == "1" ]]; then
-    echo "==> Seed database (RUN_DB_SEED=1)"
+    echo "==> Seed database CRM (RUN_DB_SEED=1)"
     npx prisma db seed
   fi
 )
+
+if [[ -n "${DATABASE_URL_IE:-}" ]]; then
+  echo "==> Schema database Impianti Elettrici (DATABASE_URL_IE)"
+  (
+    cd "$BACKEND"
+    DATABASE_URL="$DATABASE_URL_IE" npx prisma db push --schema=prisma/schema.prisma
+  )
+else
+  echo "==> Impianti Elettrici: DATABASE_URL_IE non impostato (salta schema IE)"
+  echo "    Per creare il DB: ./backend/scripts/setup-impianti-elettrici-db.sh"
+fi
 
 echo "==> Build API (dalla root monorepo — non da backend/)"
 cd "$CRM_ROOT"

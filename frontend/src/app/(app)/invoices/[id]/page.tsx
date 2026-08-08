@@ -5,11 +5,12 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Download, Mail, Pencil, Printer, Receipt, Trash2 } from "lucide-react";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack, DetailField, DetailSection } from "@/components/detail/detail-shell";
 import { Button } from "@/components/ui/button";
 import { downloadInvoicePdf, printInvoicePdf, invoicesApi } from "@/lib/api";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { PaymentMethodLine } from "@/components/documents/payment-method-line";
 import { formatInvoicePaymentLineSegments } from "@/lib/labels";
 import {
@@ -26,6 +27,7 @@ import { cn, formatCurrency, formatDate, formatEventDateRange } from "@/lib/util
 export default function InvoiceDetailPage() {
   const id = useParams().id as string;
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
   const [banner, setBanner] = useState("");
 
@@ -65,7 +67,7 @@ export default function InvoiceDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["invoices"] });
       qc.invalidateQueries({ queryKey: ["payments"] });
-      router.push("/invoices");
+      router.push(routes.invoices);
     },
     onError: (e: Error) =>
       setBanner(e.message || "Errore durante l'eliminazione del documento."),
@@ -73,9 +75,9 @@ export default function InvoiceDetailPage() {
 
   return (
     <>
-      <Header title={DOCUMENT_COPY.invoice.detailTitle} />
+      <WorkspaceHeader title={DOCUMENT_COPY.invoice.detailTitle} />
       <div className="p-6">
-        <DetailBack href="/invoices" label={DOCUMENT_COPY.invoice.detailBack} />
+        <DetailBack href={routes.invoices} label={DOCUMENT_COPY.invoice.detailBack} />
 
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento...</p>
@@ -119,7 +121,7 @@ export default function InvoiceDetailPage() {
                   )}
                   {data.quote && (
                     <Link
-                      href={`/quotes/${data.quoteId}`}
+                      href={routes.quote(data.quoteId!)}
                       className="mt-1 block text-xs text-muted-foreground hover:text-primary"
                     >
                       {DOCUMENT_COPY.invoice.fromQuotePrefix} {data.quote.number}
@@ -182,7 +184,7 @@ export default function InvoiceDetailPage() {
                       : DOCUMENT_COPY.invoice.sendEmail}
                 </Button>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/invoices/${id}/edit`}>
+                  <Link href={routes.invoiceEdit(id)}>
                     <Pencil className="h-4 w-4" /> Modifica
                   </Link>
                 </Button>

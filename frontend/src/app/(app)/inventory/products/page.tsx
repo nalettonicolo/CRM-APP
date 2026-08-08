@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useWorkspace, useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { inventoryApi, type Product } from "@/lib/api";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { skuPrefixForCategory } from "@/lib/rental";
@@ -27,6 +28,8 @@ const empty = { name: "", sku: "", price: "", category: "Audio" };
 
 export default function ProductsPage() {
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
+  const workspace = useWorkspace();
   const searchParams = useSearchParams();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -41,8 +44,8 @@ export default function ProductsPage() {
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
     openCreateDialog();
-    router.replace("/inventory/products");
-  }, [searchParams, router, openCreateDialog]);
+    router.replace(routes.products);
+  }, [searchParams, router, openCreateDialog, routes.products]);
 
   const { data: products = [], isLoading } = useQuery({
     queryKey: ["products", "sale"],
@@ -118,16 +121,18 @@ export default function ProductsPage() {
 
   return (
     <>
-      <Header title="Prodotti" />
+      <WorkspaceHeader title="Prodotti" />
       <div className="p-3 sm:p-4 md:p-6">
         <div className="flex flex-wrap gap-3 text-sm">
-          <Link href="/inventory" className="text-primary hover:underline">
+          <Link href={routes.inventory} className="text-primary hover:underline">
             ← Magazzino
           </Link>
-          <Link href="/inventory/rentals" className="text-primary hover:underline">
-            Catalogo noleggio →
-          </Link>
-          <Link href="/inventory/services" className="text-primary hover:underline">
+          {workspace === "crm" && (
+            <Link href="/inventory/rentals" className="text-primary hover:underline">
+              Catalogo noleggio →
+            </Link>
+          )}
+          <Link href={routes.services} className="text-primary hover:underline">
             Catalogo servizi →
           </Link>
         </div>

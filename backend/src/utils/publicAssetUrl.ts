@@ -3,8 +3,19 @@ import { config } from "../config/index.js";
 /** URL assoluto per file in /uploads (home pubblica, email, PDF). */
 export function toPublicAssetUrl(pathOrUrl: string | undefined | null): string {
   if (!pathOrUrl?.trim()) return "";
-  const s = pathOrUrl.trim();
-  if (/^https?:\/\//i.test(s)) return s;
+  let s = pathOrUrl.trim();
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      if (u.pathname.startsWith("/uploads/")) {
+        s = u.pathname;
+      } else {
+        return s;
+      }
+    } catch {
+      return s;
+    }
+  }
   const base = config.apiUrl.replace(/\/$/, "");
   return `${base}${s.startsWith("/") ? s : `/${s}`}`;
 }

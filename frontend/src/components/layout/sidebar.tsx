@@ -25,7 +25,9 @@ import {
   UserCog,
   Inbox,
   History,
+  LayoutGrid,
   X,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -72,6 +74,8 @@ const staffGroups: NavGroup[] = [
 ];
 
 const adminItems: NavItem[] = [
+  { href: "/seleziona-area", label: "Aree di lavoro", icon: LayoutGrid },
+  { href: "/impianti-elettrici", label: "Impianti Elettrici", icon: Zap },
   { href: "/leads", label: "Richieste", icon: Inbox },
   { href: "/activity-logs", label: "Audit", icon: History },
   { href: "/users", label: "Utenti", icon: UserCog },

@@ -7,7 +7,7 @@ import { MonthCalendar } from "@/components/calendar/month-calendar";
 import { EventHubDialog } from "@/components/calendar/event-hub-dialog";
 import type { EventItem } from "@/lib/api";
 import { UpcomingEventsPanel } from "@/components/events/upcoming-events-panel";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { appSelectClass } from "@/components/ui/field-label";
@@ -19,13 +19,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { clientsApi, eventsApi } from "@/lib/api";
+import { ApiError, eventsApi } from "@/lib/api";
 import { allEventTypeOptions } from "@/lib/labels";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { PageCreateButton } from "@/components/layout/page-create-action";
+import { ClientSearchSelect } from "@/components/clients/client-search-select";
+import { useWorkspace } from "@/contexts/workspace-context";
 
 export default function CalendarPage() {
   const router = useRouter();
+  const workspace = useWorkspace();
   const [hubEvent, setHubEvent] = useState<EventItem | null>(null);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -37,14 +40,8 @@ export default function CalendarPage() {
   const [eventTo, setEventTo] = useState("");
   const [startTime, setStartTime] = useState("10:00");
   const [endTime, setEndTime] = useState("18:00");
+  const [createError, setCreateError] = useState("");
   const qc = useQueryClient();
-
-  const { data: clientsRes } = useQuery({
-    queryKey: ["clients", "calendar-create"],
-    queryFn: () => clientsApi.list({ limit: "500" }),
-    enabled: open,
-  });
-  const clients = clientsRes?.data ?? [];
 
   const upcomingFrom = useMemo(() => new Date().toISOString(), []);
 
@@ -75,7 +72,7 @@ export default function CalendarPage() {
   }
 
   const createMut = useMutation({
-    mutationFn: () => {
+    mutationFn: (allowOverlap: boolean) => {
       const [sh, sm] = startTime.split(":").map(Number);
       const [eh, em] = endTime.split(":").map(Number);
       const [y1, m1, d1] = eventFrom.split("-").map(Number);
@@ -91,9 +88,11 @@ export default function CalendarPage() {
         type,
         startAt,
         endAt,
+        allowOverlap: allowOverlap || undefined,
       });
     },
     onSuccess: (created) => {
+      setCreateError("");
       qc.invalidateQueries({ queryKey: ["events"] });
       setOpen(false);
       resetCreateForm();
@@ -101,15 +100,31 @@ export default function CalendarPage() {
         router.push(`/site-visits/${created.id}`);
       }
     },
+    onError: (err: unknown) => {
+      if (err instanceof ApiError && err.code === "SCHEDULE_CONFLICT") {
+        const names = (err.conflicts as Array<{ title?: string }> | undefined)
+          ?.map((c) => c.title)
+          .filter(Boolean)
+          .join(", ");
+        const ok = window.confirm(
+          `${err.message}\n\nIn conflitto: ${names || "altri impegni"}.\n\nVuoi salvarlo comunque?`
+        );
+        if (ok) createMut.mutate(true);
+        return;
+      }
+      setCreateError(err instanceof Error ? err.message : "Errore salvataggio");
+    },
   });
 
   return (
     <>
-      <Header title="Calendario" />
+      <WorkspaceHeader title="Calendario" />
       <div className="p-3 sm:p-4 md:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            Vista mensile e lista dei prossimi appuntamenti
+            {workspace === "ie"
+              ? "Calendario condiviso con Nicolò Service: gli impegni non si sovrappongono salvo tua conferma."
+              : "Vista mensile e lista dei prossimi appuntamenti"}
           </p>
           <PageCreateButton
             label={SECTION_CREATE.event}
@@ -165,18 +180,11 @@ export default function CalendarPage() {
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
                 Cliente (opzionale)
               </label>
-              <select
-                className={appSelectClass}
+              <ClientSearchSelect
                 value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-              >
-                <option value="">Nessun cliente</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.companyName || c.contactName || c.email || c.id}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => setClientId(id)}
+                placeholder="Cerca o crea cliente…"
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-muted-foreground">
@@ -251,6 +259,9 @@ export default function CalendarPage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
@@ -258,7 +269,7 @@ export default function CalendarPage() {
             </Button>
             <Button
               disabled={!title || !eventFrom || createMut.isPending}
-              onClick={() => createMut.mutate()}
+              onClick={() => createMut.mutate(false)}
             >
               Crea
             </Button>

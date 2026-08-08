@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -13,12 +13,14 @@ import {
   transportFormFromDocument,
   transportFormToPayload,
 } from "@/components/transport/transport-document-form";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { transportDocumentsApi } from "@/lib/api";
 
 export default function EditTransportDocumentPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const [form, setForm] = useState(emptyTransportForm());
   const [error, setError] = useState("");
 
@@ -39,16 +41,16 @@ export default function EditTransportDocumentPage() {
       }
       return transportDocumentsApi.update(id, payload);
     },
-    onSuccess: () => router.push(`/inventory/print/ddt/${id}`),
+    onSuccess: () => router.push(routes.printDdtDetail(id)),
     onError: (e: Error) => setError(e.message || "Salvataggio non riuscito."),
   });
 
   return (
     <>
-      <Header title="Modifica DDT" />
+      <WorkspaceHeader title="Modifica DDT" />
       <div className="p-3 sm:p-4 md:p-6">
         <Link
-          href={`/inventory/print/ddt/${id}`}
+          href={routes.printDdtDetail(id)}
           className="mb-4 inline-block text-sm text-primary hover:underline"
         >
           ← Dettaglio DDT
@@ -82,7 +84,7 @@ export default function EditTransportDocumentPage() {
                   Salva modifiche
                 </Button>
                 <Button variant="outline" asChild>
-                  <Link href={`/inventory/print/ddt/${id}`}>Annulla</Link>
+                  <Link href={routes.printDdtDetail(id)}>Annulla</Link>
                 </Button>
               </div>
             </CardContent>

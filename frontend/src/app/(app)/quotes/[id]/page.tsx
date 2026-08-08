@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { FileText, User, Pencil, Download, Mail, Receipt, Check, X, Trash2, Printer } from "lucide-react";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { Button } from "@/components/ui/button";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import {
   DetailBack,
   DetailField,
@@ -18,6 +18,7 @@ import { consolidatePaymentTermsForDisplay } from "@/lib/consolidate-payment-ter
 import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import { formatQuoteServicePeriod } from "@/lib/quote-display";
 import { downloadQuotePdf, printQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { PaymentMethodLine } from "@/components/documents/payment-method-line";
 import {
   formatInvoicePaymentLineSegments,
@@ -42,6 +43,7 @@ export default function QuoteDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
   const [pdfBusy, setPdfBusy] = useState(false);
   const [deleteError, setDeleteError] = useState("");
@@ -54,7 +56,7 @@ export default function QuoteDetailPage() {
       qc.invalidateQueries({ queryKey: ["invoices"] });
       qc.invalidateQueries({ queryKey: ["quotes"] });
       qc.invalidateQueries({ queryKey: ["quote", id] });
-      router.push(`/invoices/${inv.id}`);
+      router.push(routes.invoice(inv.id));
     },
   });
 
@@ -103,7 +105,7 @@ export default function QuoteDetailPage() {
       if (quote?.client?.id) {
         qc.invalidateQueries({ queryKey: ["client", quote.client.id] });
       }
-      router.push("/quotes");
+      router.push(routes.quotes);
     },
     onError: (e: Error) =>
       setDeleteError(e.message || "Impossibile eliminare il preventivo."),
@@ -116,9 +118,9 @@ export default function QuoteDetailPage() {
 
   return (
     <>
-      <Header title="Dettaglio preventivo" />
+      <WorkspaceHeader title="Dettaglio preventivo" />
       <div className="p-6">
-        <DetailBack href="/quotes" label="Torna ai preventivi" />
+        <DetailBack href={routes.quotes} label="Torna ai preventivi" />
 
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento...</p>
@@ -217,7 +219,7 @@ export default function QuoteDetailPage() {
                         : "Invia email"}
                   </Button>
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={`/quotes/${id}/edit`}>
+                    <Link href={routes.quoteEdit(id)}>
                       <Pencil className="h-4 w-4" /> Modifica
                     </Link>
                   </Button>

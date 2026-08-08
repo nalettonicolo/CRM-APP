@@ -93,13 +93,29 @@ export function mergeSiteHome(raw: unknown): SiteHomeSettings {
   };
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
 
-/** URL assoluto per logo, galleria, allegati (Netlify → API su Mint/Tailscale). */
+/**
+ * URL assoluto per logo, galleria, allegati.
+ * Se in DB c'è un vecchio host assoluto (tunnel Cloudflare scaduto),
+ * riusa solo il path /uploads/... sull'API corrente.
+ */
 export function publicAssetUrl(pathOrUrl: string | undefined | null): string {
   if (!pathOrUrl?.trim()) return "";
-  const s = pathOrUrl.trim();
-  if (/^https?:\/\//i.test(s)) return s;
+  let s = pathOrUrl.trim();
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const u = new URL(s);
+      if (u.pathname.startsWith("/uploads/")) {
+        s = u.pathname;
+      } else {
+        return s;
+      }
+    } catch {
+      return s;
+    }
+  }
   const base = API_URL.replace(/\/$/, "");
   const path = s.startsWith("/") ? s : `/${s}`;
   return base ? `${base}${path}` : path;

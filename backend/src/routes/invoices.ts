@@ -105,6 +105,14 @@ router.get("/", requirePermission("invoices", "READ"), async (req: AuthRequest, 
 const invoiceInclude = {
   client: true,
   quote: { include: { items: { orderBy: { sortOrder: "asc" as const } } } },
+  jobOrder: {
+    select: {
+      id: true,
+      number: true,
+      title: true,
+      dailyReports: { orderBy: { workDate: "asc" as const } },
+    },
+  },
   attachments: { orderBy: { createdAt: "asc" as const } },
 };
 
@@ -131,7 +139,119 @@ router.get("/:id", requirePermission("invoices", "READ"), async (req: AuthReques
 
 router.post("/", requirePermission("invoices", "CREATE"), async (req: AuthRequest, res, next) => {
   try {
-    const { quoteId } = z.object({ quoteId: z.string() }).parse(req.body);
+    const body = z
+      .object({
+        quoteId: z.string().optional(),
+        jobOrderId: z.string().optional(),
+        reportIds: z.array(z.string()).optional(),
+      })
+      .parse(req.body);
+
+    if (body.jobOrderId) {
+      const job = await prisma.jobOrder.findUnique({
+        where: { id: body.jobOrderId },
+        include: {
+          dailyReports: { orderBy: { workDate: "asc" } },
+        },
+      });
+      if (!job) throw new NotFoundError("Commessa non trovata");
+
+      const selected = body.reportIds?.length
+        ? job.dailyReports.filter((r) => body.reportIds!.includes(r.id))
+        : job.dailyReports;
+      if (!selected.length) {
+        throw new ValidationError("Seleziona almeno un report giornaliero");
+      }
+
+      const items: Array<{
+        description: string;
+        quantity: number;
+        unit: string | null;
+        unitPrice: number;
+        vatRate: number;
+        total: number;
+      }> = [];
+
+      for (const report of selected) {
+        const dateLabel = new Date(report.workDate).toLocaleDateString("it-IT");
+        items.push({
+          description: `Report ${report.number} — ${dateLabel}${
+            report.description ? `: ${report.description}` : ""
+          }`,
+          quantity: Number(report.workHours) || 1,
+          unit: Number(report.workHours) > 0 ? "ora" : "gg",
+          unitPrice: 0,
+          vatRate: 22,
+          total: 0,
+        });
+        const materials = Array.isArray(report.materials)
+          ? (report.materials as Array<Record<string, unknown>>)
+          : [];
+        for (const mat of materials) {
+          const name = String(mat.name || mat.description || "Materiale");
+          const qty = Number(mat.quantity ?? 1) || 1;
+          const unitPrice = Number(mat.unitPrice ?? 0) || 0;
+          items.push({
+            description: name,
+            quantity: qty,
+            unit: mat.unit ? String(mat.unit) : "pz",
+            unitPrice,
+            vatRate: 22,
+            total: qty * unitPrice,
+          });
+        }
+        const expenses = Number(report.expensesAmount) || 0;
+        if (expenses > 0) {
+          items.push({
+            description: report.expensesNotes || `Spese ${report.number}`,
+            quantity: 1,
+            unit: "corpo",
+            unitPrice: expenses,
+            vatRate: 22,
+            total: expenses,
+          });
+        }
+      }
+
+      const subtotal = items.reduce((s, i) => s + i.total, 0);
+      const vatAmount = Math.round(subtotal * 0.22 * 100) / 100;
+      const total = subtotal + vatAmount;
+
+      const invoice = await prisma.invoicePreview.create({
+        data: {
+          number: null,
+          clientId: job.clientId,
+          jobOrderId: job.id,
+          quoteId: job.quoteId,
+          subtotal,
+          vatAmount,
+          total,
+          depositAmount: 0,
+          balanceDue: total,
+          items,
+          disclaimer: INVOICE_COURTESY_DISCLAIMER,
+          notes: `Documento da commessa ${job.number} — report: ${selected
+            .map((r) => r.number)
+            .join(", ")}`,
+          status: "DRAFT",
+        },
+        include: invoiceInclude,
+      });
+
+      await logActivity({
+        userId: req.user!.userId,
+        clientId: job.clientId,
+        action: "CREATE",
+        entityType: "invoice",
+        entityId: invoice.id,
+        details: { jobOrderId: job.id, reportIds: selected.map((r) => r.id) },
+      });
+
+      return res.status(201).json(invoice);
+    }
+
+    const quoteId = body.quoteId;
+    if (!quoteId) throw new ValidationError("Indica un preventivo o una commessa");
 
     const quote = await prisma.quote.findUnique({
       where: { id: quoteId },

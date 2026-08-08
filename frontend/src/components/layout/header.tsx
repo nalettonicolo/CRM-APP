@@ -13,7 +13,7 @@ import { formatDate, cn } from "@/lib/utils";
 
 export function Header({ title }: { title: string }) {
   const { theme, setTheme } = useTheme();
-  const { toggleMobileMenu } = useShell();
+  const shell = useShell();
   const [notifOpen, setNotifOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const qc = useQueryClient();
@@ -39,7 +39,7 @@ export function Header({ title }: { title: string }) {
           variant="ghost"
           size="icon"
           className="shrink-0 lg:hidden"
-          onClick={toggleMobileMenu}
+          onClick={() => shell?.toggleMobileMenu()}
           aria-label="Apri menu"
         >
           <Menu className="h-5 w-5" />

@@ -65,21 +65,25 @@ export function ClientFormDialog({
   onOpenChange,
   client,
   onSaved,
+  defaults,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   client?: Client | null;
   onSaved?: (client: Client) => void;
+  /** Prefill when creating (e.g. from search text). */
+  defaults?: Partial<FormState>;
 }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (open) {
-      setForm(client ? clientToForm(client) : emptyForm);
-      setError("");
-    }
+    if (!open) return;
+    setForm(client ? clientToForm(client) : { ...emptyForm, ...defaults });
+    setError("");
+    // defaults: apply when dialog opens only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, client]);
 
   const mutation = useMutation({

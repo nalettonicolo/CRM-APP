@@ -56,6 +56,11 @@ export function LoginForm({
       setUser(res.user);
       if (res.user.role === "CLIENT") {
         router.push("/portal");
+      } else if (
+        res.user.role === "ADMIN" ||
+        res.user.role === "SUPER_ADMIN"
+      ) {
+        router.push("/seleziona-area");
       } else {
         router.push("/dashboard");
       }

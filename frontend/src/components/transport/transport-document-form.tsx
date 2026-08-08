@@ -6,8 +6,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { appSelectClass } from "@/components/ui/field-label";
+import { ClientSearchSelect } from "@/components/clients/client-search-select";
 import {
-  clientsApi,
   inventoryApi,
   quotesApi,
   type TransportDocument,
@@ -168,12 +168,6 @@ export function TransportDocumentForm({
   setForm: React.Dispatch<React.SetStateAction<TransportFormState>>;
   showStatus?: boolean;
 }) {
-  const { data: clientsRes } = useQuery({
-    queryKey: ["clients", "ddt"],
-    queryFn: () => clientsApi.list({ limit: "500" }),
-  });
-  const clients = clientsRes?.data ?? [];
-
   const { data: quotesRes } = useQuery({
     queryKey: ["quotes", "ddt", form.clientId],
     queryFn: () => quotesApi.list({ clientId: form.clientId, limit: "100" }),
@@ -246,24 +240,18 @@ export function TransportDocumentForm({
           <label className="mb-1 block text-xs font-medium text-muted-foreground">
             Cliente *
           </label>
-          <select
-            className={appSelectClass}
+          <ClientSearchSelect
             value={form.clientId}
-            onChange={(e) =>
+            required
+            onChange={(id) =>
               setForm((f) => ({
                 ...f,
-                clientId: e.target.value,
+                clientId: id,
                 quoteId: "",
               }))
             }
-          >
-            <option value="">Seleziona cliente…</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.companyName || c.contactName || c.email}
-              </option>
-            ))}
-          </select>
+            placeholder="Cerca o crea cliente…"
+          />
         </div>
         <div>
           <label className="mb-1 block text-xs font-medium text-muted-foreground">

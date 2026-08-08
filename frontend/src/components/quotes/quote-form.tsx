@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PriceInput } from "@/components/ui/price-input";
+import { ClientSearchSelect } from "@/components/clients/client-search-select";
 import {
-  clientsApi,
   inventoryApi,
   settingsApi,
   type PaymentTermDraft,
@@ -16,6 +17,7 @@ import {
   type Service,
 } from "@/lib/api";
 import { PaymentScheduleEditor } from "@/components/quotes/payment-schedule-editor";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import {
   invoicePaymentMethodOptions,
   invoicePaymentTimingOptions,
@@ -77,10 +79,7 @@ export function QuoteForm({
   loading?: boolean;
   submitLabel: string;
 }) {
-  const { data: clientsData } = useQuery({
-    queryKey: ["clients", "select"],
-    queryFn: () => clientsApi.list({ limit: "200" }),
-  });
+  const routes = useWorkspaceRoutes();
 
   const { data: catalogServices = [] } = useQuery({
     queryKey: ["services", "catalog"],
@@ -345,22 +344,13 @@ export function QuoteForm({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <div className="sm:col-span-2 lg:col-span-1">
           <label className="mb-1 block text-sm font-medium">Cliente *</label>
-          <select
-            required
-            className="flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm"
+          <ClientSearchSelect
             value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
+            onChange={(id) => setClientId(id)}
+            placeholder="Cerca o crea cliente…"
+            required
             disabled={!!initial}
-          >
-            <option value="">Seleziona cliente</option>
-            {clientsData?.data.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.companyName ||
-                  c.contactName ||
-                  [c.firstName, c.lastName].filter(Boolean).join(" ")}
-              </option>
-            ))}
-          </select>
+          />
         </div>
         <div className="sm:col-span-2 lg:col-span-2">
           <label className="mb-1 block text-sm font-medium">
@@ -539,9 +529,9 @@ export function QuoteForm({
           <div>
             <h3 className="text-sm font-semibold">Voci</h3>
             <p className="text-xs text-muted-foreground">
-              <a href="/inventory/services" className="text-primary hover:underline">
+              <Link href={routes.services} className="text-primary hover:underline">
                 Catalogo servizi
-              </a>
+              </Link>
             </p>
           </div>
           <Button

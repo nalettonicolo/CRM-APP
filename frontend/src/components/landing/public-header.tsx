@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Menu, X } from "lucide-react";
+import { ArrowRight, Menu, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/branding/brand-logo";
+import { useAuthStore } from "@/store/auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { cn } from "@/lib/utils";
 
 export function PublicHeader({
@@ -15,6 +17,8 @@ export function PublicHeader({
   logoSrc: string;
 }) {
   const [open, setOpen] = useState(false);
+  const { isAuthenticated } = useAuthStore();
+  const { isAdmin } = usePermissions();
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
@@ -31,6 +35,17 @@ export function PublicHeader({
         </Link>
 
         <div className="hidden items-center gap-2 md:flex">
+          {isAuthenticated && isAdmin && (
+            <Link href="/impianti-elettrici">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-sky-300 hover:bg-sky-500/10 hover:text-sky-200"
+              >
+                <Zap className="h-4 w-4" /> Impianti Elettrici
+              </Button>
+            </Link>
+          )}
           <Link href="/login">
             <Button
               variant="ghost"
@@ -58,7 +73,7 @@ export function PublicHeader({
         </button>
       </nav>
 
-      <MobileMenu open={open} setOpen={setOpen} />
+      <MobileMenu open={open} setOpen={setOpen} showIeLink={isAuthenticated && isAdmin} />
     </header>
   );
 }
@@ -66,9 +81,11 @@ export function PublicHeader({
 function MobileMenu({
   open,
   setOpen,
+  showIeLink,
 }: {
   open: boolean;
   setOpen: (v: boolean) => void;
+  showIeLink: boolean;
 }) {
   return (
     <div
@@ -78,6 +95,16 @@ function MobileMenu({
       )}
     >
       <div className="flex flex-col gap-3">
+        {showIeLink && (
+          <Link href="/impianti-elettrici" onClick={() => setOpen(false)}>
+            <Button
+              variant="outline"
+              className="h-12 w-full border-sky-700/50 bg-sky-950/40 text-sky-200"
+            >
+              <Zap className="h-4 w-4" /> Impianti Elettrici
+            </Button>
+          </Link>
+        )}
         <Link href="/login" onClick={() => setOpen(false)}>
           <Button
             variant="outline"

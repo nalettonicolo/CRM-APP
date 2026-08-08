@@ -2,6 +2,7 @@
 
 import { AuthGuard } from "@/components/auth-guard";
 import { AppShell } from "@/components/layout/app-shell";
+import { WorkspaceProvider } from "@/contexts/workspace-context";
 
 export default function AppLayout({
   children,
@@ -10,7 +11,9 @@ export default function AppLayout({
 }) {
   return (
     <AuthGuard>
-      <AppShell>{children}</AppShell>
+      <WorkspaceProvider workspace="crm">
+        <AppShell>{children}</AppShell>
+      </WorkspaceProvider>
     </AuthGuard>
   );
 }

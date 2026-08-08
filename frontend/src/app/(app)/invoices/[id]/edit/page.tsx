@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Download, Plus, Save, Trash2 } from "lucide-react";
-import { Header } from "@/components/layout/header";
+import { WorkspaceHeader } from "@/components/layout/workspace-header";
 import { AttachmentPanel } from "@/components/files/attachment-panel";
 import { DetailBack } from "@/components/detail/detail-shell";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,7 @@ import {
   parseInvoiceDiscounts,
 } from "@/lib/invoice-line-items";
 import { formatCurrency, formatDate, formatEventDateRange } from "@/lib/utils";
+import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 
 const textareaClass =
   "flex min-h-[96px] w-full rounded-lg border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30";
@@ -49,6 +50,7 @@ const textareaClass =
 export default function InvoiceEditPage() {
   const id = useParams().id as string;
   const router = useRouter();
+  const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
   const [form, setForm] = useState({
     subtotal: "",
@@ -173,7 +175,7 @@ export default function InvoiceEditPage() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["invoice", id] });
       await qc.invalidateQueries({ queryKey: ["invoices"] });
-      router.push(`/invoices/${id}`);
+      router.push(routes.invoice(id));
     },
     onError: () => setBanner("Errore durante il salvataggio."),
   });
@@ -245,9 +247,9 @@ export default function InvoiceEditPage() {
 
   return (
     <>
-      <Header title="Modifica documento di cortesia" />
+      <WorkspaceHeader title="Modifica documento di cortesia" />
       <div className="p-6">
-        <DetailBack href={`/invoices/${id}`} label="Torna al documento" />
+        <DetailBack href={routes.invoice(id)} label="Torna al documento" />
 
         {isLoading ? (
           <p className="text-muted-foreground">Caricamento...</p>
