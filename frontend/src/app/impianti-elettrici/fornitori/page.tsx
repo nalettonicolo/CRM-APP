@@ -63,7 +63,6 @@ function CatalogPdfZone({
   fileHref,
   disabled,
   uploading,
-  uploadPercent,
   onFile,
 }: {
   hasFile: boolean;
@@ -71,7 +70,6 @@ function CatalogPdfZone({
   fileHref?: string | null;
   disabled?: boolean;
   uploading?: boolean;
-  uploadPercent?: number;
   onFile: (file: File) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -166,8 +164,6 @@ function CatalogPdfZone({
           onChange={(e) => pick(e.target.files)}
         />
       </div>
-
-      {uploading && <ProgressBar value={uploadPercent} label="Invio file…" />}
     </div>
   );
 }
@@ -325,7 +321,6 @@ export default function IeSupplierCatalogsPage() {
                         }
                         disabled={uploadMut.isPending}
                         uploading={isUploading}
-                        uploadPercent={uploadPercent}
                         onFile={(file) =>
                           uploadMut.mutate({ id: cat.id, file })
                         }
