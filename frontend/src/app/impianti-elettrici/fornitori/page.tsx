@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import {
+  ExternalLink,
+  FileText,
+  FileUp,
+  Plus,
+  Replace,
+} from "lucide-react";
 import { IeHeader } from "@/components/ie/ie-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,7 +25,7 @@ import {
 import { publicAssetUrl } from "@/lib/branding";
 import { supplierCatalogsApi } from "@/lib/api";
 import { useWorkspaceRoutes } from "@/contexts/workspace-context";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 function ProgressBar({
   value,
@@ -33,8 +39,8 @@ function ProgressBar({
   const pct = Math.max(0, Math.min(100, value ?? 0));
   return (
     <div className="w-full space-y-1.5" role="status" aria-live="polite">
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
-        <span>{label}</span>
+      <div className="flex items-center justify-between gap-2 text-xs text-slate-300">
+        <span className="truncate">{label}</span>
         {!indeterminate && <span className="tabular-nums">{pct}%</span>}
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-slate-800">
@@ -47,6 +53,121 @@ function ProgressBar({
           />
         )}
       </div>
+    </div>
+  );
+}
+
+function CatalogPdfZone({
+  hasFile,
+  fileName,
+  fileHref,
+  disabled,
+  uploading,
+  uploadPercent,
+  onFile,
+}: {
+  hasFile: boolean;
+  fileName?: string | null;
+  fileHref?: string | null;
+  disabled?: boolean;
+  uploading?: boolean;
+  uploadPercent?: number;
+  onFile: (file: File) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  const pick = (list: FileList | null) => {
+    const file = list?.[0];
+    if (file) onFile(file);
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  return (
+    <div className="space-y-2">
+      {hasFile && fileHref && (
+        <a
+          href={fileHref}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-950/60 px-3 py-2 text-sm text-sky-300 transition-colors hover:border-sky-700/60 hover:bg-slate-900"
+        >
+          <FileText className="h-4 w-4 shrink-0 text-sky-400" />
+          <span className="min-w-0 flex-1 truncate font-medium">
+            {fileName || "Catalogo PDF"}
+          </span>
+          <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
+        </a>
+      )}
+
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled}
+        onKeyDown={(e) => {
+          if (disabled) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        onClick={() => {
+          if (!disabled) inputRef.current?.click();
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!disabled) setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          if (!disabled) pick(e.dataTransfer.files);
+        }}
+        className={cn(
+          "relative flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-5 text-center transition-colors",
+          disabled
+            ? "cursor-not-allowed border-slate-800 bg-slate-950/40 opacity-60"
+            : dragOver
+              ? "cursor-pointer border-sky-500/70 bg-sky-950/40"
+              : "cursor-pointer border-slate-600/80 bg-slate-950/50 hover:border-sky-600/50 hover:bg-slate-900/70"
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-10 w-10 items-center justify-center rounded-full",
+            dragOver ? "bg-sky-500/20 text-sky-300" : "bg-slate-800 text-slate-300"
+          )}
+        >
+          {hasFile ? (
+            <Replace className="h-5 w-5" />
+          ) : (
+            <FileUp className="h-5 w-5" />
+          )}
+        </div>
+        <div className="space-y-0.5">
+          <p className="text-sm font-medium text-slate-100">
+            {uploading
+              ? "Caricamento in corso…"
+              : hasFile
+                ? "Sostituisci PDF"
+                : "Carica catalogo PDF"}
+          </p>
+          <p className="text-xs text-slate-400">
+            Trascina qui oppure clicca · max 150 MB
+          </p>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="application/pdf,image/*"
+          className="sr-only"
+          disabled={disabled}
+          onChange={(e) => pick(e.target.files)}
+        />
+      </div>
+
+      {uploading && <ProgressBar value={uploadPercent} label="Invio file…" />}
     </div>
   );
 }
@@ -151,7 +272,7 @@ export default function IeSupplierCatalogsPage() {
         )}
 
         {uploadMut.isPending && (
-          <div className="mb-4 rounded-lg border border-slate-700 bg-slate-900/80 p-3">
+          <div className="mb-4 rounded-lg border border-sky-800/50 bg-slate-900/90 p-3 shadow-lg shadow-sky-950/30">
             <ProgressBar
               value={uploadPercent}
               label={
@@ -160,7 +281,7 @@ export default function IeSupplierCatalogsPage() {
                   : "Caricamento PDF"
               }
             />
-            <p className="mt-1.5 text-xs text-slate-500">
+            <p className="mt-1.5 text-xs text-slate-400">
               Non chiudere la pagina: i file grandi possono richiedere alcuni
               minuti.
             </p>
@@ -196,41 +317,19 @@ export default function IeSupplierCatalogsPage() {
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-slate-400">
                     {cat.kind === "PDF" && (
-                      <div className="flex flex-wrap gap-2">
-                        {cat.filePath ? (
-                          <a
-                            href={publicAssetUrl(cat.filePath)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="text-sky-400 hover:underline"
-                          >
-                            Apri PDF ({cat.fileName || "file"})
-                          </a>
-                        ) : (
-                          <span>Nessun PDF caricato</span>
-                        )}
-                        <div className="w-full max-w-xs space-y-2">
-                          <Input
-                            type="file"
-                            accept="application/pdf,image/*"
-                            disabled={uploadMut.isPending}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) uploadMut.mutate({ id: cat.id, file });
-                              e.target.value = "";
-                            }}
-                          />
-                          <p className="text-xs text-slate-500">
-                            PDF fino a 150 MB
-                          </p>
-                          {isUploading && (
-                            <ProgressBar
-                              value={uploadPercent}
-                              label="Invio file…"
-                            />
-                          )}
-                        </div>
-                      </div>
+                      <CatalogPdfZone
+                        hasFile={!!cat.filePath}
+                        fileName={cat.fileName}
+                        fileHref={
+                          cat.filePath ? publicAssetUrl(cat.filePath) : null
+                        }
+                        disabled={uploadMut.isPending}
+                        uploading={isUploading}
+                        uploadPercent={uploadPercent}
+                        onFile={(file) =>
+                          uploadMut.mutate({ id: cat.id, file })
+                        }
+                      />
                     )}
                     {cat.kind === "PRICE_LIST" && (
                       <ul className="space-y-1">
