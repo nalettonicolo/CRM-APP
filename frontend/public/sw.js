@@ -1,4 +1,4 @@
-const CACHE = "crm-shell-v3";
+const CACHE = "crm-shell-v4";
 const PRECACHE = ["/manifest.json"];
 
 self.addEventListener("install", (event) => {
@@ -37,6 +37,11 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
+
+  // API e upload: mai passare dal SW (evita failed/pending e cache stale)
+  if (url.pathname.startsWith("/api/") || url.pathname.startsWith("/uploads/")) {
+    return;
+  }
 
   // HTML e chunk Next: sempre rete per evitare "Application error" dopo deploy
   if (
