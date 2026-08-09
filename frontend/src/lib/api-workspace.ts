@@ -7,5 +7,10 @@ export function setApiWorkspace(workspace: ApiWorkspace): void {
 }
 
 export function getApiWorkspace(): ApiWorkspace {
+  if (typeof window !== "undefined") {
+    if (window.location.pathname.startsWith("/impianti-elettrici")) {
+      return "ie";
+    }
+  }
   return activeWorkspace;
 }

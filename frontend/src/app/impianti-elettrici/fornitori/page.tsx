@@ -41,8 +41,8 @@ export default function IeSupplierCatalogsPage() {
   const createMut = useMutation({
     mutationFn: () =>
       supplierCatalogsApi.create({
-        supplierName,
-        title,
+        supplierName: supplierName.trim(),
+        title: title.trim(),
         kind,
         defaultDiscountPercent: Number(discount) || 0,
         items:
@@ -75,6 +75,19 @@ export default function IeSupplierCatalogsPage() {
       qc.invalidateQueries({ queryKey: ["supplier-catalogs"] }),
   });
 
+  const createError =
+    createMut.error instanceof Error
+      ? createMut.error.message
+      : createMut.isError
+        ? "Creazione fallita"
+        : null;
+  const uploadError =
+    uploadMut.error instanceof Error
+      ? uploadMut.error.message
+      : uploadMut.isError
+        ? "Upload fallito"
+        : null;
+
   return (
     <>
       <IeHeader title="Fornitori e listini" />
@@ -88,6 +101,10 @@ export default function IeSupplierCatalogsPage() {
             <Plus className="h-4 w-4" /> Nuovo catalogo / listino
           </Button>
         </div>
+
+        {uploadError && (
+          <p className="mb-3 text-sm text-red-300">{uploadError}</p>
+        )}
 
         {isLoading ? (
           <p className="text-slate-400">Caricamento…</p>
@@ -231,18 +248,28 @@ export default function IeSupplierCatalogsPage() {
                 />
               </div>
             )}
+            {createError && (
+              <p className="rounded-md border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">
+                {createError}
+                {createError.includes("non trovata") ||
+                createError.toLowerCase().includes("cannot")
+                  ? " — sul Mint serve aggiornare l’API (git pull + deploy)."
+                  : null}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>
               Annulla
             </Button>
             <Button
+              type="button"
               disabled={
                 !supplierName.trim() || !title.trim() || createMut.isPending
               }
               onClick={() => createMut.mutate()}
             >
-              Crea
+              {createMut.isPending ? "Creazione…" : "Crea"}
             </Button>
           </DialogFooter>
         </DialogContent>

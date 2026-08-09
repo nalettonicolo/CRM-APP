@@ -42,8 +42,20 @@ export async function authenticate(
     req.user = { ...payload, id: user.id, clientId: user.clientId };
 
     if (wantsIeWorkspace(req)) {
-      await ensureIeActor(user.id);
-      await ensureIeWarehouse();
+      try {
+        await ensureIeActor(user.id);
+        await ensureIeWarehouse();
+      } catch (ieErr) {
+        const message =
+          ieErr instanceof Error
+            ? ieErr.message
+            : "Errore inizializzazione workspace Impianti Elettrici";
+        res.status(503).json({
+          error: message,
+          code: "IE_WORKSPACE_INIT_FAILED",
+        });
+        return;
+      }
     }
 
     next();

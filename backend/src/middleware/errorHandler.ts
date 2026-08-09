@@ -46,6 +46,14 @@ export function errorHandler(
       });
       return;
     }
+    if (err.code === "P2021") {
+      res.status(503).json({
+        error:
+          "Tabella mancante nel database. Sul Mint esegui: DATABASE_URL=$DATABASE_URL_IE npx prisma db push",
+        code: "MISSING_TABLE",
+      });
+      return;
+    }
   }
 
   console.error("[Error]", err);

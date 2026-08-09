@@ -42,8 +42,12 @@ export function getDb(): PrismaClient {
   return dbStore.getStore() ?? prismaCrm;
 }
 
-export function runWithDb<T>(db: PrismaClient, fn: () => T): T {
-  return dbStore.run(db, fn);
+export function runWithDb<T>(db: PrismaClient, fn: () => T): T;
+export function runWithDb(db: PrismaClient): void;
+export function runWithDb<T>(db: PrismaClient, fn?: () => T): T | void {
+  if (fn) return dbStore.run(db, fn);
+  // Per Express: lega il DB al resto della richiesta (anche dopo await).
+  dbStore.enterWith(db);
 }
 
 export function isIeDatabaseConfigured(): boolean {

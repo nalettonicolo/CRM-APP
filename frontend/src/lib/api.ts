@@ -87,7 +87,7 @@ export async function api<T>(
   if (!res.ok) {
     const fallback =
       res.status === 404
-        ? "Route API non trovata"
+        ? "Route API non trovata (backend Mint non aggiornato?)"
         : res.status >= 500
           ? "Errore server"
           : "Errore";

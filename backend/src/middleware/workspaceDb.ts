@@ -99,5 +99,8 @@ export function workspaceDbMiddleware(
     return;
   }
 
-  runWithDb(prismaIe, () => next());
+  // enterWith: il contesto resta attivo dopo await nei middleware Express.
+  // run(() => next()) esce troppo presto e le query tornano sul DB CRM.
+  runWithDb(prismaIe);
+  next();
 }
