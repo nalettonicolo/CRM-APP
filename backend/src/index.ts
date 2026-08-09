@@ -18,6 +18,12 @@ async function start() {
     console.log(`   Ambiente: ${config.env}`);
   });
 
+  // Cataloghi PDF grandi (fino a ~150 MB) via Tailscale Funnel
+  server.timeout = 60 * 60 * 1000;
+  server.headersTimeout = 61 * 60 * 1000;
+  server.requestTimeout = 60 * 60 * 1000;
+  server.keepAliveTimeout = 120 * 1000;
+
   server.on("error", (err: NodeJS.ErrnoException) => {
     if (err.code === "EADDRINUSE") {
       console.error(

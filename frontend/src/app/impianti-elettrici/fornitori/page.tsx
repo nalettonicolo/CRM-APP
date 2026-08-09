@@ -152,7 +152,7 @@ function CatalogPdfZone({
                 : "Carica catalogo PDF"}
           </p>
           <p className="text-xs text-slate-400">
-            Trascina qui oppure clicca · max 150 MB
+            Trascina qui oppure clicca · max 150 MB (meglio sotto 50 MB)
           </p>
         </div>
         <input

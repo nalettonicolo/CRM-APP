@@ -47,7 +47,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 const netlifyOrigin =
-  /^https:\/\/[a-z0-9][a-z0-9-]*\.netlify\.app$/i;
+  /^https:\/\/([a-z0-9][a-z0-9-]*\.)?netlify\.app$/i;
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
@@ -61,10 +61,8 @@ app.use(
         callback(null, true);
         return;
       }
-      if (
-        process.env.ALLOW_NETLIFY_PREVIEWS === "true" &&
-        netlifyOrigin.test(origin)
-      ) {
+      // Produzione Netlify + preview deploy
+      if (netlifyOrigin.test(origin)) {
         callback(null, true);
         return;
       }

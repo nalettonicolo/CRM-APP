@@ -1850,70 +1850,97 @@ export const supplierCatalogsApi = {
     onProgress?: (percent: number) => void
   ) => {
     const maxBytes = 150 * 1024 * 1024;
+    const sizeMb = file.size / (1024 * 1024);
     if (file.size > maxBytes) {
       return Promise.reject(
         new ApiError(
           413,
-          `PDF troppo grande (${(file.size / (1024 * 1024)).toFixed(0)} MB). Massimo 150 MB.`
+          `PDF troppo grande (${sizeMb.toFixed(0)} MB). Massimo 150 MB.`
         )
       );
     }
 
-    const useDirect = file.size > 5 * 1024 * 1024;
-    const url = useDirect
-      ? apiUrlDirect(`/supplier-catalogs/${id}/pdf`)
-      : apiUrl(`/supplier-catalogs/${id}/pdf`);
+    // Sempre diretto al Funnel: il proxy Netlify taglia i body grandi
+    const url = apiUrlDirect(`/supplier-catalogs/${id}/pdf`);
 
-    return new Promise<SupplierCatalog>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", url);
-      xhr.withCredentials = true;
+    const postOnce = (targetUrl: string) =>
+      new Promise<SupplierCatalog>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", targetUrl);
+        xhr.withCredentials = true;
 
-      const headers = apiAuthHeaders();
-      for (const [key, value] of Object.entries(headers)) {
-        if (key.toLowerCase() === "content-type") continue;
-        xhr.setRequestHeader(key, value);
-      }
-
-      xhr.upload.onprogress = (event) => {
-        if (!event.lengthComputable || !onProgress) return;
-        const pct = Math.min(99, Math.round((event.loaded / event.total) * 100));
-        onProgress(pct);
-      };
-
-      xhr.onload = () => {
-        let data: Record<string, unknown> = {};
-        try {
-          data = JSON.parse(xhr.responseText || "{}") as Record<string, unknown>;
-        } catch {
-          /* ignore */
+        const headers = apiAuthHeaders();
+        for (const [key, value] of Object.entries(headers)) {
+          if (key.toLowerCase() === "content-type") continue;
+          xhr.setRequestHeader(key, value);
         }
-        if (xhr.status >= 200 && xhr.status < 300) {
-          onProgress?.(100);
-          resolve(data as unknown as SupplierCatalog);
-          return;
-        }
-        reject(
-          new ApiError(
-            xhr.status,
+
+        xhr.upload.onprogress = (event) => {
+          if (!event.lengthComputable || !onProgress) return;
+          const pct = Math.min(
+            99,
+            Math.round((event.loaded / event.total) * 100)
+          );
+          onProgress(pct);
+        };
+
+        xhr.onload = () => {
+          let data: Record<string, unknown> = {};
+          try {
+            data = JSON.parse(xhr.responseText || "{}") as Record<
+              string,
+              unknown
+            >;
+          } catch {
+            /* ignore */
+          }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            onProgress?.(100);
+            resolve(data as unknown as SupplierCatalog);
+            return;
+          }
+          const msg =
             (typeof data.error === "string" && data.error) ||
-              (xhr.status === 413 ? "File troppo grande" : "Upload fallito")
-          )
-        );
-      };
+            (xhr.status === 413
+              ? "File troppo grande (limite server). Sul Mint aggiorna l’API e riavvia crm-api."
+              : xhr.status === 401
+                ? "Sessione scaduta: ricarica e accedi di nuovo."
+                : xhr.status === 0
+                  ? "Upload interrotto"
+                  : `Upload fallito (HTTP ${xhr.status})`);
+          reject(new ApiError(xhr.status, msg));
+        };
 
-      xhr.onerror = () =>
-        reject(new ApiError(0, "Upload interrotto (rete o CORS)"));
-      xhr.ontimeout = () =>
-        reject(new ApiError(0, "Upload scaduto: file troppo lento o grande"));
+        xhr.onerror = () =>
+          reject(
+            new ApiError(
+              0,
+              `Upload interrotto a circa ${sizeMb.toFixed(0)} MB totali. Verifica Funnel sul Mint (tailscale funnel status) e spazio disco; per cataloghi enormi comprimi il PDF sotto i 50 MB.`
+            )
+          );
+        xhr.ontimeout = () =>
+          reject(
+            new ApiError(
+              0,
+              "Upload scaduto. Riprova con PDF più leggero o da rete più stabile."
+            )
+          );
 
-      // Cataloghi grandi via Funnel: timeout lungo
-      xhr.timeout = 30 * 60 * 1000;
+        xhr.timeout = 60 * 60 * 1000;
 
-      const fd = new FormData();
-      fd.append("file", file);
+        const fd = new FormData();
+        fd.append("file", file);
+        onProgress?.(0);
+        xhr.send(fd);
+      });
+
+    return postOnce(url).catch(async (err) => {
+      // Fallback: stesso sito Netlify (a volte Funnel flapping)
+      if (!(err instanceof ApiError) || (err.status !== 0 && err.status < 500)) {
+        throw err;
+      }
       onProgress?.(0);
-      xhr.send(fd);
+      return postOnce(apiUrl(`/supplier-catalogs/${id}/pdf`));
     });
   },
 };
