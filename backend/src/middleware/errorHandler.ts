@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { Prisma } from "@prisma/client";
+import multer from "multer";
 import { AppError, ConflictError } from "../utils/errors.js";
 import { ZodError } from "zod";
 
@@ -9,6 +10,21 @@ export function errorHandler(
   res: Response,
   _next: NextFunction
 ): void {
+  if (err instanceof multer.MulterError) {
+    if (err.code === "LIMIT_FILE_SIZE") {
+      res.status(413).json({
+        error: "File troppo grande per l'upload",
+        code: "FILE_TOO_LARGE",
+      });
+      return;
+    }
+    res.status(400).json({
+      error: err.message || "Upload non valido",
+      code: err.code,
+    });
+    return;
+  }
+
   if (err instanceof AppError) {
     const body: Record<string, unknown> = {
       error: err.message,

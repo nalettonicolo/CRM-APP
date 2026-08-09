@@ -144,15 +144,22 @@ export default function IeSupplierCatalogsPage() {
                         ) : (
                           <span>Nessun PDF caricato</span>
                         )}
-                        <Input
-                          type="file"
-                          accept="application/pdf,image/*"
-                          className="max-w-xs"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) uploadMut.mutate({ id: cat.id, file });
-                          }}
-                        />
+                        <div className="w-full max-w-xs space-y-1">
+                          <Input
+                            type="file"
+                            accept="application/pdf,image/*"
+                            disabled={uploadMut.isPending}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) uploadMut.mutate({ id: cat.id, file });
+                              e.target.value = "";
+                            }}
+                          />
+                          <p className="text-xs text-slate-500">
+                            PDF fino a 150 MB
+                            {uploadMut.isPending ? " · caricamento…" : ""}
+                          </p>
+                        </div>
                       </div>
                     )}
                     {cat.kind === "PRICE_LIST" && (

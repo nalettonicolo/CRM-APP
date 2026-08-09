@@ -1845,16 +1845,38 @@ export const supplierCatalogsApi = {
   delete: (id: string) =>
     api<{ success: boolean }>(`/supplier-catalogs/${id}`, { method: "DELETE" }),
   uploadPdf: async (id: string, file: File) => {
+    const maxBytes = 150 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      throw new ApiError(
+        413,
+        `PDF troppo grande (${(file.size / (1024 * 1024)).toFixed(0)} MB). Massimo 150 MB.`
+      );
+    }
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(apiUrl(`/supplier-catalogs/${id}/pdf`), {
-      method: "POST",
-      headers: apiAuthHeaders(),
-      body: fd,
-      credentials: "include",
-    });
+    // File grandi: diretto al Funnel/API (il proxy Netlify taglia o va in timeout)
+    const useDirect = file.size > 5 * 1024 * 1024;
+    const res = await fetch(
+      useDirect
+        ? apiUrlDirect(`/supplier-catalogs/${id}/pdf`)
+        : apiUrl(`/supplier-catalogs/${id}/pdf`),
+      {
+        method: "POST",
+        headers: apiAuthHeaders(),
+        body: fd,
+        credentials: "include",
+      }
+    );
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(res.status, data.error || "Upload fallito");
+    if (!res.ok) {
+      throw new ApiError(
+        res.status,
+        data.error ||
+          (res.status === 413
+            ? "File troppo grande"
+            : "Upload fallito")
+      );
+    }
     return data as SupplierCatalog;
   },
 };

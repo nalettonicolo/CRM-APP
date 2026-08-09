@@ -56,6 +56,11 @@ export const config = {
       process.env.UPLOAD_DIR || path.join(__dirname, "../../uploads")
     ),
     maxSize: parseInt(process.env.MAX_FILE_SIZE || "10485760", 10),
+    /** Cataloghi PDF fornitori (spesso 50–120 MB). */
+    catalogMaxSize: parseInt(
+      process.env.CATALOG_MAX_FILE_SIZE || String(150 * 1024 * 1024),
+      10
+    ),
   },
   smtp: {
     host: process.env.SMTP_HOST || "",
