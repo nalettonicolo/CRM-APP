@@ -21,6 +21,36 @@ import { supplierCatalogsApi } from "@/lib/api";
 import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { formatCurrency } from "@/lib/utils";
 
+function ProgressBar({
+  value,
+  label,
+  indeterminate,
+}: {
+  value?: number;
+  label: string;
+  indeterminate?: boolean;
+}) {
+  const pct = Math.max(0, Math.min(100, value ?? 0));
+  return (
+    <div className="w-full space-y-1.5" role="status" aria-live="polite">
+      <div className="flex items-center justify-between gap-2 text-xs text-slate-400">
+        <span>{label}</span>
+        {!indeterminate && <span className="tabular-nums">{pct}%</span>}
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+        {indeterminate ? (
+          <div className="h-full w-1/3 animate-pulse rounded-full bg-sky-500/80" />
+        ) : (
+          <div
+            className="h-full rounded-full bg-sky-500 transition-[width] duration-200 ease-out"
+            style={{ width: `${pct}%` }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function IeSupplierCatalogsPage() {
   const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
@@ -32,6 +62,9 @@ export default function IeSupplierCatalogsPage() {
   const [itemName, setItemName] = useState("");
   const [itemPrice, setItemPrice] = useState("");
   const [itemSku, setItemSku] = useState("");
+  const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [uploadFileName, setUploadFileName] = useState("");
 
   const { data: catalogs = [], isLoading } = useQuery({
     queryKey: ["supplier-catalogs"],
@@ -70,9 +103,20 @@ export default function IeSupplierCatalogsPage() {
 
   const uploadMut = useMutation({
     mutationFn: ({ id, file }: { id: string; file: File }) =>
-      supplierCatalogsApi.uploadPdf(id, file),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["supplier-catalogs"] }),
+      supplierCatalogsApi.uploadPdf(id, file, setUploadPercent),
+    onMutate: ({ id, file }) => {
+      setUploadTargetId(id);
+      setUploadPercent(0);
+      setUploadFileName(file.name);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-catalogs"] });
+    },
+    onSettled: () => {
+      setUploadTargetId(null);
+      setUploadPercent(0);
+      setUploadFileName("");
+    },
   });
 
   const createError =
@@ -106,14 +150,35 @@ export default function IeSupplierCatalogsPage() {
           <p className="mb-3 text-sm text-red-300">{uploadError}</p>
         )}
 
+        {uploadMut.isPending && (
+          <div className="mb-4 rounded-lg border border-slate-700 bg-slate-900/80 p-3">
+            <ProgressBar
+              value={uploadPercent}
+              label={
+                uploadFileName
+                  ? `Caricamento ${uploadFileName}`
+                  : "Caricamento PDF"
+              }
+            />
+            <p className="mt-1.5 text-xs text-slate-500">
+              Non chiudere la pagina: i file grandi possono richiedere alcuni
+              minuti.
+            </p>
+          </div>
+        )}
+
         {isLoading ? (
-          <p className="text-slate-400">Caricamento…</p>
+          <div className="max-w-sm">
+            <ProgressBar indeterminate label="Caricamento cataloghi…" />
+          </div>
         ) : catalogs.length === 0 ? (
           <p className="text-slate-400">Nessun catalogo ancora.</p>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {catalogs.map((cat) => {
               const disc = Number(cat.defaultDiscountPercent) || 0;
+              const isUploading =
+                uploadMut.isPending && uploadTargetId === cat.id;
               return (
                 <Card
                   key={cat.id}
@@ -144,7 +209,7 @@ export default function IeSupplierCatalogsPage() {
                         ) : (
                           <span>Nessun PDF caricato</span>
                         )}
-                        <div className="w-full max-w-xs space-y-1">
+                        <div className="w-full max-w-xs space-y-2">
                           <Input
                             type="file"
                             accept="application/pdf,image/*"
@@ -157,8 +222,13 @@ export default function IeSupplierCatalogsPage() {
                           />
                           <p className="text-xs text-slate-500">
                             PDF fino a 150 MB
-                            {uploadMut.isPending ? " · caricamento…" : ""}
                           </p>
+                          {isUploading && (
+                            <ProgressBar
+                              value={uploadPercent}
+                              label="Invio file…"
+                            />
+                          )}
                         </div>
                       </div>
                     )}
@@ -211,15 +281,18 @@ export default function IeSupplierCatalogsPage() {
               placeholder="Fornitore *"
               value={supplierName}
               onChange={(e) => setSupplierName(e.target.value)}
+              disabled={createMut.isPending}
             />
             <Input
               placeholder="Titolo *"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              disabled={createMut.isPending}
             />
             <select
               className={appSelectClass}
               value={kind}
+              disabled={createMut.isPending}
               onChange={(e) =>
                 setKind(e.target.value as "PDF" | "PRICE_LIST")
               }
@@ -233,6 +306,7 @@ export default function IeSupplierCatalogsPage() {
               max={100}
               placeholder="Sconto % predefinito"
               value={discount}
+              disabled={createMut.isPending}
               onChange={(e) => setDiscount(e.target.value)}
             />
             {kind === "PRICE_LIST" && (
@@ -240,20 +314,26 @@ export default function IeSupplierCatalogsPage() {
                 <Input
                   placeholder="SKU"
                   value={itemSku}
+                  disabled={createMut.isPending}
                   onChange={(e) => setItemSku(e.target.value)}
                 />
                 <Input
                   placeholder="Voce"
                   value={itemName}
+                  disabled={createMut.isPending}
                   onChange={(e) => setItemName(e.target.value)}
                 />
                 <Input
                   type="number"
                   placeholder="Prezzo listino"
                   value={itemPrice}
+                  disabled={createMut.isPending}
                   onChange={(e) => setItemPrice(e.target.value)}
                 />
               </div>
+            )}
+            {createMut.isPending && (
+              <ProgressBar indeterminate label="Creazione catalogo…" />
             )}
             {createError && (
               <p className="rounded-md border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">
@@ -266,7 +346,11 @@ export default function IeSupplierCatalogsPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>
+            <Button
+              variant="outline"
+              disabled={createMut.isPending}
+              onClick={() => setOpen(false)}
+            >
               Annulla
             </Button>
             <Button

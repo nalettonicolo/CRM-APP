@@ -1844,40 +1844,77 @@ export const supplierCatalogsApi = {
     }),
   delete: (id: string) =>
     api<{ success: boolean }>(`/supplier-catalogs/${id}`, { method: "DELETE" }),
-  uploadPdf: async (id: string, file: File) => {
+  uploadPdf: (
+    id: string,
+    file: File,
+    onProgress?: (percent: number) => void
+  ) => {
     const maxBytes = 150 * 1024 * 1024;
     if (file.size > maxBytes) {
-      throw new ApiError(
-        413,
-        `PDF troppo grande (${(file.size / (1024 * 1024)).toFixed(0)} MB). Massimo 150 MB.`
+      return Promise.reject(
+        new ApiError(
+          413,
+          `PDF troppo grande (${(file.size / (1024 * 1024)).toFixed(0)} MB). Massimo 150 MB.`
+        )
       );
     }
-    const fd = new FormData();
-    fd.append("file", file);
-    // File grandi: diretto al Funnel/API (il proxy Netlify taglia o va in timeout)
+
     const useDirect = file.size > 5 * 1024 * 1024;
-    const res = await fetch(
-      useDirect
-        ? apiUrlDirect(`/supplier-catalogs/${id}/pdf`)
-        : apiUrl(`/supplier-catalogs/${id}/pdf`),
-      {
-        method: "POST",
-        headers: apiAuthHeaders(),
-        body: fd,
-        credentials: "include",
+    const url = useDirect
+      ? apiUrlDirect(`/supplier-catalogs/${id}/pdf`)
+      : apiUrl(`/supplier-catalogs/${id}/pdf`);
+
+    return new Promise<SupplierCatalog>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", url);
+      xhr.withCredentials = true;
+
+      const headers = apiAuthHeaders();
+      for (const [key, value] of Object.entries(headers)) {
+        if (key.toLowerCase() === "content-type") continue;
+        xhr.setRequestHeader(key, value);
       }
-    );
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new ApiError(
-        res.status,
-        data.error ||
-          (res.status === 413
-            ? "File troppo grande"
-            : "Upload fallito")
-      );
-    }
-    return data as SupplierCatalog;
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !onProgress) return;
+        const pct = Math.min(99, Math.round((event.loaded / event.total) * 100));
+        onProgress(pct);
+      };
+
+      xhr.onload = () => {
+        let data: Record<string, unknown> = {};
+        try {
+          data = JSON.parse(xhr.responseText || "{}") as Record<string, unknown>;
+        } catch {
+          /* ignore */
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          onProgress?.(100);
+          resolve(data as unknown as SupplierCatalog);
+          return;
+        }
+        reject(
+          new ApiError(
+            xhr.status,
+            (typeof data.error === "string" && data.error) ||
+              (xhr.status === 413 ? "File troppo grande" : "Upload fallito")
+          )
+        );
+      };
+
+      xhr.onerror = () =>
+        reject(new ApiError(0, "Upload interrotto (rete o CORS)"));
+      xhr.ontimeout = () =>
+        reject(new ApiError(0, "Upload scaduto: file troppo lento o grande"));
+
+      // Cataloghi grandi via Funnel: timeout lungo
+      xhr.timeout = 30 * 60 * 1000;
+
+      const fd = new FormData();
+      fd.append("file", file);
+      onProgress?.(0);
+      xhr.send(fd);
+    });
   },
 };
 
