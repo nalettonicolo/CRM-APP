@@ -116,6 +116,7 @@ app.use("/uploads", express.static(path.resolve(config.upload.dir)));
 app.get("/api/health", (_req, res) => {
   res.json({
     status: "ok",
+    service: "nicolo-service-crm",
     timestamp: new Date().toISOString(),
     features: {
       serviceDelete: true,
