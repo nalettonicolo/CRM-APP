@@ -957,7 +957,11 @@ router.post(
           continue;
         }
         try {
-          const label = f.label || f.fileName || "File";
+          const fileName =
+            "fileName" in f && typeof f.fileName === "string"
+              ? f.fileName
+              : null;
+          const label = f.label || fileName || "File";
           const lines = await parseSupplierCatalogFile(abs, label);
           sources.push({
             role: (f.role as MergeSource["role"]) || "OTHER",
