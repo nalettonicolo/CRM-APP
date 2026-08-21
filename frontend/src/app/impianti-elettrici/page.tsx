@@ -12,6 +12,7 @@ import {
   Printer,
   Receipt,
   CalendarClock,
+  Shield,
   Truck,
   Users,
   Zap,
@@ -69,6 +70,12 @@ const modules = [
     title: "Catalogo servizi",
     desc: "Prestazioni e listini servizio.",
     icon: Briefcase,
+  },
+  {
+    hrefKey: "securityCatalogs" as const,
+    title: "Catalogo antifurti",
+    desc: "Ajax e sistemi di sicurezza per preventivi.",
+    icon: Shield,
   },
   {
     hrefKey: "supplierCatalogs" as const,

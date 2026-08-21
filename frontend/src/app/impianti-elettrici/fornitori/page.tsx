@@ -1,15 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ExternalLink,
-  FileText,
-  FileUp,
-  Plus,
-  Replace,
-} from "lucide-react";
+import { Plus } from "lucide-react";
+import { CatalogDualUpload } from "@/components/ie/catalog-dual-upload";
+import { CatalogStatusIcons } from "@/components/ie/catalog-status-badges";
 import { IeHeader } from "@/components/ie/ie-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,10 +18,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { publicAssetUrl } from "@/lib/branding";
-import { supplierCatalogsApi } from "@/lib/api";
+import { supplierCatalogsApi, type SupplierCatalogFile } from "@/lib/api";
 import { useWorkspaceRoutes } from "@/contexts/workspace-context";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 function ProgressBar({
   value,
@@ -57,117 +52,6 @@ function ProgressBar({
   );
 }
 
-function CatalogPdfZone({
-  hasFile,
-  fileName,
-  fileHref,
-  disabled,
-  uploading,
-  onFile,
-}: {
-  hasFile: boolean;
-  fileName?: string | null;
-  fileHref?: string | null;
-  disabled?: boolean;
-  uploading?: boolean;
-  onFile: (file: File) => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
-
-  const pick = (list: FileList | null) => {
-    const file = list?.[0];
-    if (file) onFile(file);
-    if (inputRef.current) inputRef.current.value = "";
-  };
-
-  return (
-    <div className="space-y-2">
-      {hasFile && fileHref && (
-        <a
-          href={fileHref}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-950/60 px-3 py-2 text-sm text-sky-300 transition-colors hover:border-sky-700/60 hover:bg-slate-900"
-        >
-          <FileText className="h-4 w-4 shrink-0 text-sky-400" />
-          <span className="min-w-0 flex-1 truncate font-medium">
-            {fileName || "Catalogo PDF"}
-          </span>
-          <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
-        </a>
-      )}
-
-      <div
-        role="button"
-        tabIndex={disabled ? -1 : 0}
-        aria-disabled={disabled}
-        onKeyDown={(e) => {
-          if (disabled) return;
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            inputRef.current?.click();
-          }
-        }}
-        onClick={() => {
-          if (!disabled) inputRef.current?.click();
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          if (!disabled) setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          if (!disabled) pick(e.dataTransfer.files);
-        }}
-        className={cn(
-          "relative flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-5 text-center transition-colors",
-          disabled
-            ? "cursor-not-allowed border-slate-800 bg-slate-950/40 opacity-60"
-            : dragOver
-              ? "cursor-pointer border-sky-500/70 bg-sky-950/40"
-              : "cursor-pointer border-slate-600/80 bg-slate-950/50 hover:border-sky-600/50 hover:bg-slate-900/70"
-        )}
-      >
-        <div
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-full",
-            dragOver ? "bg-sky-500/20 text-sky-300" : "bg-slate-800 text-slate-300"
-          )}
-        >
-          {hasFile ? (
-            <Replace className="h-5 w-5" />
-          ) : (
-            <FileUp className="h-5 w-5" />
-          )}
-        </div>
-        <div className="space-y-0.5">
-          <p className="text-sm font-medium text-slate-100">
-            {uploading
-              ? "Caricamento in corso…"
-              : hasFile
-                ? "Sostituisci PDF"
-                : "Carica catalogo PDF"}
-          </p>
-          <p className="text-xs text-slate-400">
-            Trascina qui oppure clicca · max 150 MB (meglio sotto 50 MB)
-          </p>
-        </div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="application/pdf,image/*"
-          className="sr-only"
-          disabled={disabled}
-          onChange={(e) => pick(e.target.files)}
-        />
-      </div>
-    </div>
-  );
-}
-
 export default function IeSupplierCatalogsPage() {
   const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
@@ -182,10 +66,21 @@ export default function IeSupplierCatalogsPage() {
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [uploadFileName, setUploadFileName] = useState("");
+  const [uploadingRole, setUploadingRole] = useState<
+    "PRICE_LIST" | "CATALOG" | null
+  >(null);
 
-  const { data: catalogs = [], isLoading } = useQuery({
-    queryKey: ["supplier-catalogs"],
-    queryFn: () => supplierCatalogsApi.list(),
+  const {
+    data: catalogs = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ["supplier-catalogs", "ELECTRICAL"],
+    queryFn: () => supplierCatalogsApi.list({ category: "ELECTRICAL" }),
+    retry: 1,
   });
 
   const createMut = useMutation({
@@ -194,6 +89,7 @@ export default function IeSupplierCatalogsPage() {
         supplierName: supplierName.trim(),
         title: title.trim(),
         kind,
+        category: "ELECTRICAL",
         defaultDiscountPercent: Number(discount) || 0,
         items:
           kind === "PRICE_LIST" && itemName && itemPrice
@@ -219,10 +115,25 @@ export default function IeSupplierCatalogsPage() {
   });
 
   const uploadMut = useMutation({
-    mutationFn: ({ id, file }: { id: string; file: File }) =>
-      supplierCatalogsApi.uploadPdf(id, file, setUploadPercent),
-    onMutate: ({ id, file }) => {
+    mutationFn: ({
+      id,
+      file,
+      role,
+    }: {
+      id: string;
+      file: File;
+      role: "PRICE_LIST" | "CATALOG";
+    }) =>
+      supplierCatalogsApi.uploadFile(id, file, {
+        role,
+        label:
+          role === "PRICE_LIST" ? "Listino prezzi" : "Catalogo con immagini",
+        replaceSameRole: true,
+        onProgress: setUploadPercent,
+      }),
+    onMutate: ({ id, file, role }) => {
       setUploadTargetId(id);
+      setUploadingRole(role);
       setUploadPercent(0);
       setUploadFileName(file.name);
     },
@@ -231,8 +142,22 @@ export default function IeSupplierCatalogsPage() {
     },
     onSettled: () => {
       setUploadTargetId(null);
+      setUploadingRole(null);
       setUploadPercent(0);
       setUploadFileName("");
+    },
+  });
+
+  const deleteFileMut = useMutation({
+    mutationFn: ({
+      catalogId,
+      fileId,
+    }: {
+      catalogId: string;
+      fileId: string;
+    }) => supplierCatalogsApi.deleteFile(catalogId, fileId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["supplier-catalogs"] });
     },
   });
 
@@ -255,8 +180,9 @@ export default function IeSupplierCatalogsPage() {
       <div className="p-4 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <p className="max-w-2xl text-sm text-slate-400">
-            Cataloghi ufficiali PDF e listini prezzi con scontistica. Usali come
-            riferimento in preventivi e commesse.
+            Nella stessa scheda carica il <span className="text-slate-300">listino prezzi</span> e il{" "}
+            <span className="text-slate-300">catalogo con immagini</span> (es.
+            Living Now). Poi unisci i codici nel dettaglio per il preventivatore.
           </p>
           <Button onClick={() => setOpen(true)}>
             <Plus className="h-4 w-4" /> Nuovo catalogo / listino
@@ -278,8 +204,8 @@ export default function IeSupplierCatalogsPage() {
               }
             />
             <p className="mt-1.5 text-xs text-slate-400">
-              Non chiudere la pagina: i file grandi possono richiedere alcuni
-              minuti.
+              Non chiudere la pagina: i file grandi (catalogo immagini) possono
+              richiedere alcuni minuti.
             </p>
           </div>
         )}
@@ -288,14 +214,38 @@ export default function IeSupplierCatalogsPage() {
           <div className="max-w-sm">
             <ProgressBar indeterminate label="Caricamento cataloghi…" />
           </div>
+        ) : isError ? (
+          <div className="space-y-2">
+            <p className="text-sm text-red-300">
+              {error instanceof Error
+                ? error.message
+                : "Impossibile caricare i cataloghi"}
+            </p>
+            <Button type="button" variant="outline" onClick={() => refetch()}>
+              Riprova
+            </Button>
+          </div>
         ) : catalogs.length === 0 ? (
           <p className="text-slate-400">Nessun catalogo ancora.</p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-4 lg:grid-cols-2">
             {catalogs.map((cat) => {
               const disc = Number(cat.defaultDiscountPercent) || 0;
               const isUploading =
                 uploadMut.isPending && uploadTargetId === cat.id;
+              const files: SupplierCatalogFile[] = cat.files?.length
+                ? cat.files
+                : cat.filePath
+                  ? [
+                      {
+                        id: "legacy",
+                        role: "PRICE_LIST",
+                        label: cat.fileName || "Allegato",
+                        filePath: cat.filePath,
+                        fileName: cat.fileName,
+                      },
+                    ]
+                  : [];
               return (
                 <Card
                   key={cat.id}
@@ -306,29 +256,36 @@ export default function IeSupplierCatalogsPage() {
                       {cat.title}
                     </CardTitle>
                     <p className="text-xs text-slate-500">
-                      {cat.supplierName} ·{" "}
-                      {cat.kind === "PDF" ? "Catalogo PDF" : "Listino prezzi"}
+                      {cat.supplierName}
                       {disc > 0 ? ` · sconto ${disc}%` : ""}
                     </p>
+                    <CatalogStatusIcons status={cat.status} />
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm text-slate-400">
-                    {cat.kind === "PDF" && (
-                      <CatalogPdfZone
-                        hasFile={!!cat.filePath}
-                        fileName={cat.fileName}
-                        fileHref={
-                          cat.filePath ? publicAssetUrl(cat.filePath) : null
+                    <CatalogDualUpload
+                      files={files}
+                      disabled={
+                        uploadMut.isPending || deleteFileMut.isPending
+                      }
+                      uploadingRole={isUploading ? uploadingRole : null}
+                      uploadPercent={isUploading ? uploadPercent : 0}
+                      onUpload={(file, role) =>
+                        uploadMut.mutate({ id: cat.id, file, role })
+                      }
+                      onDelete={(fileId) => {
+                        if (
+                          window.confirm("Eliminare questo PDF dal catalogo?")
+                        ) {
+                          deleteFileMut.mutate({
+                            catalogId: cat.id,
+                            fileId,
+                          });
                         }
-                        disabled={uploadMut.isPending}
-                        uploading={isUploading}
-                        onFile={(file) =>
-                          uploadMut.mutate({ id: cat.id, file })
-                        }
-                      />
-                    )}
-                    {cat.kind === "PRICE_LIST" && (
+                      }}
+                    />
+                    {cat.items && cat.items.length > 0 && (
                       <ul className="space-y-1">
-                        {cat.items.slice(0, 8).map((item, i) => {
+                        {cat.items.slice(0, 4).map((item, i) => {
                           const list = Number(item.listPrice) || 0;
                           const d = Number(item.discountPercent) || disc;
                           const net = list * (1 - d / 100);
@@ -345,17 +302,30 @@ export default function IeSupplierCatalogsPage() {
                             </li>
                           );
                         })}
-                        {cat.items.length > 8 && (
-                          <li>… +{cat.items.length - 8} voci</li>
+                        {(cat._count?.items ?? cat.items.length) > 4 && (
+                          <li>
+                            … +
+                            {(cat._count?.items ?? cat.items.length) - 4} voci
+                          </li>
                         )}
-                        {cat.items.length === 0 && <li>Nessuna voce</li>}
                       </ul>
                     )}
+                    {(cat.status?.itemCount ?? cat._count?.items ?? 0) > 0 &&
+                      !(cat.items && cat.items.length > 0) && (
+                        <p className="text-xs text-slate-500">
+                          {(
+                            cat.status?.itemCount ??
+                            cat._count?.items ??
+                            0
+                          ).toLocaleString("it-IT")}{" "}
+                          voci nel preventivatore
+                        </p>
+                      )}
                     <Link
                       href={routes.supplierCatalog(cat.id)}
-                      className="text-sky-400 hover:underline"
+                      className="inline-flex font-medium text-sky-400 hover:underline"
                     >
-                      Dettaglio
+                      Apri dettaglio · unisci voci e filtri →
                     </Link>
                   </CardContent>
                 </Card>
@@ -426,16 +396,16 @@ export default function IeSupplierCatalogsPage() {
                 />
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Dopo la creazione potrai caricare listino e catalogo immagini
+              negli slot affiancati.
+            </p>
             {createMut.isPending && (
               <ProgressBar indeterminate label="Creazione catalogo…" />
             )}
             {createError && (
               <p className="rounded-md border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-300">
                 {createError}
-                {createError.includes("non trovata") ||
-                createError.toLowerCase().includes("cannot")
-                  ? " — sul Mint serve aggiornare l’API (git pull + deploy)."
-                  : null}
               </p>
             )}
           </div>

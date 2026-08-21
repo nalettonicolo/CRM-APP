@@ -15,9 +15,11 @@ import {
   type Product,
   type Quote,
   type Service,
+  type SupplierCatalogSearchHit,
 } from "@/lib/api";
 import { PaymentScheduleEditor } from "@/components/quotes/payment-schedule-editor";
-import { useWorkspaceRoutes } from "@/contexts/workspace-context";
+import { ListinoQuickPicker } from "@/components/quotes/listino-quick-picker";
+import { useWorkspace, useWorkspaceRoutes } from "@/contexts/workspace-context";
 import {
   invoicePaymentMethodOptions,
   invoicePaymentTimingOptions,
@@ -27,7 +29,7 @@ import {
 import { appSelectClass } from "@/components/ui/field-label";
 import { RENTAL_UNIT } from "@/lib/rental";
 import { groupRentalCatalog, rentalPickerLabel } from "@/lib/rental-catalog";
-import { cn, dateInputToIso, toDateInputValue } from "@/lib/utils";
+import { cn, dateInputToIso, formatCurrency, toDateInputValue } from "@/lib/utils";
 
 export type QuoteItemDraft = {
   type: "custom" | "service" | "product";
@@ -80,6 +82,8 @@ export function QuoteForm({
   submitLabel: string;
 }) {
   const routes = useWorkspaceRoutes();
+  const workspace = useWorkspace();
+  const isIe = workspace === "ie";
 
   const { data: catalogServices = [] } = useQuery({
     queryKey: ["services", "catalog"],
@@ -290,6 +294,28 @@ export function QuoteForm({
       return blank ? [row] : [...rows, row];
     });
     setPickRental("");
+  }
+
+  function addFromListino(hit: SupplierCatalogSearchHit) {
+    const desc = hit.sku ? `${hit.sku} — ${hit.name}` : hit.name;
+    const price =
+      Number(
+        hit.customerPrice ??
+          (hit.sellPrice != null ? hit.sellPrice : hit.listPrice) ??
+          0
+      ) || 0;
+    setItems((rows) => {
+      const blank = rows.length === 1 && !rows[0].description.trim();
+      const row: QuoteItemDraft = {
+        type: "custom",
+        description: desc,
+        quantity: 1,
+        unit: hit.unit || "pz",
+        unitPrice: price,
+        vatRate: 22,
+      };
+      return blank ? [row] : [...rows, row];
+    });
   }
 
   function lineNet(item: QuoteItemDraft) {
@@ -644,6 +670,7 @@ export function QuoteForm({
             </div>
           </div>
         </div>
+        {isIe && <ListinoQuickPicker onAdd={addFromListino} />}
         <div className="app-table-wrap rounded-xl border border-border">
           <table className="w-full text-sm">
             <thead>
@@ -652,7 +679,7 @@ export function QuoteForm({
                 <th className="px-3 py-2 font-medium text-right w-24">Q.tà</th>
                 <th className="px-3 py-2 font-medium text-left w-24">U.M.</th>
                 <th className="px-3 py-2 font-medium text-right w-28">
-                  Prezzo
+                  {isIe ? "Prezzo cliente" : "Prezzo"}
                   <span className="block text-[10px] font-normal text-muted-foreground">
                     modificabile
                   </span>

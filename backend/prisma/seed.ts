@@ -88,12 +88,12 @@ async function main() {
           "Progetto luci, dimmer e moving head, controllo DMX, atmosphere per club, teatro e cerimonie.",
       },
       {
-        title: "Organizzazione tecnica",
-        description:
-          "Sopralluogo, rider tecnico, montaggio e smontaggio, coordinamento con venue e produzione.",
-      },
-    ],
-  };
+      title: "Organizzazione tecnica",
+      description:
+        "Sopralluogo, scheda tecnica, montaggio e smontaggio, coordinamento con venue e produzione.",
+    },
+  ],
+};
 
   const settings = [
     {

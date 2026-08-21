@@ -31,12 +31,12 @@ import { DOCUMENT_COPY } from "@/lib/document-copy";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 
 const statusStyle: Record<string, string> = {
-  DRAFT: "bg-gray-500/15 text-gray-600",
-  SENT: "bg-blue-500/15 text-blue-700",
-  ACCEPTED: "bg-green-500/15 text-green-700",
-  REJECTED: "bg-red-500/15 text-red-600",
-  EXPIRED: "bg-amber-500/15 text-amber-700",
-  CANCELLED: "bg-gray-500/15 text-gray-600",
+  DRAFT: "bg-muted text-muted-foreground",
+  SENT: "bg-sky-500/15 text-sky-300",
+  ACCEPTED: "bg-emerald-500/15 text-emerald-300",
+  REJECTED: "bg-red-500/15 text-red-300",
+  EXPIRED: "bg-amber-500/15 text-amber-200",
+  CANCELLED: "bg-muted text-muted-foreground",
 };
 
 export default function QuoteDetailPage() {
@@ -138,7 +138,7 @@ export default function QuoteDetailPage() {
                 {statusError}
               </p>
             )}
-            <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6">
+            <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-border bg-card p-6 text-card-foreground">
               <div className="flex items-start gap-4">
                 <div className="rounded-xl bg-primary/10 p-3">
                   <FileText className="h-8 w-8 text-primary" />
@@ -147,7 +147,7 @@ export default function QuoteDetailPage() {
                   <p className="font-mono text-sm text-muted-foreground">
                     {formatQuoteDocumentNumber(quote.number)}
                   </p>
-                  <h1 className="text-2xl font-bold tracking-tight">
+                  <h1 className="text-2xl font-bold tracking-tight text-card-foreground">
                     {quote.title || "Preventivo"}
                   </h1>
                   <Link
@@ -376,14 +376,14 @@ export default function QuoteDetailPage() {
                 <div
                   key={row.label}
                   className={cn(
-                    "rounded-xl border border-border bg-card p-4",
+                    "rounded-xl border border-border bg-card p-4 text-card-foreground",
                     row.highlight && "border-primary/30 bg-primary/5"
                   )}
                 >
                   <p className="text-xs text-muted-foreground">{row.label}</p>
                   <p
                     className={cn(
-                      "mt-1 text-lg font-semibold tabular-nums",
+                      "mt-1 text-lg font-semibold tabular-nums text-card-foreground",
                       row.highlight && "text-primary"
                     )}
                   >
@@ -543,7 +543,7 @@ export default function QuoteDetailPage() {
               </p>
               {quote.signedByClient && quote.clientSignature ? (
                 <div className="space-y-3">
-                  <p className="text-sm font-medium text-green-700">
+                  <p className="text-sm font-medium text-emerald-400">
                     {DOCUMENT_COPY.quote.signedSuccess}{" "}
                     {quote.signedAt && (
                       <>

@@ -24,7 +24,7 @@ export function IeShell({ children }: { children: React.ReactNode }) {
     <ShellContext.Provider
       value={{ mobileOpen, toggleMobileMenu, closeMobileMenu }}
     >
-      <div className="ie-workspace min-h-screen bg-slate-950 text-slate-100">
+      <div className="ie-workspace dark min-h-screen bg-slate-950 text-slate-100">
         {mobileOpen && (
           <button
             type="button"

@@ -128,7 +128,7 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
             {[
               { label: "Audio live", hint: "FOH · monitor · RF", icon: Mic2 },
               { label: "Luci evento", hint: "DMX · atmosphere", icon: Lightbulb },
-              { label: "Produzione", hint: "Montaggio · rider", icon: Wrench },
+              { label: "Produzione", hint: "Montaggio · allestimento", icon: Wrench },
             ].map((card) => {
               const Icon = card.icon;
               return (

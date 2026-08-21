@@ -98,6 +98,19 @@ const contactLimiter = rateLimit({
 });
 app.use("/api/public/contact", contactLimiter);
 
+// PDF/immagini da /uploads possono essere aperti in iframe dal frontend
+// (origine diversa: es. :3000 vs :4100). Helmet di default impone
+// X-Frame-Options: SAMEORIGIN e frame-ancestors 'self', che spezzano l'anteprima.
+app.use("/uploads", (req, res, next) => {
+  const ancestors = [
+    "'self'",
+    ...config.corsOrigins,
+    "https://*.netlify.app",
+  ].join(" ");
+  res.removeHeader("X-Frame-Options");
+  res.setHeader("Content-Security-Policy", `frame-ancestors ${ancestors}`);
+  next();
+});
 app.use("/uploads", express.static(path.resolve(config.upload.dir)));
 
 app.get("/api/health", (_req, res) => {

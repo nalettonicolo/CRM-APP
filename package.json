@@ -10,6 +10,9 @@
   "scripts": {
     "install:all": "npm install && npm install --workspace=backend && npm install --workspace=frontend",
     "dev": "concurrently \"npm run dev --workspace=backend\" \"npm run dev --workspace=frontend\"",
+    "dev:start": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/avvia-locale.ps1",
+    "dev:watchdog": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/watchdog-locale.ps1",
+    "dev:watchdog:once": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/watchdog-locale.ps1 -Once",
     "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
     "build:frontend": "npm run build --workspace=crm-frontend",
     "verify:netlify": "npm ci --no-audit --no-fund && npm run build --workspace=crm-frontend",

@@ -30,6 +30,7 @@ export type WorkspaceRoutes = {
   dailyReport: (id: string) => string;
   supplierCatalogs: string;
   supplierCatalog: (id: string) => string;
+  securityCatalogs: string;
   deadlines: string;
 };
 
@@ -66,6 +67,7 @@ export function routesFor(workspace: Workspace): WorkspaceRoutes {
       dailyReport: (id) => `${base}/report/${id}`,
       supplierCatalogs: `${base}/fornitori`,
       supplierCatalog: (id) => `${base}/fornitori/${id}`,
+      securityCatalogs: `${base}/catalogo/antifurti`,
       deadlines: `${base}/scadenze`,
     };
   }
@@ -100,6 +102,7 @@ export function routesFor(workspace: Workspace): WorkspaceRoutes {
     dailyReport: (id) => `/reports/${id}`,
     supplierCatalogs: "/inventory/products",
     supplierCatalog: (id) => `/inventory/products`,
+    securityCatalogs: "/inventory/products",
     deadlines: "/payments",
   };
 }

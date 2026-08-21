@@ -39,7 +39,7 @@ export const DEFAULT_SITE_HOME: SiteHomeSettings = {
     {
       title: "Organizzazione tecnica",
       description:
-        "Sopralluogo, rider tecnico, montaggio e smontaggio, coordinamento con venue e produzione.",
+        "Sopralluogo, scheda tecnica, montaggio e smontaggio, coordinamento con venue e produzione.",
     },
   ],
 };

@@ -32,10 +32,10 @@ export function DetailSection({
         className
       )}
     >
-      <h2 className="border-b border-border px-4 py-3 text-sm font-semibold sm:px-5">
+      <h2 className="border-b border-border px-4 py-3 text-sm font-semibold text-card-foreground sm:px-5">
         {title}
       </h2>
-      <div className="p-4 sm:p-5">{children}</div>
+      <div className="p-4 text-card-foreground sm:p-5">{children}</div>
     </section>
   );
 }

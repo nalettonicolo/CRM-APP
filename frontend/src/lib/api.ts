@@ -1802,6 +1802,17 @@ export const dailyReportsApi = {
     dailyReportsApi.update(id, { jobOrderId }),
 };
 
+export interface SupplierCatalogFile {
+  id: string;
+  role: "PRICE_LIST" | "CATALOG" | "OTHER";
+  label?: string | null;
+  filePath: string;
+  fileName?: string | null;
+  mimeType?: string | null;
+  fileSize?: number | null;
+  sortOrder?: number;
+}
+
 export interface SupplierCatalogItem {
   id?: string;
   sku?: string | null;
@@ -1809,7 +1820,41 @@ export interface SupplierCatalogItem {
   unit?: string | null;
   listPrice: number | string;
   discountPercent?: number | string;
+  sellPrice?: number | string | null;
   notes?: string | null;
+  sourceLabel?: string | null;
+  productLine?: string | null;
+}
+
+export interface SupplierCatalogSearchHit {
+  id: string;
+  sku?: string | null;
+  name: string;
+  unit?: string | null;
+  listPrice: number;
+  discountPercent: number;
+  netPrice: number;
+  sellPrice?: number | null;
+  /** Prezzo suggerito al cliente: sellPrice se impostato, altrimenti listino. */
+  customerPrice: number;
+  sourceLabel?: string | null;
+  productLine?: string | null;
+  techFamily?: "BUS" | "ZIGBEE" | "TRADIZIONALE" | null;
+  catalogId: string;
+  catalogTitle: string;
+  supplierName: string;
+}
+
+export interface SupplierCatalogProductLine {
+  line: string;
+  count: number;
+}
+
+export interface SupplierCatalogStatus {
+  hasPrices: boolean;
+  hasPhotos: boolean;
+  mergedCount: number;
+  itemCount: number;
 }
 
 export interface SupplierCatalog {
@@ -1818,20 +1863,93 @@ export interface SupplierCatalog {
   supplierName: string;
   title: string;
   kind: "PDF" | "PRICE_LIST";
+  category?: "ELECTRICAL" | "SECURITY" | string;
   description?: string | null;
   filePath?: string | null;
   fileName?: string | null;
   defaultDiscountPercent: number | string;
   isActive: boolean;
   items: SupplierCatalogItem[];
+  files?: SupplierCatalogFile[];
+  status?: SupplierCatalogStatus;
+  _count?: { items?: number; files?: number };
+  imported?: number;
+  updated?: number;
+  parsed?: number;
+  totalItems?: number;
+  sources?: { label: string; role: string; lines: number }[];
+  parseErrors?: string[];
 }
 
 export const supplierCatalogsApi = {
-  list: (kind?: string) => {
-    const q = kind ? `?kind=${encodeURIComponent(kind)}` : "";
-    return api<SupplierCatalog[]>(`/supplier-catalogs${q}`);
+  list: (opts?: { kind?: string; category?: "ELECTRICAL" | "SECURITY" }) => {
+    const params = new URLSearchParams();
+    if (opts?.kind) params.set("kind", opts.kind);
+    if (opts?.category) params.set("category", opts.category);
+    const q = params.toString();
+    return api<SupplierCatalog[]>(
+      `/supplier-catalogs${q ? `?${q}` : ""}`
+    );
   },
-  get: (id: string) => api<SupplierCatalog>(`/supplier-catalogs/${id}`),
+  get: (
+    id: string,
+    opts?: { line?: string; q?: string; limit?: number }
+  ) => {
+    const params = new URLSearchParams();
+    if (opts?.line) params.set("line", opts.line);
+    if (opts?.q) params.set("q", opts.q);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return api<SupplierCatalog>(
+      `/supplier-catalogs/${id}${qs ? `?${qs}` : ""}`
+    );
+  },
+  searchItems: (
+    q: string,
+    opts?: {
+      catalogId?: string;
+      category?: "ELECTRICAL" | "SECURITY";
+      line?: string;
+      macro?: string;
+      tech?: string;
+      limit?: number;
+    }
+  ) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (opts?.catalogId) params.set("catalogId", opts.catalogId);
+    if (opts?.category) params.set("category", opts.category);
+    if (opts?.line) params.set("line", opts.line);
+    if (opts?.macro) params.set("macro", opts.macro);
+    if (opts?.tech) params.set("tech", opts.tech);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    return api<SupplierCatalogSearchHit[]>(
+      `/supplier-catalogs/items/search?${params}`
+    );
+  },
+  ensureAjax: () =>
+    api<{
+      catalog: SupplierCatalog;
+      created: boolean;
+      imported: number;
+      message: string;
+    }>("/supplier-catalogs/ensure-ajax", { method: "POST" }),
+  productLines: (catalogId?: string) => {
+    const params = new URLSearchParams();
+    if (catalogId) params.set("catalogId", catalogId);
+    const qs = params.toString();
+    return api<{ lines: SupplierCatalogProductLine[]; total: number }>(
+      `/supplier-catalogs/items/lines${qs ? `?${qs}` : ""}`
+    );
+  },
+  backfillLines: (catalogId?: string) =>
+    api<{ scanned: number; updated: number }>(
+      `/supplier-catalogs/items/backfill-lines`,
+      {
+        method: "POST",
+        body: JSON.stringify(catalogId ? { catalogId } : {}),
+      }
+    ),
   create: (data: Record<string, unknown>) =>
     api<SupplierCatalog>("/supplier-catalogs", {
       method: "POST",
@@ -1844,46 +1962,85 @@ export const supplierCatalogsApi = {
     }),
   delete: (id: string) =>
     api<{ success: boolean }>(`/supplier-catalogs/${id}`, { method: "DELETE" }),
-  uploadPdf: (
+  updateItem: (
+    catalogId: string,
+    itemId: string,
+    data: {
+      sku?: string | null;
+      name?: string;
+      unit?: string | null;
+      listPrice?: number;
+      discountPercent?: number;
+      sellPrice?: number | null;
+      notes?: string | null;
+      productLine?: string | null;
+    }
+  ) =>
+    api<SupplierCatalogItem>(
+      `/supplier-catalogs/${catalogId}/items/${itemId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }
+    ),
+  deleteItem: (catalogId: string, itemId: string) =>
+    api<{ success: boolean }>(
+      `/supplier-catalogs/${catalogId}/items/${itemId}`,
+      { method: "DELETE" }
+    ),
+  importPdfItems: (id: string, replace = false) =>
+    api<SupplierCatalog>(`/supplier-catalogs/${id}/import-pdf-items`, {
+      method: "POST",
+      body: JSON.stringify({ replace }),
+    }),
+  deleteFile: (catalogId: string, fileId: string) =>
+    api<SupplierCatalog>(`/supplier-catalogs/${catalogId}/files/${fileId}`, {
+      method: "DELETE",
+    }),
+  uploadFile: async (
     id: string,
     file: File,
-    onProgress?: (percent: number) => void
+    opts?: {
+      role?: "PRICE_LIST" | "CATALOG" | "OTHER";
+      label?: string;
+      replaceSameRole?: boolean;
+      onProgress?: (percent: number) => void;
+    }
   ) => {
     const maxBytes = 150 * 1024 * 1024;
     const sizeMb = file.size / (1024 * 1024);
     if (file.size > maxBytes) {
-      return Promise.reject(
-        new ApiError(
-          413,
-          `PDF troppo grande (${sizeMb.toFixed(0)} MB). Massimo 150 MB.`
-        )
+      throw new ApiError(
+        413,
+        `PDF troppo grande (${sizeMb.toFixed(0)} MB). Massimo 150 MB.`
       );
     }
-
-    // Sempre diretto al Funnel: il proxy Netlify taglia i body grandi
-    const url = apiUrlDirect(`/supplier-catalogs/${id}/pdf`);
+    await refreshToken();
+    const isLocal =
+      typeof window !== "undefined" &&
+      (window.location.hostname === "localhost" ||
+        window.location.hostname === "127.0.0.1");
+    const primaryUrl =
+      isLocal || file.size <= 5 * 1024 * 1024
+        ? apiUrl(`/supplier-catalogs/${id}/files`)
+        : apiUrlDirect(`/supplier-catalogs/${id}/files`);
 
     const postOnce = (targetUrl: string) =>
       new Promise<SupplierCatalog>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", targetUrl);
         xhr.withCredentials = true;
-
         const headers = apiAuthHeaders();
         for (const [key, value] of Object.entries(headers)) {
           if (key.toLowerCase() === "content-type") continue;
           xhr.setRequestHeader(key, value);
         }
-
         xhr.upload.onprogress = (event) => {
-          if (!event.lengthComputable || !onProgress) return;
-          const pct = Math.min(
-            99,
-            Math.round((event.loaded / event.total) * 100)
+          if (!event.lengthComputable || !opts?.onProgress) return;
+          opts.onProgress(
+            Math.min(99, Math.round((event.loaded / event.total) * 100))
           );
-          onProgress(pct);
         };
-
         xhr.onload = () => {
           let data: Record<string, unknown> = {};
           try {
@@ -1895,54 +2052,51 @@ export const supplierCatalogsApi = {
             /* ignore */
           }
           if (xhr.status >= 200 && xhr.status < 300) {
-            onProgress?.(100);
+            opts?.onProgress?.(100);
             resolve(data as unknown as SupplierCatalog);
             return;
           }
-          const msg =
-            (typeof data.error === "string" && data.error) ||
-            (xhr.status === 413
-              ? "File troppo grande (limite server). Sul Mint aggiorna l’API e riavvia crm-api."
-              : xhr.status === 401
-                ? "Sessione scaduta: ricarica e accedi di nuovo."
-                : xhr.status === 0
-                  ? "Upload interrotto"
-                  : `Upload fallito (HTTP ${xhr.status})`);
-          reject(new ApiError(xhr.status, msg));
+          reject(
+            new ApiError(
+              xhr.status,
+              (typeof data.error === "string" && data.error) ||
+                `Upload fallito (HTTP ${xhr.status})`
+            )
+          );
         };
-
         xhr.onerror = () =>
-          reject(
-            new ApiError(
-              0,
-              `Upload interrotto a circa ${sizeMb.toFixed(0)} MB totali. Verifica Funnel sul Mint (tailscale funnel status) e spazio disco; per cataloghi enormi comprimi il PDF sotto i 50 MB.`
-            )
-          );
-        xhr.ontimeout = () =>
-          reject(
-            new ApiError(
-              0,
-              "Upload scaduto. Riprova con PDF più leggero o da rete più stabile."
-            )
-          );
-
+          reject(new ApiError(0, "Upload interrotto. Riprova con PDF piu leggero."));
+        xhr.ontimeout = () => reject(new ApiError(0, "Upload scaduto."));
         xhr.timeout = 60 * 60 * 1000;
-
         const fd = new FormData();
         fd.append("file", file);
-        onProgress?.(0);
+        fd.append("role", opts?.role || "OTHER");
+        if (opts?.label) fd.append("label", opts.label);
+        if (opts?.replaceSameRole) fd.append("replaceSameRole", "true");
+        opts?.onProgress?.(0);
         xhr.send(fd);
       });
 
-    return postOnce(url).catch(async (err) => {
-      // Fallback: stesso sito Netlify (a volte Funnel flapping)
-      if (!(err instanceof ApiError) || (err.status !== 0 && err.status < 500)) {
-        throw err;
+    try {
+      return await postOnce(primaryUrl);
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) {
+        const ok = await refreshToken();
+        if (ok) return postOnce(primaryUrl);
       }
-      onProgress?.(0);
-      return postOnce(apiUrl(`/supplier-catalogs/${id}/pdf`));
-    });
+      throw err;
+    }
   },
+  uploadPdf: async (
+    id: string,
+    file: File,
+    onProgress?: (percent: number) => void
+  ) =>
+    supplierCatalogsApi.uploadFile(id, file, {
+      role: "PRICE_LIST",
+      replaceSameRole: true,
+      onProgress,
+    }),
 };
 
 export interface SupplierBill {
