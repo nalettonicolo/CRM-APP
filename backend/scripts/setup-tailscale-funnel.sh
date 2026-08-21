@@ -57,8 +57,9 @@ fi
 echo "==> Permessi Funnel per utente $(whoami) (una tantum)"
 sudo tailscale set --operator="$(whoami)" 2>/dev/null || true
 
-echo "==> Avvio Tailscale Funnel (--bg → localhost:${PORT})"
+echo "==> Avvio Tailscale Funnel (--bg → localhost:${PORT} = Nicolò Service)"
 echo "    Se Funnel non è abilitato sul tailnet, apri il link che compare e riprova."
+# Non fare reset cieco: ripristina entrambe le regole (Service 443 + 3D 8443)
 sudo tailscale funnel reset 2>/dev/null || true
 FUNNEL_LOG=$(mktemp)
 if ! sudo tailscale funnel --bg --yes "${PORT}" 2>"$FUNNEL_LOG"; then
@@ -76,7 +77,18 @@ if ! sudo tailscale funnel --bg --yes "${PORT}" 2>"$FUNNEL_LOG"; then
   exit 1
 fi
 rm -f "$FUNNEL_LOG"
-sleep 3
+sleep 2
+
+# Ripristina Funnel Stampa 3D su :8443 → localhost:4101 se online
+N3D_PORT=4101
+N3D_HTTPS=8443
+if curl -sf --max-time 3 "http://127.0.0.1:${N3D_PORT}/api/health" >/dev/null; then
+  echo "==> Ripristino Funnel Nicolò-3D :${N3D_HTTPS} → :${N3D_PORT}"
+  sudo tailscale funnel --bg --yes --https="${N3D_HTTPS}" "http://127.0.0.1:${N3D_PORT}" || true
+else
+  echo "==> Skip Funnel 3D (n3d non in ascolto su ${N3D_PORT})"
+fi
+sleep 2
 
 FUNNEL_URL=""
 if command -v jq >/dev/null 2>&1; then

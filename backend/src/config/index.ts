@@ -35,8 +35,8 @@ const cookieSecure = crossSiteCookies ? true : isProd;
 
 export const config = {
   env: process.env.NODE_ENV || "development",
-  port: parseInt(process.env.PORT || "4000", 10),
-  apiUrl: process.env.API_URL || "http://localhost:4000",
+  port: parseInt(process.env.PORT || "4100", 10),
+  apiUrl: process.env.API_URL || "http://localhost:4100",
   frontendUrl,
   corsOrigins,
   cookieSameSite,

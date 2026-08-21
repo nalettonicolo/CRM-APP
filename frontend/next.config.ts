@@ -8,7 +8,7 @@ function apiRewriteBase(): string {
   const internal = process.env.API_INTERNAL_URL?.trim();
   if (internal) return internal.replace(/\/$/, "");
   return (
-    process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4000"
+    process.env.NEXT_PUBLIC_API_URL?.trim() || "http://localhost:4100"
   ).replace(/\/$/, "");
 }
 
