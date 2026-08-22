@@ -1,40 +1,23 @@
 export type ApiWorkspace = "crm" | "ie";
 
-const STORAGE_KEY = "crm-api-workspace";
-
 let activeWorkspace: ApiWorkspace = "crm";
 
+/** Imposta workspace in memoria (usato dal WorkspaceProvider). */
 export function setApiWorkspace(workspace: ApiWorkspace): void {
   activeWorkspace = workspace;
-  if (typeof window !== "undefined") {
-    try {
-      sessionStorage.setItem(STORAGE_KEY, workspace);
-    } catch {
-      /* ignore */
-    }
-  }
 }
 
+/** Workspace API: solo dal path (mai sessionStorage — evita mix CRM/IE). */
 export function getApiWorkspace(): ApiWorkspace {
   if (typeof window !== "undefined") {
     if (window.location.pathname.startsWith("/impianti-elettrici")) {
-      activeWorkspace = "ie";
-      try {
-        sessionStorage.setItem(STORAGE_KEY, "ie");
-      } catch {
-        /* ignore */
-      }
       return "ie";
     }
-    try {
-      const stored = sessionStorage.getItem(STORAGE_KEY);
-      if (stored === "ie" || stored === "crm") {
-        activeWorkspace = stored;
-        return stored;
-      }
-    } catch {
-      /* ignore */
-    }
+    return "crm";
   }
   return activeWorkspace;
+}
+
+export function resolveApiWorkspace(explicit?: ApiWorkspace): ApiWorkspace {
+  return explicit ?? getApiWorkspace();
 }

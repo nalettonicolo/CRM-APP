@@ -68,12 +68,12 @@ export function ClientDetailDialog({
   const qc = useQueryClient();
   const { data: client, isLoading, isError } = useQuery({
     queryKey: queryKeys.client(workspace, clientId ?? ""),
-    queryFn: () => clientsApi.get(clientId!),
+    queryFn: () => clientsApi.get(clientId!, workspace),
     enabled: open && !!clientId,
   });
 
   const deleteClient = useMutation({
-    mutationFn: () => clientsApi.delete(clientId!),
+    mutationFn: () => clientsApi.delete(clientId!, workspace),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: [workspace, "clients"] });
       onOpenChange(false);

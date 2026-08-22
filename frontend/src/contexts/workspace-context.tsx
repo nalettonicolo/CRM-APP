@@ -19,7 +19,6 @@ export function WorkspaceProvider({
 }) {
   useEffect(() => {
     setApiWorkspace(workspace);
-    return () => setApiWorkspace("crm");
   }, [workspace]);
 
   return (

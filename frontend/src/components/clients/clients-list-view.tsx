@@ -45,7 +45,7 @@ export function ClientsListView() {
   const workspace = useWorkspace();
   const qc = useQueryClient();
   const deleteClient = useMutation({
-    mutationFn: (id: string) => clientsApi.delete(id),
+    mutationFn: (id: string) => clientsApi.delete(id, workspace),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: [workspace, "clients"] }),
   });
@@ -60,7 +60,10 @@ export function ClientsListView() {
       const params: Record<string, string> = {};
       if (search) params.search = search;
       if (status) params.status = status;
-      return clientsApi.list(Object.keys(params).length ? params : undefined);
+      return clientsApi.list(
+        Object.keys(params).length ? params : undefined,
+        workspace
+      );
     },
   });
 
@@ -230,7 +233,7 @@ export function ClientsListView() {
         onDeleted={() => setSelectedId(null)}
         onEdit={() => {
           if (!selectedId) return;
-          clientsApi.get(selectedId).then((c) => setEditClient(c));
+          clientsApi.get(selectedId, workspace).then((c) => setEditClient(c));
         }}
       />
       <ClientFormDialog

@@ -171,6 +171,15 @@ async function main() {
       status: "ACTIVE" as const,
       notes: "Capannone — linee trifase e illuminazione LED",
     },
+    {
+      id: "ie-demo-client-miatto",
+      companyName: "Miatto Fabio",
+      contactName: "Miatto Fabio",
+      firstName: "Fabio",
+      lastName: "Miatto",
+      status: "ACTIVE" as const,
+      notes: "Cliente reale — preventivo antifurto Ajax",
+    },
   ];
 
   for (const c of clients) {

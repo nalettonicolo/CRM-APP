@@ -1,5 +1,7 @@
 import { apiUrl, apiUrlDirect } from "./api-origin";
-import { getApiWorkspace } from "./api-workspace";
+import { getApiWorkspace, resolveApiWorkspace, type ApiWorkspace } from "./api-workspace";
+
+export type { ApiWorkspace };
 
 /** Solo per asset statici (/uploads); le fetch API usano apiUrl(). */
 export const API_ASSET_ORIGIN =
@@ -38,18 +40,29 @@ async function apiHealthFeatures(): Promise<{
   }
 }
 
-function apiAuthHeaders(includeJson = false): Record<string, string> {
+export type ApiOptions = {
+  direct?: boolean;
+  workspace?: ApiWorkspace;
+};
+
+function apiAuthHeaders(
+  includeJson = false,
+  workspace?: ApiWorkspace
+): Record<string, string> {
   const headers: Record<string, string> = {};
   if (includeJson) headers["Content-Type"] = "application/json";
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (getApiWorkspace() === "ie") headers["X-Workspace"] = "ie";
+  if (resolveApiWorkspace(workspace) === "ie") headers["X-Workspace"] = "ie";
   return headers;
 }
 
-function apiHeaders(extra?: HeadersInit): HeadersInit {
+function apiHeaders(
+  extra?: HeadersInit,
+  workspace?: ApiWorkspace
+): HeadersInit {
   return {
-    ...apiAuthHeaders(true),
+    ...apiAuthHeaders(true, workspace),
     ...(extra as Record<string, string> | undefined),
   };
 }
@@ -57,10 +70,10 @@ function apiHeaders(extra?: HeadersInit): HeadersInit {
 export async function api<T>(
   path: string,
   options: RequestInit = {},
-  config?: { direct?: boolean }
+  config?: ApiOptions
 ): Promise<T> {
   const headers: HeadersInit = {
-    ...apiHeaders(),
+    ...apiHeaders(undefined, config?.workspace),
     ...(options.headers || {}),
   };
 
@@ -164,20 +177,33 @@ export interface User {
 }
 
 export const clientsApi = {
-  list: (params?: Record<string, string>) => {
+  list: (params?: Record<string, string>, workspace?: ApiWorkspace) => {
     const q = params ? "?" + new URLSearchParams(params).toString() : "";
-    return api<{ data: Client[]; total: number }>(`/clients${q}`);
+    return api<{ data: Client[]; total: number }>(`/clients${q}`, {}, { workspace });
   },
-  get: (id: string) => api<Client>(`/clients/${id}`),
-  create: (data: Partial<Client>) =>
-    api<Client>("/clients", { method: "POST", body: JSON.stringify(data) }),
-  update: (id: string, data: Partial<Client>) =>
-    api<Client>(`/clients/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-  delete: (id: string) =>
-    api<{ success: boolean }>(`/clients/${id}`, { method: "DELETE" }),
+  get: (id: string, workspace?: ApiWorkspace) =>
+    api<Client>(`/clients/${id}`, {}, { workspace }),
+  create: (data: Partial<Client>, workspace?: ApiWorkspace) =>
+    api<Client>(
+      "/clients",
+      { method: "POST", body: JSON.stringify(data) },
+      { workspace }
+    ),
+  update: (id: string, data: Partial<Client>, workspace?: ApiWorkspace) =>
+    api<Client>(
+      `/clients/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      },
+      { workspace }
+    ),
+  delete: (id: string, workspace?: ApiWorkspace) =>
+    api<{ success: boolean }>(
+      `/clients/${id}`,
+      { method: "DELETE" },
+      { workspace }
+    ),
   exportData: (id: string) =>
     apiUrl(`/clients/${id}/export`),
 };

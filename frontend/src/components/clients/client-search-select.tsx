@@ -49,7 +49,7 @@ export function ClientSearchSelect({
     queryFn: () => {
       const params: Record<string, string> = { limit: "30" };
       if (deferredQuery.trim()) params.search = deferredQuery.trim();
-      return clientsApi.list(params);
+      return clientsApi.list(params, workspace);
     },
     enabled: open && !disabled,
   });
@@ -65,13 +65,13 @@ export function ClientSearchSelect({
     }
     if (selectedLabel) return;
     clientsApi
-      .get(value)
+      .get(value, workspace)
       .then((c) => {
         setSelectedLabel(clientLabel(c));
         setQuery(clientLabel(c));
       })
       .catch(() => undefined);
-  }, [value, selectedLabel]);
+  }, [value, selectedLabel, workspace]);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {

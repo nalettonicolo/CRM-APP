@@ -92,8 +92,8 @@ export function ClientFormDialog({
   const mutation = useMutation({
     mutationFn: () =>
       client
-        ? clientsApi.update(client.id, form)
-        : clientsApi.create(form),
+        ? clientsApi.update(client.id, form, workspace)
+        : clientsApi.create(form, workspace),
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: [workspace, "clients"] });
       if (client) {

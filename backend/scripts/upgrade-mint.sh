@@ -83,6 +83,14 @@ if [[ -n "${DATABASE_URL_IE:-}" ]]; then
     cd "$BACKEND"
     DATABASE_URL="$DATABASE_URL_IE" npx prisma db push --schema=prisma/schema.prisma
   )
+  if [[ -f "$BACKEND/prisma/seed-impianti-elettrici.ts" ]]; then
+    echo "==> Seed IE idempotente (clienti demo + Miatto Fabio)"
+    (
+      cd "$BACKEND"
+      DATABASE_URL="$DATABASE_URL_IE" DATABASE_URL_CRM="$DATABASE_URL" \
+        npx tsx prisma/seed-impianti-elettrici.ts || true
+    )
+  fi
 else
   echo "==> Impianti Elettrici: DATABASE_URL_IE non impostato (salta schema IE)"
   echo "    Per creare il DB: ./backend/scripts/setup-impianti-elettrici-db.sh"
