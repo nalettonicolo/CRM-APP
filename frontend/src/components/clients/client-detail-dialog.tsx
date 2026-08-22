@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
+import { useWorkspace, useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { clientsApi } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { clientStatusLabels } from "@/lib/labels";
 import { cn, formatDate } from "@/lib/utils";
 
@@ -60,10 +62,12 @@ export function ClientDetailDialog({
   onEdit: () => void;
   onDeleted?: () => void;
 }) {
+  const workspace = useWorkspace();
+  const routes = useWorkspaceRoutes();
   const router = useRouter();
   const qc = useQueryClient();
   const { data: client, isLoading, isError } = useQuery({
-    queryKey: ["client", clientId],
+    queryKey: queryKeys.client(workspace, clientId ?? ""),
     queryFn: () => clientsApi.get(clientId!),
     enabled: open && !!clientId,
   });
@@ -71,10 +75,10 @@ export function ClientDetailDialog({
   const deleteClient = useMutation({
     mutationFn: () => clientsApi.delete(clientId!),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: [workspace, "clients"] });
       onOpenChange(false);
       onDeleted?.();
-      router.push("/clients");
+      router.push(routes.clients);
     },
   });
 

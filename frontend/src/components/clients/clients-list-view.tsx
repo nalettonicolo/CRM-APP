@@ -12,7 +12,9 @@ import { Input } from "@/components/ui/input";
 import { ClientDetailDialog } from "@/components/clients/client-detail-dialog";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
+import { useWorkspace } from "@/contexts/workspace-context";
 import { clientsApi, type Client } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { clientStatusLabels } from "@/lib/labels";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatDate } from "@/lib/utils";
@@ -40,10 +42,12 @@ function clientDisplayName(client: {
 }
 
 export function ClientsListView() {
+  const workspace = useWorkspace();
   const qc = useQueryClient();
   const deleteClient = useMutation({
     mutationFn: (id: string) => clientsApi.delete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: [workspace, "clients"] }),
   });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -51,7 +55,7 @@ export function ClientsListView() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editClient, setEditClient] = useState<Client | null>(null);
   const { data, isLoading } = useQuery({
-    queryKey: ["clients", search, status],
+    queryKey: queryKeys.clients(workspace, search, status),
     queryFn: () => {
       const params: Record<string, string> = {};
       if (search) params.search = search;

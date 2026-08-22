@@ -5,7 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, Plus, Search } from "lucide-react";
 import { ClientFormDialog } from "@/components/clients/client-form-dialog";
 import { Input } from "@/components/ui/input";
+import { useWorkspace } from "@/contexts/workspace-context";
 import { clientsApi, type Client } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 function clientLabel(client: Client) {
@@ -33,6 +35,7 @@ export function ClientSearchSelect({
   disabled?: boolean;
   required?: boolean;
 }) {
+  const workspace = useWorkspace();
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
@@ -42,7 +45,7 @@ export function ClientSearchSelect({
   const [selectedLabel, setSelectedLabel] = useState("");
 
   const { data, isFetching } = useQuery({
-    queryKey: ["clients", "picker", deferredQuery],
+    queryKey: queryKeys.clientsPicker(workspace, deferredQuery),
     queryFn: () => {
       const params: Record<string, string> = { limit: "30" };
       if (deferredQuery.trim()) params.search = deferredQuery.trim();

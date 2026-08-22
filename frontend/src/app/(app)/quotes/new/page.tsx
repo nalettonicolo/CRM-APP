@@ -8,9 +8,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DetailBack } from "@/components/detail/detail-shell";
 import { QuoteForm } from "@/components/quotes/quote-form";
 import { quotesApi } from "@/lib/api";
-import { useWorkspaceRoutes } from "@/contexts/workspace-context";
+import { useWorkspace, useWorkspaceRoutes } from "@/contexts/workspace-context";
+import { queryKeys } from "@/lib/query-keys";
 
 export default function NewQuotePage() {
+  const workspace = useWorkspace();
   const router = useRouter();
   const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
@@ -59,8 +61,10 @@ export default function NewQuotePage() {
                       productId: i.productId,
                     })),
                   });
-                  qc.invalidateQueries({ queryKey: ["clients"] });
-                  qc.invalidateQueries({ queryKey: ["client", data.clientId] });
+                  qc.invalidateQueries({ queryKey: [workspace, "clients"] });
+                  qc.invalidateQueries({
+                    queryKey: queryKeys.client(workspace, data.clientId),
+                  });
                   router.push(routes.quote(quote.id));
                 } catch (err: unknown) {
                   setError(err instanceof Error ? err.message : "Errore");

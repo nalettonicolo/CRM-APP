@@ -18,11 +18,20 @@ export function setApiWorkspace(workspace: ApiWorkspace): void {
 export function getApiWorkspace(): ApiWorkspace {
   if (typeof window !== "undefined") {
     if (window.location.pathname.startsWith("/impianti-elettrici")) {
+      activeWorkspace = "ie";
+      try {
+        sessionStorage.setItem(STORAGE_KEY, "ie");
+      } catch {
+        /* ignore */
+      }
       return "ie";
     }
     try {
       const stored = sessionStorage.getItem(STORAGE_KEY);
-      if (stored === "ie" || stored === "crm") return stored;
+      if (stored === "ie" || stored === "crm") {
+        activeWorkspace = stored;
+        return stored;
+      }
     } catch {
       /* ignore */
     }

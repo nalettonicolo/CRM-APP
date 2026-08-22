@@ -18,7 +18,8 @@ import { consolidatePaymentTermsForDisplay } from "@/lib/consolidate-payment-ter
 import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import { formatQuoteServicePeriod } from "@/lib/quote-display";
 import { downloadQuotePdf, printQuotePdf, invoicesApi, quotesApi } from "@/lib/api";
-import { useWorkspaceRoutes } from "@/contexts/workspace-context";
+import { useWorkspace, useWorkspaceRoutes } from "@/contexts/workspace-context";
+import { queryKeys } from "@/lib/query-keys";
 import { PaymentMethodLine } from "@/components/documents/payment-method-line";
 import {
   formatInvoicePaymentLineSegments,
@@ -42,6 +43,7 @@ const statusStyle: Record<string, string> = {
 export default function QuoteDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const workspace = useWorkspace();
   const router = useRouter();
   const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
@@ -53,27 +55,28 @@ export default function QuoteDetailPage() {
   const fromQuote = useMutation({
     mutationFn: () => invoicesApi.fromQuote(id),
     onSuccess: (inv) => {
-      qc.invalidateQueries({ queryKey: ["invoices"] });
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      qc.invalidateQueries({ queryKey: ["quote", id] });
+      qc.invalidateQueries({ queryKey: [workspace, "invoices"] });
+      qc.invalidateQueries({ queryKey: queryKeys.quotes(workspace) });
+      qc.invalidateQueries({ queryKey: queryKeys.quote(workspace, id) });
       router.push(routes.invoice(inv.id));
     },
   });
 
   const sendEmail = useMutation({
     mutationFn: () => quotesApi.sendEmail(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["quote", id] }),
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.quote(workspace, id) }),
   });
 
   const setStatus = useMutation({
     mutationFn: (status: string) => quotesApi.update(id, { status }),
     onSuccess: () => {
       setStatusError("");
-      qc.invalidateQueries({ queryKey: ["quote", id] });
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      qc.invalidateQueries({ queryKey: ["events"] });
-      qc.invalidateQueries({ queryKey: ["invoices"] });
+      qc.invalidateQueries({ queryKey: queryKeys.quote(workspace, id) });
+      qc.invalidateQueries({ queryKey: queryKeys.quotes(workspace) });
+      qc.invalidateQueries({ queryKey: [workspace, "clients"] });
+      qc.invalidateQueries({ queryKey: [workspace, "events"] });
+      qc.invalidateQueries({ queryKey: [workspace, "invoices"] });
     },
     onError: (e: Error) => {
       setStatusError(e.message || "Errore durante l'aggiornamento dello stato.");
@@ -83,27 +86,29 @@ export default function QuoteDetailPage() {
   const signQuote = useMutation({
     mutationFn: (signature: string) => quotesApi.sign(id, signature),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quote", id] });
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
-      qc.invalidateQueries({ queryKey: ["events"] });
+      qc.invalidateQueries({ queryKey: queryKeys.quote(workspace, id) });
+      qc.invalidateQueries({ queryKey: queryKeys.quotes(workspace) });
+      qc.invalidateQueries({ queryKey: [workspace, "clients"] });
+      qc.invalidateQueries({ queryKey: [workspace, "events"] });
     },
   });
 
   const { data: quote, isLoading, isError } = useQuery({
-    queryKey: ["quote", id],
+    queryKey: queryKeys.quote(workspace, id),
     queryFn: () => quotesApi.get(id),
   });
 
   const deleteQuote = useMutation({
     mutationFn: () => quotesApi.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      qc.invalidateQueries({ queryKey: ["payments"] });
-      qc.invalidateQueries({ queryKey: ["events"] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: queryKeys.quotes(workspace) });
+      qc.invalidateQueries({ queryKey: [workspace, "payments"] });
+      qc.invalidateQueries({ queryKey: [workspace, "events"] });
+      qc.invalidateQueries({ queryKey: [workspace, "clients"] });
       if (quote?.client?.id) {
-        qc.invalidateQueries({ queryKey: ["client", quote.client.id] });
+        qc.invalidateQueries({
+          queryKey: queryKeys.client(workspace, quote.client.id),
+        });
       }
       router.push(routes.quotes);
     },

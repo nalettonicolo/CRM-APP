@@ -11,7 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useWorkspace } from "@/contexts/workspace-context";
 import { clientsApi, type Client } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { clientStatusLabels } from "@/lib/labels";
 
 const emptyForm = {
@@ -74,6 +76,7 @@ export function ClientFormDialog({
   /** Prefill when creating (e.g. from search text). */
   defaults?: Partial<FormState>;
 }) {
+  const workspace = useWorkspace();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [error, setError] = useState("");
@@ -92,8 +95,12 @@ export function ClientFormDialog({
         ? clientsApi.update(client.id, form)
         : clientsApi.create(form),
     onSuccess: (saved) => {
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      if (client) queryClient.invalidateQueries({ queryKey: ["client", client.id] });
+      queryClient.invalidateQueries({ queryKey: [workspace, "clients"] });
+      if (client) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.client(workspace, client.id),
+        });
+      }
       onSaved?.(saved);
       onOpenChange(false);
     },

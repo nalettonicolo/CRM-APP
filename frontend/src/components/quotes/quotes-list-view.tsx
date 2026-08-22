@@ -11,8 +11,9 @@ import { DataCard } from "@/components/ui/data-card";
 import { ListCard } from "@/components/ui/list-card";
 import { ClickableRow } from "@/components/detail/detail-shell";
 import { DeleteEntityButton } from "@/components/ui/delete-entity-button";
-import { useWorkspaceRoutes } from "@/contexts/workspace-context";
+import { useWorkspaceRoutes, useWorkspace } from "@/contexts/workspace-context";
 import { quotesApi } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
 import { quoteStatusLabels } from "@/lib/labels";
 import { formatQuoteDocumentNumber } from "@/lib/document-copy";
 import {
@@ -32,17 +33,18 @@ const statusStyle: Record<string, string> = {
 
 export function QuotesListView() {
   const router = useRouter();
+  const workspace = useWorkspace();
   const routes = useWorkspaceRoutes();
   const qc = useQueryClient();
   const deleteQuote = useMutation({
     mutationFn: (id: string) => quotesApi.delete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["quotes"] });
-      qc.invalidateQueries({ queryKey: ["clients"] });
+      qc.invalidateQueries({ queryKey: queryKeys.quotes(workspace) });
+      qc.invalidateQueries({ queryKey: [workspace, "clients"] });
     },
   });
   const { data, isLoading } = useQuery({
-    queryKey: ["quotes"],
+    queryKey: queryKeys.quotes(workspace),
     queryFn: () => quotesApi.list(),
   });
 
