@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: gestionale-enterprise-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: enterprise_user
+      POSTGRES_PASSWORD: enterprise_password
+      POSTGRES_DB: gestionale_enterprise
+    ports:
+      - "5433:5432" # porta diversa da quella (5432) eventualmente usata dal CRM-APP
+    volumes:
+      - enterprise_db_data:/var/lib/postgresql/data
+
+volumes:
+  enterprise_db_data:

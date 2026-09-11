@@ -1,0 +1,360 @@
+// Gestionale Enterprise — schema dati
+// Parallelo a CRM-APP: stesso spirito (Postgres + Prisma) ma modello dati
+// pensato per funzionalità enterprise stile ClickUp: progetti/task, time
+// tracking, chat, docs, whiteboard, automazioni, ruoli granulari, audit.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Multi-tenant: tutto appende a una Organization. Un utente può appartenere
+// a più organizzazioni tramite Membership (pronto per SSO / più aziende).
+// ---------------------------------------------------------------------------
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  plan      OrgPlan  @default(ENTERPRISE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships Membership[]
+  roles       Role[]
+  projects    Project[]
+  channels    ChatChannel[]
+  docs        Doc[]
+  whiteboards Whiteboard[]
+  automations AutomationRule[]
+  auditLogs   AuditLog[]
+  timeEntries TimeEntry[]
+}
+
+enum OrgPlan {
+  FREE
+  BUSINESS
+  ENTERPRISE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  avatarColor  String   @default("#7C5CFC")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships     Membership[]
+  refreshTokens   RefreshToken[]
+  assignedTasks   Task[]           @relation("TaskAssignee")
+  createdTasks    Task[]           @relation("TaskCreator")
+  timeEntries     TimeEntry[]
+  chatMessages    ChatMessage[]
+  docsAuthored    Doc[]            @relation("DocAuthor")
+  auditLogs       AuditLog[]
+  channelMembers  ChatChannelMember[]
+  notifications   Notification[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// Appartenenza utente-organizzazione con ruolo (RBAC granulare enterprise).
+model Membership {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleId         String
+  role           Role         @relation(fields: [roleId], references: [id])
+  createdAt      DateTime @default(now())
+
+  @@unique([organizationId, userId])
+}
+
+// ---------------------------------------------------------------------------
+// Ruoli e permessi granulari (enterprise): ogni ruolo ha un set di permessi
+// per modulo+azione, indipendenti dal codice — modificabili da UI ("Team").
+// ---------------------------------------------------------------------------
+
+model Role {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  isSystem       Boolean  @default(false) // Owner/Admin non eliminabili
+  createdAt      DateTime @default(now())
+
+  memberships Membership[]
+  permissions RolePermission[]
+
+  @@unique([organizationId, name])
+}
+
+model RolePermission {
+  id       String @id @default(cuid())
+  roleId   String
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  module   String // es. "projects", "tasks", "chat", "reports", "automations"
+  action   String // es. "READ", "WRITE", "DELETE", "MANAGE"
+
+  @@unique([roleId, module, action])
+}
+
+// Audit trail enterprise: ogni azione sensibile viene loggata.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action         String   // es. "task.create", "role.update", "project.delete"
+  entityType     String
+  entityId       String?
+  metadata       Json?
+  ipAddress      String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Project & Task management (Kanban, sottotask, stile ClickUp)
+// ---------------------------------------------------------------------------
+
+model Project {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  description    String?
+  color          String   @default("#7C5CFC")
+  archivedAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  columns     BoardColumn[]
+  tasks       Task[]
+  timeEntries TimeEntry[]
+}
+
+// Colonne board Kanban (Da fare / In corso / Revisione / Fatto, ordinabili)
+model BoardColumn {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  order     Int
+  isDoneColumn Boolean @default(false)
+
+  tasks Task[]
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columnId    String
+  column      BoardColumn  @relation(fields: [columnId], references: [id])
+  parentTaskId String?
+  parentTask  Task?        @relation("TaskSubtasks", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks    Task[]       @relation("TaskSubtasks")
+
+  title       String
+  description String?
+  priority    TaskPriority @default(MEDIUM)
+  status      TaskStatus   @default(TODO)
+  order       Int          @default(0)
+  dueDate     DateTime?
+  estimateMin Int?         // stima in minuti (per time tracking / capacity)
+
+  assigneeId  String?
+  assignee    User?   @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creatorId   String
+  creator     User    @relation("TaskCreator", fields: [creatorId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  checklistItems ChecklistItem[]
+  timeEntries    TimeEntry[]
+  automationLogs AutomationRunLog[]
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+  BLOCKED
+}
+
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label     String
+  done      Boolean  @default(false)
+  order     Int      @default(0)
+}
+
+// ---------------------------------------------------------------------------
+// Time tracking avanzato (cronometro + registrazioni manuali)
+// ---------------------------------------------------------------------------
+
+model TimeEntry {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId      String?
+  project        Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  taskId         String?
+  task           Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  note           String?
+  startedAt      DateTime
+  endedAt        DateTime?
+  durationSec    Int?     // calcolato alla chiusura, per aggregazioni veloci
+  billable       Boolean  @default(true)
+
+  @@index([organizationId, userId, startedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Chat di team (canali + messaggi). REST ora; realtime (WS) da aggiungere.
+// ---------------------------------------------------------------------------
+
+model ChatChannel {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  isPrivate      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  members  ChatChannelMember[]
+  messages ChatMessage[]
+
+  @@unique([organizationId, name])
+}
+
+model ChatChannelMember {
+  id        String      @id @default(cuid())
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, userId])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime    @default(now())
+  editedAt  DateTime?
+}
+
+// ---------------------------------------------------------------------------
+// Docs / Wiki collaborativi
+// ---------------------------------------------------------------------------
+
+model Doc {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  contentHtml    String   @default("")
+  parentDocId    String?
+  parentDoc      Doc?     @relation("DocTree", fields: [parentDocId], references: [id], onDelete: Cascade)
+  children       Doc[]    @relation("DocTree")
+  authorId       String
+  author         User     @relation("DocAuthor", fields: [authorId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Whiteboard collaborativa (persistenza come JSON di elementi/shape)
+// ---------------------------------------------------------------------------
+
+model Whiteboard {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  elementsJson   Json     @default("[]")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Automazioni / workflow builder ("se succede X allora fai Y")
+// ---------------------------------------------------------------------------
+
+model AutomationRule {
+  id             String   @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  isActive       Boolean  @default(true)
+  triggerType    String   // es. "task.status_changed", "task.created", "time_entry.closed"
+  triggerConfig  Json     @default("{}")
+  actionType     String   // es. "task.assign", "notification.send", "task.move_column"
+  actionConfig   Json     @default("{}")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  runLogs AutomationRunLog[]
+}
+
+model AutomationRunLog {
+  id        String         @id @default(cuid())
+  ruleId    String
+  rule      AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  taskId    String?
+  task      Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  success   Boolean
+  message   String?
+  createdAt DateTime       @default(now())
+}
