@@ -78,6 +78,13 @@ modello reale esportato da CAD/slicer:
    progressivo dei dati e infrastruttura dedicata, non solo un componente
    React.
 
+**Riferimenti** (per riprendere il filo in futuro):
+- [3dweblab.com](https://3dweblab.com/) — sito di ispirazione; prodotti: Nimbus (data viz 3D), Pavilion (showroom virtuali), Rubik (configuratore prodotto, quello implementato qui)
+- [docs.pmnd.rs/react-three-fiber](https://docs.pmnd.rs/react-three-fiber) — libreria usata per il Canvas 3D
+- [github.com/pmndrs/drei](https://github.com/pmndrs/drei) — helper usati (`OrbitControls`, `Environment`, `ContactShadows`, `RoundedBox`, e `useGLTF` per il prossimo step)
+- [gltf-transform.dev](https://gltf-transform.dev/) — compressione Draco/meshopt dei modelli `.glb`, da usare nell'asset pipeline non ancora implementata
+- `npx gltfjsx modello.glb` ([github.com/pmndrs/gltfjsx](https://github.com/pmndrs/gltfjsx)) — genera lo scheletro React da un file GLTF/GLB esportato da CAD/slicer
+
 ## Struttura
 
 ```
