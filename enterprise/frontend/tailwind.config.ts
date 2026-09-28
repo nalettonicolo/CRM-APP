@@ -12,6 +12,11 @@ const config: Config = {
           card: "#1D1E42",
           border: "#2C2E5C",
         },
+        // Unico colore di accento per elementi interattivi/brand (bottoni,
+        // link, focus, logo): brand-500. La palette "accent" sotto NON è un
+        // secondo colore di accento — è la palette SEMANTICA di stato
+        // (successo/attenzione/urgente/informativo), usata solo su badge di
+        // priorità/stato e grafici, mai su bottoni o elementi decorativi.
         brand: {
           50: "#F2EEFF",
           100: "#E4DBFF",
@@ -21,17 +26,14 @@ const config: Config = {
           700: "#5230C9",
         },
         accent: {
-          cyan: "#3ED9D9",
-          green: "#22C55E",
-          amber: "#F5A524",
-          rose: "#FB4E75",
+          cyan: "#3ED9D9", // stato "informativo/medio" (badge, grafici)
+          green: "#22C55E", // stato "fatto/successo"
+          amber: "#F5A524", // stato "attenzione"
+          rose: "#FB4E75", // stato "urgente/errore"
         },
       },
       fontFamily: {
         sans: ["-apple-system", "Segoe UI", "Inter", "sans-serif"],
-      },
-      boxShadow: {
-        glow: "0 0 40px rgba(124,92,252,0.25)",
       },
     },
   },

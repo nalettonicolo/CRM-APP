@@ -16,9 +16,8 @@ export default function Home() {
   ];
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-surface">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_-10%,rgba(124,92,252,0.35),transparent_50%),radial-gradient(circle_at_90%_10%,rgba(62,217,217,0.25),transparent_45%)]" />
-      <div className="relative mx-auto flex max-w-6xl flex-col items-center px-6 py-20 text-center">
+    <main className="min-h-screen bg-surface">
+      <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-20 text-center">
         <span className="badge bg-brand-500/15 text-brand-300">Nicolò Service · Enterprise</span>
         <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight sm:text-5xl">
           Il gestionale enterprise che affianca il tuo CRM
@@ -35,7 +34,7 @@ export default function Home() {
             href="https://github.com/nalettonicolo/crm-app"
             target="_blank"
             rel="noreferrer"
-            className="rounded-lg border border-surface-border px-4 py-2 text-sm text-white/70 hover:text-white"
+            className="rounded-xl border border-surface-border px-4 py-2 text-sm text-white/70 hover:text-white"
           >
             Gestionale CRM attuale
           </a>

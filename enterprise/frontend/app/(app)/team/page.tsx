@@ -59,7 +59,7 @@ export default function TeamPage() {
                         <td key={r.id} className="py-2.5 pr-4">
                           <span
                             className={`badge ${
-                              hasWrite ? "bg-accent-green/15 text-accent-green" : "bg-white/8 text-white/35"
+                              hasWrite ? "bg-accent-green/15 text-accent-green" : "bg-white/10 text-white/50"
                             }`}
                           >
                             {isOwner ? "Full" : hasWrite ? "Read/Write" : "—"}

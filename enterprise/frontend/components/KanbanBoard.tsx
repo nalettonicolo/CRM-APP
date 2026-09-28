@@ -1,4 +1,5 @@
 import { TaskCard, type BoardTask } from "./TaskCard";
+import { EmptyState } from "./StateViews";
 
 export interface BoardColumn {
   id: string;
@@ -30,11 +31,7 @@ export function KanbanBoard({ columns }: { columns: BoardColumn[] }) {
             {col.tasks.map((task) => (
               <TaskCard key={task.id} task={task} />
             ))}
-            {col.tasks.length === 0 && (
-              <div className="rounded-lg border border-dashed border-white/10 p-4 text-center text-xs text-white/30">
-                Nessun task
-              </div>
-            )}
+            {col.tasks.length === 0 && <EmptyState title="Nessun task" />}
           </div>
         </div>
       ))}

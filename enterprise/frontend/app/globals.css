@@ -17,22 +17,35 @@ body {
   border-radius: 8px;
 }
 
+/* Raggio unico per card/bottoni/input, cosi' i componenti restano coerenti
+   tra loro (i badge restano "pill" a 999px: sono un tipo di elemento a se'). */
+:root {
+  --radius: 12px;
+}
+
 .card {
   background: #1d1e42;
   border: 1px solid #2c2e5c;
-  border-radius: 14px;
+  border-radius: var(--radius);
 }
 
+/* Un solo colore di accento (brand-500) per gli elementi interattivi:
+   niente gradient decorativi sui bottoni. */
 .btn-primary {
-  background: linear-gradient(135deg, #7c5cfc, #3ed9d9);
-  color: #0f1024;
+  background: #7c5cfc;
+  color: #f7f6ff;
   font-weight: 600;
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 0.5rem 1rem;
-  transition: opacity 0.15s ease;
+  transition: background-color 0.15s ease;
 }
 .btn-primary:hover {
-  opacity: 0.9;
+  background: #6842f0;
+}
+.btn-primary:disabled {
+  background: #4a4a72;
+  color: #9a9ac2;
+  cursor: not-allowed;
 }
 
 .badge {

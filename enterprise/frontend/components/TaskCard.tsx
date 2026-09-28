@@ -26,7 +26,7 @@ export function TaskCard({ task }: { task: BoardTask }) {
   const doneItems = task.checklistItems.filter((c) => c.done).length;
 
   return (
-    <div className="cursor-grab rounded-xl border border-surface-border bg-surface-card p-3 shadow-sm transition-transform hover:-translate-y-0.5 hover:border-brand-500/40">
+    <div className="cursor-grab rounded-xl border border-surface-border bg-surface-card p-3 shadow-sm transition-colors hover:border-brand-500/40">
       <div className="flex items-start justify-between gap-2">
         <p className="text-sm font-medium leading-snug">{task.title}</p>
         <span className={`badge shrink-0 ${PRIORITY_STYLE[task.priority]}`}>{PRIORITY_LABEL[task.priority]}</span>

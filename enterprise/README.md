@@ -7,6 +7,17 @@ un database completamente separati**, con funzionalità stile ClickUp:
 progetti/task Kanban, automazioni, chat, docs/wiki, time tracking,
 whiteboard, BI/reportistica, ruoli granulari e audit trail.
 
+**Design**: trattandosi di un gestionale/pannello admin, il frontend segue
+regole minimali deliberate, non uno stile "landing page": un solo colore di
+accento per elementi interattivi (brand viola — i colori verde/ambra/rosso/
+ciano sono riservati alla codifica semantica di stato/priorità, mai
+decorativi), raggi coerenti (`--radius: 12px` per card/bottoni/input, pill
+solo per i badge), contrasto testo verificato (niente testo sotto `white/45`
+di opacità sul fondo scuro), stati loading/empty/error standard
+(`components/StateViews.tsx`) e nessuna animazione/gradiente decorativo
+vistoso. La pagina `/projects` è l'esempio di riferimento del pattern
+fetch-con-fallback + loading/empty state da replicare sulle altre liste.
+
 > **Stato attuale**: fase "foundation" — schema dati completo, API core
 > funzionanti (auth, progetti/task, time tracking, chat, docs, whiteboard,
 > automazioni, report, audit), frontend con tutte le schermate già navigabili

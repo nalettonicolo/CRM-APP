@@ -25,7 +25,7 @@ export default function TimeTrackingPage() {
           </div>
           <button
             onClick={() => setRunning((r) => !r)}
-            className={running ? "rounded-lg bg-accent-rose/90 px-5 py-2 text-sm font-semibold text-surface" : "btn-primary"}
+            className={running ? "rounded-xl bg-accent-rose/90 px-5 py-2 text-sm font-semibold text-surface" : "btn-primary"}
           >
             {running ? "■ Ferma" : "▶ Avvia cronometro"}
           </button>
@@ -60,7 +60,7 @@ export default function TimeTrackingPage() {
                   </div>
                   <div className="mt-1 h-2 rounded-full bg-white/5">
                     <div
-                      className="h-2 rounded-full bg-gradient-to-r from-brand-500 to-accent-cyan"
+                      className="h-2 rounded-full bg-brand-500"
                       style={{ width: `${Math.min(100, (u.hours / 70) * 100)}%` }}
                     />
                   </div>

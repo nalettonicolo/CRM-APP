@@ -23,7 +23,7 @@ export default function ChatPage() {
               }`}
             >
               <span># {c.name}</span>
-              {c.isPrivate && <span className="text-[10px] text-white/30">🔒</span>}
+              {c.isPrivate && <span className="text-[10px] text-white/50">🔒</span>}
             </button>
           ))}
         </div>
