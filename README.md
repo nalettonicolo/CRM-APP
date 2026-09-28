@@ -24,6 +24,37 @@ CRM-APP/                 # radice repository (nome cartella sul tuo PC)
 └── scripts/setup.js   # Setup automatico
 ```
 
+## Sviluppo da qualsiasi dispositivo (GitHub Codespaces)
+
+Non serve installare nulla in locale: apri il repo su GitHub → pulsante verde
+**Code** → tab **Codespaces** → **Create codespace on `main`** (o sul branch
+che ti serve). In 1-2 minuti hai un VS Code completo nel browser, con Node,
+Docker e le dipendenze già installate (vedi `.devcontainer/devcontainer.json`)
+— funziona da PC, Mac, Chromebook o tablet con un browser; da telefono va
+bene per leggere/modificare file al volo (app GitHub → repo → **.** per
+aprire l'editor github.dev), un vero terminale Codespace è più comodo su
+schermo più grande.
+
+Al primo avvio il Codespace esegue da solo `npm run install:all` e prepara
+`backend/.env` / `frontend/.env.local` dai rispettivi `.env.example`. Poi,
+nel terminale integrato:
+
+```bash
+docker compose up -d postgres   # Postgres nel Codespace stesso
+npm run db:push --workspace=backend
+npm run db:seed --workspace=backend
+npm run dev                     # frontend :3000, backend :4000 (porte già inoltrate)
+```
+
+Il modulo `enterprise/` (vedi `enterprise/README.md`) gira nello stesso
+Codespace con i propri comandi, su porte diverse (frontend :3100, backend
+:5000, Postgres dedicato :5433) — non serve altro setup, solo `cd enterprise`
+e seguire il suo README.
+
+Per fermare l'addebito di utilizzo, sospendi/elimina il Codespace da
+github.com → il tuo avatar → **Your codespaces** quando hai finito: il
+codice resta comunque nel repo, il Codespace è solo l'ambiente di lavoro.
+
 ## Avvio rapido
 
 ### 1. PostgreSQL sul tuo server

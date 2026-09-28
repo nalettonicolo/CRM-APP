@@ -1,0 +1,42 @@
+{
+  "name": "Nicolò Service — CRM-APP",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-20-bookworm",
+
+  // Docker-in-Docker: serve per "docker compose up -d postgres" dentro il
+  // Codespace (sia per CRM-APP che per enterprise/), senza un database
+  // esterno da configurare a mano.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+
+  // CRM-APP: frontend 3000, backend 4000, Postgres 5432.
+  // enterprise/: frontend 3100, backend 5000, Postgres dedicato 5433.
+  "forwardPorts": [3000, 4000, 5432, 3100, 5000, 5433],
+  "portsAttributes": {
+    "3000": { "label": "CRM-APP frontend" },
+    "4000": { "label": "CRM-APP backend" },
+    "5432": { "label": "CRM-APP Postgres" },
+    "3100": { "label": "enterprise frontend" },
+    "5000": { "label": "enterprise backend" },
+    "5433": { "label": "enterprise Postgres" }
+  },
+
+  // Installa le dipendenze root + backend + frontend e prepara i file .env
+  // da template, cosi' il Codespace e' pronto senza passi manuali extra
+  // (i valori restano quelli di sviluppo di default: da rivedere prima di
+  // usare dati reali — vedi README).
+  "postCreateCommand": "npm run install:all; [ -f backend/.env ] || cp backend/.env.example backend/.env; [ -f frontend/.env.local ] || cp frontend/.env.example frontend/.env.local",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "Prisma.prisma"
+      ]
+    }
+  },
+
+  "remoteUser": "node"
+}
