@@ -164,9 +164,9 @@ pagine mostrano i dati demo (`lib/mockData.ts`) finché l'API non risponde.
 8. **Deploy** — oggi pensato per sviluppo locale; da replicare lo schema di
    deploy del CRM-APP (Netlify frontend + VPS/Docker backend) su infrastruttura
    propria, dato che è un sistema separato.
-9. **Verifica build Configuratore 3D** — le dipendenze `three` /
-   `@react-three/fiber` / `@react-three/drei` sono state aggiunte al
-   `package.json` ma non ancora verificate con `npm install` + `next build`
-   in questa sessione (problema temporaneo del tool di esecuzione comandi,
-   non del codice) — eseguirlo alla prima occasione prima di considerare il
-   modulo stabile.
+9. **Configuratore 3D — modello reale** — build verificata
+   (`@react-three/drei` deve restare `^10.x`: la `^9.x` ha come peer
+   dependency `@react-three/fiber@^8`, incompatibile con `@react-three/fiber
+   @^9`/React 19 usati qui). Manca ancora l'asset pipeline (compressione
+   Draco/meshopt) e il caricamento di un vero modello `.glb` al posto della
+   geometria demo — vedi sezione "Configuratore 3D" sopra.
