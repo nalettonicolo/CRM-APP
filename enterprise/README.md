@@ -43,9 +43,40 @@ il codice lì con la history preservata.
 
 | Layer | Tecnologie |
 |-------|------------|
-| Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS, Recharts |
+| Frontend | Next.js 15, React 19, TypeScript, Tailwind CSS, Recharts, Three.js / React Three Fiber + drei |
 | Backend | Node.js, Express 5, Prisma ORM, JWT, Bcrypt |
 | Database | PostgreSQL (dedicato, separato dal CRM-APP) |
+
+## Configuratore 3D (`/configurator`)
+
+Modulo ispirato al prodotto **Rubik** di [3D Web Lab](https://3dweblab.com/)
+(configuratori prodotto 3D per l'e-commerce): scena WebGL interattiva nel
+browser — ruota/zoom con il mouse, cambia colore e finitura in tempo reale —
+via **React Three Fiber** (`components/ProductConfigurator.tsx`), montata
+solo lato client (`next/dynamic` con `ssr:false`, il Canvas WebGL non può
+girare sul server).
+
+Utile per il ramo **Stampa3D** (non presente in questo repo — è un servizio
+esterno, vedi `docs/porte-crm.md` nella root del progetto CRM-APP): far
+vedere al cliente un'anteprima 3D del pezzo/prodotto, con colore/finitura
+configurabili, prima di confermare un preventivo — stesso principio dei
+preventivatori online di stampa 3D.
+
+Oggi il "prodotto" è una geometria primitiva demo (`RoundedBox`). Per un
+modello reale esportato da CAD/slicer:
+
+1. **Asset pipeline** (non ancora implementata): comprimere il `.glb` con
+   Draco/meshopt (es. `@gltf-transform/core`) prima di servirlo — un modello
+   CAD non ottimizzato blocca il caricamento nel browser. `npx gltfjsx
+   modello.glb` genera lo scheletro del componente React da un GLTF.
+2. Sostituire `<ProductMesh />` in `ProductConfigurator.tsx` con
+   `useGLTF("/models/prodotto.glb")` dentro una `<Suspense>` (già presente
+   nel componente).
+3. Se serve reggere point cloud / dataset spaziali di grandi dimensioni
+   (stile "Nimbus" di 3D Web Lab) o showroom virtuali (stile "Pavilion"), è
+   un modulo a parte — non coperto qui, perché richiede streaming
+   progressivo dei dati e infrastruttura dedicata, non solo un componente
+   React.
 
 ## Struttura
 
@@ -133,3 +164,9 @@ pagine mostrano i dati demo (`lib/mockData.ts`) finché l'API non risponde.
 8. **Deploy** — oggi pensato per sviluppo locale; da replicare lo schema di
    deploy del CRM-APP (Netlify frontend + VPS/Docker backend) su infrastruttura
    propria, dato che è un sistema separato.
+9. **Verifica build Configuratore 3D** — le dipendenze `three` /
+   `@react-three/fiber` / `@react-three/drei` sono state aggiunte al
+   `package.json` ma non ancora verificate con `npm install` + `next build`
+   in questa sessione (problema temporaneo del tool di esecuzione comandi,
+   non del codice) — eseguirlo alla prima occasione prima di considerare il
+   modulo stabile.
