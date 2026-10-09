@@ -326,7 +326,7 @@ router.post("/products", requirePermission("products", "CREATE"), async (req: Au
         isRentable: z.boolean().optional(),
         unit: z.string().optional(),
         price: z.number(),
-        cost: z.number().optional(),
+        cost: z.number().nullable().optional(),
         vatRate: z.number().optional(),
         supplierId: z.string().optional(),
         barcode: z.string().optional(),
@@ -396,7 +396,7 @@ router.patch("/products/:id", requirePermission("products", "UPDATE"), async (re
         isRentable: z.boolean().optional(),
         unit: z.string().optional(),
         price: z.number().optional(),
-        cost: z.number().optional(),
+        cost: z.number().nullable().optional(),
         vatRate: z.number().optional(),
         supplierId: z.string().optional(),
         barcode: z.string().optional(),
@@ -436,7 +436,12 @@ router.patch("/products/:id", requirePermission("products", "UPDATE"), async (re
               ? existing.unit || RENTAL_UNIT
               : undefined,
         price: data.price != null ? toDecimal(data.price) : undefined,
-        cost: data.cost != null ? toDecimal(data.cost) : undefined,
+        cost:
+          data.cost === null
+            ? null
+            : data.cost != null
+              ? toDecimal(data.cost)
+              : undefined,
         vatRate: data.vatRate != null ? toDecimal(data.vatRate) : undefined,
         supplierId: data.supplierId,
         barcode: data.barcode,

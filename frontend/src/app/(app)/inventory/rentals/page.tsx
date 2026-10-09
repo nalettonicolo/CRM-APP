@@ -39,6 +39,16 @@ import { rentalPriceFromCost } from "@/lib/rental-pricing";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatCurrency } from "@/lib/utils";
 
+function useDefaultRentalMarkupPercent() {
+  const { data } = useQuery({
+    queryKey: ["settings", "quote-defaults"],
+    queryFn: settingsApi.get,
+  });
+  const raw = (data?.quote_defaults as { defaultRentalMarkupPercent?: number } | undefined)
+    ?.defaultRentalMarkupPercent;
+  return raw != null ? Number(raw) : 30;
+}
+
 const FILTER_TABS: { id: RentalFilter; label: string }[] = [
   { id: "all", label: "Tutti" },
   { id: "audio", label: "Audio" },
@@ -94,6 +104,7 @@ export default function RentalsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const qc = useQueryClient();
+  const defaultMarkup = useDefaultRentalMarkupPercent();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -123,17 +134,6 @@ export default function RentalsPage() {
     queryKey: ["rentals"],
     queryFn: inventoryApi.rentals,
   });
-
-  const { data: settingsData } = useQuery({
-    queryKey: ["settings", "quote-defaults"],
-    queryFn: settingsApi.get,
-  });
-
-  const defaultMarkup =
-    Number(
-      (settingsData?.quote_defaults as { defaultRentalMarkupPercent?: number } | undefined)
-        ?.defaultRentalMarkupPercent
-    ) || 30;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -673,12 +673,21 @@ export default function RentalsPage() {
                   min="0"
                   placeholder="0.00"
                   value={form.cost}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, cost: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const cost = e.target.value;
+                    const suggested = rentalPriceFromCost(cost, defaultMarkup);
+                    setForm((f) => ({
+                      ...f,
+                      cost,
+                      ...(suggested != null
+                        ? { price: String(suggested) }
+                        : {}),
+                    }));
+                  }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Usato per listino automatico nei preventivi (× markup %).
+                  Listino auto = costo × (1 + {defaultMarkup}%). Markup in
+                  Impostazioni → Preventivi.
                 </p>
               </div>
               <div>
@@ -695,9 +704,29 @@ export default function RentalsPage() {
                     setForm((f) => ({ ...f, price: e.target.value }))
                   }
                 />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Fallback se manca il costo; sul preventivo puoi ricalcolare.
-                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <p className="text-[10px] text-muted-foreground">
+                    Fallback se manca il costo; sul preventivo puoi ricalcolare.
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    disabled={!(Number(form.cost) > 0)}
+                    onClick={() => {
+                      const suggested = rentalPriceFromCost(
+                        form.cost,
+                        defaultMarkup
+                      );
+                      if (suggested != null) {
+                        setForm((f) => ({ ...f, price: String(suggested) }));
+                      }
+                    }}
+                  >
+                    Calcola da acquisto (+{defaultMarkup}%)
+                  </Button>
+                </div>
               </div>
             </div>
 
