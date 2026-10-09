@@ -11,3 +11,14 @@ export function rentalPriceFromCost(
 
 /** Alias usato dal catalogo noleggio. */
 export const rentalUnitPriceFromCost = rentalPriceFromCost;
+
+/** Markup % implicito da prezzo e costo (modifica preventivo). */
+export function rentalMarkupFromPrice(
+  cost: number | string | null | undefined,
+  unitPrice: number
+): number | null {
+  const base = Number(cost);
+  if (!Number.isFinite(base) || base <= 0) return null;
+  if (!Number.isFinite(unitPrice)) return null;
+  return Math.round(((unitPrice / base) * 100 - 100) * 100) / 100;
+}
