@@ -29,6 +29,10 @@ import {
 import { appSelectClass } from "@/components/ui/field-label";
 import { RENTAL_UNIT } from "@/lib/rental";
 import { groupRentalCatalog, rentalPickerLabel } from "@/lib/rental-catalog";
+import {
+  rentalMarkupFromPrice,
+  rentalPriceFromCost,
+} from "@/lib/rental-pricing";
 import { cn, dateInputToIso, formatCurrency, toDateInputValue } from "@/lib/utils";
 
 export type QuoteItemDraft = {
@@ -40,6 +44,10 @@ export type QuoteItemDraft = {
   unit?: string;
   serviceId?: string;
   productId?: string;
+  /** Solo UI noleggio: costo acquisto usato per ricalcolo. */
+  costSnapshot?: number;
+  /** Solo UI noleggio: markup % sulla riga (override del default). */
+  rentalMarkupPercent?: number;
 };
 
 export type QuoteFormPayload = {
@@ -108,12 +116,14 @@ export function QuoteForm({
   const { data: settingsData } = useQuery({
     queryKey: ["settings", "quote-defaults"],
     queryFn: settingsApi.get,
-    enabled: !initial,
   });
 
   const [pickService, setPickService] = useState("");
   const [pickProduct, setPickProduct] = useState("");
   const [pickRental, setPickRental] = useState("");
+  /** Markup % generico usato quando si aggiunge una voce noleggio (modificabile sul form). */
+  const [defaultRentalMarkupPercent, setDefaultRentalMarkupPercent] =
+    useState("30");
 
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
@@ -198,27 +208,38 @@ export function QuoteForm({
       }
       if (initial.items?.length) {
         setItems(
-          initial.items.map((i) => ({
-            type: (i.type as QuoteItemDraft["type"]) || "custom",
-            description: i.description,
-            quantity: Number(i.quantity),
-            unitPrice: Number(i.unitPrice),
-            vatRate: Number(i.vatRate),
-            unit: i.unit || undefined,
-            serviceId: i.serviceId || undefined,
-            productId: i.productId || undefined,
-          }))
+          initial.items.map((i) => {
+            const draft: QuoteItemDraft = {
+              type: (i.type as QuoteItemDraft["type"]) || "custom",
+              description: i.description,
+              quantity: Number(i.quantity),
+              unitPrice: Number(i.unitPrice),
+              vatRate: Number(i.vatRate),
+              unit: i.unit || undefined,
+              serviceId: i.serviceId || undefined,
+              productId: i.productId || undefined,
+            };
+            return draft;
+          })
         );
       }
     }
   }, [initial]);
 
   useEffect(() => {
-    if (initial || !settingsData) return;
+    if (!settingsData) return;
     const qd = settingsData.quote_defaults as
-      | { withholdingTaxPercent?: number; stampDutyAmount?: number }
+      | {
+          withholdingTaxPercent?: number;
+          stampDutyAmount?: number;
+          defaultRentalMarkupPercent?: number;
+        }
       | undefined;
     if (!qd) return;
+    if (qd.defaultRentalMarkupPercent != null) {
+      setDefaultRentalMarkupPercent(String(Number(qd.defaultRentalMarkupPercent)));
+    }
+    if (initial) return;
     if (Number(qd.withholdingTaxPercent) > 0) {
       setWithholdingTaxPercent((prev) =>
         prev ? prev : String(Number(qd.withholdingTaxPercent))
@@ -230,6 +251,30 @@ export function QuoteForm({
       );
     }
   }, [settingsData, initial]);
+
+  // In modifica: collega costo/markup alle righe noleggio dal catalogo live.
+  useEffect(() => {
+    if (!catalogRentals.length) return;
+    const markupDefault = Number(defaultRentalMarkupPercent) || 0;
+    setItems((rows) => {
+      let changed = false;
+      const next = rows.map((row) => {
+        if (!row.productId || row.costSnapshot != null) return row;
+        if (row.unit && row.unit !== RENTAL_UNIT) return row;
+        const p = catalogRentals.find((x) => x.id === row.productId);
+        if (!p || p.cost == null || !(Number(p.cost) > 0)) return row;
+        const cost = Number(p.cost);
+        changed = true;
+        return {
+          ...row,
+          costSnapshot: cost,
+          rentalMarkupPercent:
+            rentalMarkupFromPrice(cost, row.unitPrice) ?? markupDefault,
+        };
+      });
+      return changed ? next : rows;
+    });
+  }, [catalogRentals, defaultRentalMarkupPercent]);
 
   function updateItem(index: number, patch: Partial<QuoteItemDraft>) {
     setItems((rows) =>
@@ -279,6 +324,11 @@ export function QuoteForm({
     const desc = p.description
       ? `${p.name} — ${p.description}`
       : p.name;
+    const markup = Number(defaultRentalMarkupPercent) || 0;
+    const cost = p.cost != null ? Number(p.cost) : NaN;
+    const fromCost = rentalPriceFromCost(cost, markup);
+    const unitPrice =
+      fromCost != null ? fromCost : Number(p.price) || 0;
     setItems((rows) => {
       const blank =
         rows.length === 1 && !rows[0].description.trim();
@@ -288,12 +338,38 @@ export function QuoteForm({
         description: desc,
         quantity: 1,
         unit: p.unit || RENTAL_UNIT,
-        unitPrice: Number(p.price),
+        unitPrice,
         vatRate: 22,
+        ...(Number.isFinite(cost) && cost > 0
+          ? { costSnapshot: cost, rentalMarkupPercent: markup }
+          : {}),
       };
       return blank ? [row] : [...rows, row];
     });
     setPickRental("");
+  }
+
+  function isRentalLine(item: QuoteItemDraft) {
+    return (
+      item.type === "product" &&
+      (item.unit === RENTAL_UNIT ||
+        item.costSnapshot != null ||
+        item.rentalMarkupPercent != null)
+    );
+  }
+
+  function updateRentalMarkup(index: number, markupPercent: number) {
+    setItems((rows) =>
+      rows.map((row, i) => {
+        if (i !== index) return row;
+        const fromCost = rentalPriceFromCost(row.costSnapshot, markupPercent);
+        return {
+          ...row,
+          rentalMarkupPercent: markupPercent,
+          unitPrice: fromCost != null ? fromCost : row.unitPrice,
+        };
+      })
+    );
   }
 
   function addFromListino(hit: SupplierCatalogSearchHit) {
@@ -361,7 +437,15 @@ export function QuoteForm({
         ? Number(withholdingTaxAmount)
         : undefined,
       stampDutyAmount: stampDutyAmount ? Number(stampDutyAmount) : undefined,
-      items: items.filter((i) => i.description.trim()),
+      items: items
+        .filter((i) => i.description.trim())
+        .map(
+          ({
+            costSnapshot: _c,
+            rentalMarkupPercent: _m,
+            ...item
+          }) => item
+        ),
     });
   }
 
@@ -668,6 +752,25 @@ export function QuoteForm({
                 Aggiungi
               </Button>
             </div>
+            {!isIe && (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <label className="text-xs text-muted-foreground">
+                  Markup noleggio default %
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className="h-8 w-24 text-right text-xs"
+                  value={defaultRentalMarkupPercent}
+                  onChange={(e) => setDefaultRentalMarkupPercent(e.target.value)}
+                />
+                <span className="text-[10px] text-muted-foreground">
+                  Se c&apos;è costo acquisto: prezzo = costo × (1 + %). Modificabile
+                  per riga.
+                </span>
+              </div>
+            )}
           </div>
         </div>
         {isIe && <ListinoQuickPicker onAdd={addFromListino} />}
@@ -678,8 +781,16 @@ export function QuoteForm({
                 <th className="px-3 py-2 font-medium">Descrizione</th>
                 <th className="px-3 py-2 font-medium text-right w-24">Q.tà</th>
                 <th className="px-3 py-2 font-medium text-left w-24">U.M.</th>
+                {!isIe && (
+                  <th className="px-3 py-2 font-medium text-right w-20">
+                    Markup %
+                    <span className="block text-[10px] font-normal text-muted-foreground">
+                      noleggio
+                    </span>
+                  </th>
+                )}
                 <th className="px-3 py-2 font-medium text-right w-28">
-                  {isIe ? "Prezzo cliente" : "Prezzo"}
+                  {isIe ? "Prezzo cliente" : "Prezzo €/gg"}
                   <span className="block text-[10px] font-normal text-muted-foreground">
                     modificabile
                   </span>
@@ -734,10 +845,43 @@ export function QuoteForm({
                         )}
                     </select>
                   </td>
+                  {!isIe && (
+                    <td className="px-3 py-2">
+                      {isRentalLine(item) && item.costSnapshot != null ? (
+                        <div>
+                          <Input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            className="text-right"
+                            value={item.rentalMarkupPercent ?? ""}
+                            onChange={(e) =>
+                              updateRentalMarkup(
+                                index,
+                                Number(e.target.value) || 0
+                              )
+                            }
+                          />
+                          <p className="mt-0.5 text-[10px] text-muted-foreground tabular-nums">
+                            costo {formatCurrency(item.costSnapshot)}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="flex h-10 items-center justify-end text-xs text-muted-foreground">
+                          —
+                        </span>
+                      )}
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <PriceInput
                       value={item.unitPrice}
-                      onValueChange={(v) => updateItem(index, { unitPrice: v })}
+                      onValueChange={(v) =>
+                        updateItem(index, {
+                          unitPrice: v,
+                          // Prezzo modificato a mano: lascia markup informativo se presente
+                        })
+                      }
                     />
                   </td>
                   <td className="px-3 py-2">

@@ -616,6 +616,8 @@ export interface Product {
   name: string;
   sku: string;
   price: number | string;
+  /** Costo / prezzo di acquisto (usato per listino noleggio automatico). */
+  cost?: number | string | null;
   category?: string;
   description?: string;
   isRentable?: boolean;

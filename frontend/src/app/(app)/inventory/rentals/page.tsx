@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { inventoryApi, type Product } from "@/lib/api";
+import { inventoryApi, settingsApi, type Product } from "@/lib/api";
 import {
   RENTAL_DEPARTMENTS,
   RENTAL_FAMILIES,
@@ -35,6 +35,7 @@ import {
   type RentalDepartmentId,
   type RentalFilter,
 } from "@/lib/rental-catalog";
+import { rentalPriceFromCost } from "@/lib/rental-pricing";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -52,6 +53,7 @@ const emptyForm = {
   family: RENTAL_FAMILIES.audio[0],
   modelName: "",
   sku: "",
+  cost: "",
   price: "",
   description: "",
 };
@@ -122,6 +124,17 @@ export default function RentalsPage() {
     queryFn: inventoryApi.rentals,
   });
 
+  const { data: settingsData } = useQuery({
+    queryKey: ["settings", "quote-defaults"],
+    queryFn: settingsApi.get,
+  });
+
+  const defaultMarkup =
+    Number(
+      (settingsData?.quote_defaults as { defaultRentalMarkupPercent?: number } | undefined)
+        ?.defaultRentalMarkupPercent
+    ) || 30;
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return rentals.filter((p) => {
@@ -160,6 +173,10 @@ export default function RentalsPage() {
           RENTAL_FAMILIES[(dept?.id ?? "audio") as RentalDepartmentId][0],
         modelName: model || editing.name,
         sku: editing.sku,
+        cost:
+          editing.cost != null && Number(editing.cost) > 0
+            ? String(Number(editing.cost))
+            : "",
         price: String(Number(editing.price)),
         description: editing.description || "",
       });
@@ -192,6 +209,7 @@ export default function RentalsPage() {
             ? { sku: form.sku.trim() }
             : {}),
         price: Number(form.price),
+        cost: form.cost.trim() ? Number(form.cost) : undefined,
         category: categoryForSku,
         description: form.description.trim() || undefined,
         isRentable: true,
@@ -369,11 +387,16 @@ export default function RentalsPage() {
                                     {parseRentalName(p.name).model || p.name}
                                   </p>
                                 </div>
-                                <span className="shrink-0 text-sm font-medium tabular-nums">
+                                <span className="shrink-0 text-right text-sm font-medium tabular-nums">
                                   {formatCurrency(Number(p.price))}
                                   <span className="text-xs text-muted-foreground">
                                     /gg
                                   </span>
+                                  {p.cost != null && Number(p.cost) > 0 ? (
+                                    <span className="mt-0.5 block text-[10px] font-normal text-muted-foreground">
+                                      acq. {formatCurrency(Number(p.cost))}
+                                    </span>
+                                  ) : null}
                                 </span>
                               </div>
                               <div className="mt-3">
@@ -486,6 +509,11 @@ export default function RentalsPage() {
                                     <span className="ml-1 text-xs text-muted-foreground">
                                       /gg
                                     </span>
+                                    {p.cost != null && Number(p.cost) > 0 ? (
+                                      <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                                        acq. {formatCurrency(Number(p.cost))}
+                                      </span>
+                                    ) : null}
                                   </td>
                                   <td className="px-4 py-3 text-right">
                                     <RentalRowActions
@@ -634,20 +662,43 @@ export default function RentalsPage() {
               )}
             </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                Prezzo al giorno (€/gg) *
-              </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="0.00"
-                value={form.price}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, price: e.target.value }))
-                }
-              />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Prezzo acquisto (€)
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={form.cost}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, cost: e.target.value }))
+                  }
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Usato per listino automatico nei preventivi (× markup %).
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Listino noleggio (€/gg) *
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="0.00"
+                  value={form.price}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, price: e.target.value }))
+                  }
+                />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  Fallback se manca il costo; sul preventivo puoi ricalcolare.
+                </p>
+              </div>
             </div>
 
             <Input

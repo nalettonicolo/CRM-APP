@@ -69,6 +69,7 @@ export default function SettingsPage() {
   const [quoteDefaults, setQuoteDefaults] = useState({
     withholdingTaxPercent: "20",
     stampDutyAmount: "2",
+    defaultRentalMarkupPercent: "30",
   });
   const [smtp, setSmtp] = useState({
     host: "smtp.gmail.com",
@@ -112,6 +113,10 @@ export default function SettingsPage() {
           : "20",
       stampDutyAmount:
         qd.stampDutyAmount != null ? String(qd.stampDutyAmount) : "2",
+      defaultRentalMarkupPercent:
+        qd.defaultRentalMarkupPercent != null
+          ? String(qd.defaultRentalMarkupPercent)
+          : "30",
     });
     const sm = (data.smtp as Record<string, string>) || {};
     setSmtp({
@@ -487,13 +492,14 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Preventivi — valori predefiniti</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Ritenuta d&apos;acconto e marca da bollo applicati automaticamente ai
-              nuovi preventivi (modificabili per singolo documento). Non si
-              applicano a fatture o altri moduli.
+              Ritenuta d&apos;acconto, marca da bollo e markup noleggio
+              applicati automaticamente ai nuovi preventivi (modificabili per
+              singolo documento / riga). Non si applicano a fatture o altri
+              moduli.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-sm font-medium">
                   Ritenuta d&apos;acconto %
@@ -529,6 +535,27 @@ export default function SettingsPage() {
                   }
                 />
               </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Markup noleggio % (default)
+                </label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={quoteDefaults.defaultRentalMarkupPercent}
+                  onChange={(e) =>
+                    setQuoteDefaults((q) => ({
+                      ...q,
+                      defaultRentalMarkupPercent: e.target.value,
+                    }))
+                  }
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Prezzo €/gg = costo acquisto × (1 + %). Sul preventivo puoi
+                  cambiarlo per riga.
+                </p>
+              </div>
             </div>
             <Button
               disabled={saveMut.isPending}
@@ -540,6 +567,8 @@ export default function SettingsPage() {
                       Number(quoteDefaults.withholdingTaxPercent) || 0,
                     stampDutyAmount:
                       Number(quoteDefaults.stampDutyAmount) || 0,
+                    defaultRentalMarkupPercent:
+                      Number(quoteDefaults.defaultRentalMarkupPercent) || 0,
                   },
                 })
               }
