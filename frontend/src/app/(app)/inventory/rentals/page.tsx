@@ -18,7 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { inventoryApi, settingsApi, type Product } from "@/lib/api";
+import { inventoryApi, type Product } from "@/lib/api";
 import {
   RENTAL_DEPARTMENTS,
   RENTAL_FAMILIES,
@@ -41,16 +41,6 @@ import {
 } from "@/lib/rental-pricing";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatCurrency } from "@/lib/utils";
-
-function useDefaultRentalMarkupPercent() {
-  const { data } = useQuery({
-    queryKey: ["settings", "quote-defaults"],
-    queryFn: settingsApi.get,
-  });
-  const raw = (data?.quote_defaults as { defaultRentalMarkupPercent?: number } | undefined)
-    ?.defaultRentalMarkupPercent;
-  return raw != null ? Number(raw) : 3;
-}
 
 const FILTER_TABS: { id: RentalFilter; label: string }[] = [
   { id: "all", label: "Tutti" },
@@ -108,7 +98,6 @@ export default function RentalsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const qc = useQueryClient();
-  const defaultMarkup = useDefaultRentalMarkupPercent();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -120,12 +109,11 @@ export default function RentalsPage() {
     setEditing(null);
     setForm({
       ...emptyForm,
-      rentalPercent: String(defaultMarkup),
       departmentId: departmentId ?? "audio",
       family: RENTAL_FAMILIES[departmentId ?? "audio"][0],
     });
     setOpen(true);
-  }, [defaultMarkup]);
+  }, []);
 
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
@@ -184,7 +172,7 @@ export default function RentalsPage() {
             : "",
         rentalPercent: (() => {
           const implied = rentalMarkupFromPrice(editing.cost, Number(editing.price));
-          return implied != null ? String(implied) : String(defaultMarkup);
+          return implied != null ? String(implied) : "";
         })(),
         price: String(Number(editing.price)),
         description: editing.description || "",

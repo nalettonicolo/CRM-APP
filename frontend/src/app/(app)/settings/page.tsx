@@ -552,9 +552,9 @@ export default function SettingsPage() {
                   }
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Valore iniziale del campo «Percentuale noleggio %» sui nuovi
-                  articoli. Su ogni articolo la modifichi tu: €/gg = prezzo di
-                  acquisto × %. Esempio: 100 € × 3% = 3 €/gg.
+                  Usata sul preventivo solo se l&apos;articolo non ha una
+                  percentuale. Nel catalogo il campo parte vuoto: la scrivi tu
+                  sull&apos;articolo. €/gg = prezzo di acquisto × %.
                 </p>
               </div>
             </div>
