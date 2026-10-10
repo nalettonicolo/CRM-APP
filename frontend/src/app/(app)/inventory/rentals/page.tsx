@@ -674,60 +674,25 @@ export default function RentalsPage() {
                   min="0"
                   placeholder="0.00"
                   value={form.cost}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, cost: e.target.value }))
-                  }
-                />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Scrivi l&apos;aliquota e premi Calcola. €/gg = acquisto × %.
-                  Esempio: 100 € × 3% = 3 €.
-                </p>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Listino noleggio (€/gg) *
-                </label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="0.00"
-                  value={form.price}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, price: e.target.value }))
-                  }
-                />
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Puoi scriverlo a mano oppure calcolarlo dall&apos;acquisto.
-                </p>
-              </div>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-9"
-                  disabled={
-                    !(Number(form.cost) > 0) || form.rentalPercent.trim() === ""
-                  }
-                  onClick={() => {
-                    const suggested = rentalPriceFromCost(
-                      form.cost,
-                      Number(form.rentalPercent)
-                    );
-                    if (suggested != null) {
-                      setForm((f) => ({ ...f, price: String(suggested) }));
-                    }
+                  onChange={(e) => {
+                    const cost = e.target.value;
+                    setForm((f) => {
+                      const suggested =
+                        f.rentalPercent.trim() !== ""
+                          ? rentalPriceFromCost(cost, Number(f.rentalPercent))
+                          : null;
+                      return {
+                        ...f,
+                        cost,
+                        price: suggested != null ? String(suggested) : f.price,
+                      };
+                    });
                   }}
-                >
-                  Calcola da acquisto
-                </Button>
+                />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  Aliquota %
+                  Percentuale noleggio %
                 </label>
                 <Input
                   type="number"
@@ -735,11 +700,46 @@ export default function RentalsPage() {
                   min="0"
                   placeholder="es. 3"
                   value={form.rentalPercent}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, rentalPercent: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const rentalPercent = e.target.value;
+                    setForm((f) => {
+                      const suggested =
+                        rentalPercent.trim() !== ""
+                          ? rentalPriceFromCost(f.cost, Number(rentalPercent))
+                          : null;
+                      return {
+                        ...f,
+                        rentalPercent,
+                        price: suggested != null ? String(suggested) : f.price,
+                      };
+                    });
+                  }}
                 />
+                <p className="mt-1 text-[10px] text-muted-foreground">
+                  €/gg = acquisto × %. Esempio: 100 € × 3% = 3 €. Il listino si
+                  aggiorna da solo; puoi comunque correggerlo a mano.
+                </p>
               </div>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                Listino noleggio (€/gg) *
+              </label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="0.00"
+                value={form.price}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, price: e.target.value }))
+                }
+              />
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Prezzo giornaliero usato nei preventivi. Resta modificabile
+                anche dopo il calcolo dalla percentuale.
+              </p>
             </div>
 
             <Input

@@ -66,6 +66,8 @@ export type QuoteFormPayload = {
   paymentTerms?: PaymentTermDraft[];
   paymentMethod?: string;
   paymentTiming?: string;
+  discountPercent?: number;
+  discountAmount?: number;
   items: QuoteItemDraft[];
 };
 
@@ -138,6 +140,10 @@ export function QuoteForm({
   const [withholdingTaxPercent, setWithholdingTaxPercent] = useState("");
   const [withholdingTaxAmount, setWithholdingTaxAmount] = useState("");
   const [stampDutyAmount, setStampDutyAmount] = useState("");
+  const [discountMode, setDiscountMode] = useState<"PERCENT" | "AMOUNT">(
+    "PERCENT"
+  );
+  const [discountInput, setDiscountInput] = useState("");
   const [items, setItems] = useState<QuoteItemDraft[]>([emptyItem()]);
 
   useEffect(() => {
@@ -204,6 +210,18 @@ export function QuoteForm({
       }
       if (Number(initial.stampDutyAmount) > 0) {
         setStampDutyAmount(String(Number(initial.stampDutyAmount)));
+      }
+      const savedPercent = Number(initial.discountPercent) || 0;
+      const savedAmount = Number(initial.discountAmount) || 0;
+      if (savedPercent > 0) {
+        setDiscountMode("PERCENT");
+        setDiscountInput(String(savedPercent));
+      } else if (savedAmount > 0) {
+        setDiscountMode("AMOUNT");
+        setDiscountInput(String(savedAmount));
+      } else {
+        setDiscountMode("PERCENT");
+        setDiscountInput("");
       }
       if (initial.items?.length) {
         setItems(
@@ -388,12 +406,40 @@ export function QuoteForm({
     return item.quantity * item.unitPrice;
   }
 
-  const subtotalNet = items.reduce((sum, item) => sum + lineNet(item), 0);
-  const vatTotal = items.reduce(
+  function round2(n: number) {
+    return Math.round(n * 100) / 100;
+  }
+
+  const subtotalNet = round2(
+    items.reduce((sum, item) => sum + lineNet(item), 0)
+  );
+  const discountNumber = Number(discountInput) || 0;
+  const discountEuro = round2(
+    Math.min(
+      subtotalNet,
+      discountMode === "PERCENT"
+        ? subtotalNet * (discountNumber / 100)
+        : discountNumber
+    )
+  );
+  const afterDiscount = round2(Math.max(0, subtotalNet - discountEuro));
+  const grossVat = items.reduce(
     (sum, item) => sum + lineNet(item) * (item.vatRate / 100),
     0
   );
-  const grandTotal = subtotalNet + vatTotal;
+  const vatTotal = round2(
+    subtotalNet > 0 ? grossVat * (afterDiscount / subtotalNet) : 0
+  );
+  const grandTotal = round2(afterDiscount + vatTotal);
+  const withholdingPreview = (() => {
+    const amount = Number(withholdingTaxAmount) || 0;
+    if (amount > 0) return round2(amount);
+    const percent = Number(withholdingTaxPercent) || 0;
+    if (percent > 0) return round2(afterDiscount * (percent / 100));
+    return 0;
+  })();
+  const stampPreview = round2(Math.max(0, Number(stampDutyAmount) || 0));
+  const netPayable = round2(grandTotal - withholdingPreview + stampPreview);
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!clientId) return;
@@ -427,6 +473,10 @@ export function QuoteForm({
         ? Number(withholdingTaxAmount)
         : undefined,
       stampDutyAmount: stampDutyAmount ? Number(stampDutyAmount) : undefined,
+      discountPercent:
+        discountMode === "PERCENT" ? Number(discountInput) || 0 : 0,
+      discountAmount:
+        discountMode === "AMOUNT" ? Number(discountInput) || 0 : 0,
       items: items
         .filter((i) => i.description.trim())
         .map(
@@ -909,6 +959,87 @@ export function QuoteForm({
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="overflow-hidden rounded-xl border border-border">
+        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 text-sm">
+          <span className="text-muted-foreground">Imponibile</span>
+          <span className="tabular-nums font-medium">
+            {formatCurrency(subtotalNet)}
+          </span>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">Sconto</span>
+            <select
+              className="h-9 rounded-lg border border-border bg-background px-2 text-xs"
+              value={discountMode}
+              onChange={(e) =>
+                setDiscountMode(e.target.value as "PERCENT" | "AMOUNT")
+              }
+            >
+              <option value="PERCENT">Percentuale %</option>
+              <option value="AMOUNT">Importo €</option>
+            </select>
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              className="h-9 w-28 text-right"
+              value={discountInput}
+              onChange={(e) => setDiscountInput(e.target.value)}
+              placeholder={discountMode === "PERCENT" ? "es. 10" : "es. 50"}
+            />
+            <span className="text-[11px] text-muted-foreground">
+              {discountMode === "PERCENT"
+                ? "Si applica sull'imponibile delle righe."
+                : "Importo fisso da sottrarre all'imponibile."}
+            </span>
+          </div>
+          <span className="tabular-nums text-sm font-medium">
+            {discountEuro > 0
+              ? `− ${formatCurrency(discountEuro)}`
+              : formatCurrency(0)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 text-sm">
+          <span className="text-muted-foreground">IVA</span>
+          <span className="tabular-nums font-medium">
+            {formatCurrency(vatTotal)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-4 bg-muted/40 px-4 py-3">
+          <span className="text-sm font-semibold">Totale</span>
+          <span className="text-lg font-semibold tabular-nums">
+            {formatCurrency(grandTotal)}
+          </span>
+        </div>
+        {(withholdingPreview > 0 || stampPreview > 0) && (
+          <div className="space-y-2 border-t border-border px-4 py-3 text-sm">
+            {withholdingPreview > 0 && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">
+                  Ritenuta d&apos;acconto
+                </span>
+                <span className="tabular-nums">
+                  − {formatCurrency(withholdingPreview)}
+                </span>
+              </div>
+            )}
+            {stampPreview > 0 && (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-muted-foreground">Marca da bollo</span>
+                <span className="tabular-nums">
+                  {formatCurrency(stampPreview)}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-4 font-semibold">
+              <span>Netto a pagare</span>
+              <span className="tabular-nums">{formatCurrency(netPayable)}</span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div>

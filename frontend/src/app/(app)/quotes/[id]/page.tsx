@@ -399,6 +399,7 @@ export default function QuoteDetailPage() {
             </div>
 
             {(Number(quote.discountAmount) > 0 ||
+              Number(quote.discountPercent) > 0 ||
               Number(quote.depositAmount) > 0 ||
               (quote.paymentTerms && quote.paymentTerms.length > 0)) && (
               <DetailSection title="Sconti e pagamenti">

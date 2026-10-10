@@ -76,10 +76,22 @@ function buildQuoteFooterTotalLines(quote: Quote): PdfFooterTotalLine[] {
   const totalLines: PdfFooterTotalLine[] = [
     { label: "Imponibile", value: `€ ${pdfMoney(quote.subtotal)}` },
   ];
-  if (Number(quote.discountAmount) > 0) {
+  const discountPercent = Number(quote.discountPercent) || 0;
+  const discountAmount = Number(quote.discountAmount) || 0;
+  const subtotal = Number(quote.subtotal) || 0;
+  const discountEuro = Math.min(
+    subtotal,
+    (discountPercent > 0 ? subtotal * (discountPercent / 100) : 0) +
+      (discountAmount > 0 ? discountAmount : 0)
+  );
+  if (discountEuro > 0) {
+    const label =
+      discountPercent > 0
+        ? `Sconto (${pdfMoney(discountPercent)}%)`
+        : "Sconto";
     totalLines.push({
-      label: "Sconto",
-      value: `- € ${pdfMoney(quote.discountAmount)}`,
+      label,
+      value: `- € ${pdfMoney(discountEuro)}`,
     });
   }
   totalLines.push(

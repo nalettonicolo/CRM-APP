@@ -45,20 +45,23 @@ export function calculateQuoteTotals(
 ): QuoteTotals {
   const subtotal = items.reduce((sum, i) => sum + calculateItemTotal(i), 0);
 
-  let afterDiscount = subtotal;
+  let discountValue = 0;
   if (options.discountPercent) {
-    afterDiscount -= subtotal * (options.discountPercent / 100);
+    discountValue += subtotal * (options.discountPercent / 100);
   }
   if (options.discountAmount) {
-    afterDiscount -= options.discountAmount;
+    discountValue += options.discountAmount;
   }
-  afterDiscount = Math.max(0, Math.round(afterDiscount * 100) / 100);
+  discountValue = Math.min(Math.max(0, discountValue), subtotal);
+  const afterDiscount = Math.max(0, Math.round((subtotal - discountValue) * 100) / 100);
 
-  const vatAmount = items.reduce((sum, i) => {
+  const grossVat = items.reduce((sum, i) => {
     const lineTotal = calculateItemTotal(i);
     const vatRate = i.vatRate ?? 22;
     return sum + lineTotal * (vatRate / 100);
   }, 0);
+  const vatAmount =
+    subtotal > 0 ? grossVat * (afterDiscount / subtotal) : 0;
 
   const total = Math.round((afterDiscount + vatAmount) * 100) / 100;
 

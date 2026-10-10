@@ -49,6 +49,8 @@ export default function NewQuotePage() {
                     withholdingTaxPercent: data.withholdingTaxPercent,
                     withholdingTaxAmount: data.withholdingTaxAmount,
                     stampDutyAmount: data.stampDutyAmount,
+                    discountPercent: data.discountPercent,
+                    discountAmount: data.discountAmount,
                     paymentTerms: data.paymentTerms,
                     items: data.items.map((i) => ({
                       type: i.type,
