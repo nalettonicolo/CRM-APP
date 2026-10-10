@@ -171,8 +171,12 @@ export default function RentalsPage() {
             ? String(Number(editing.cost))
             : "",
         rentalPercent: (() => {
-          const implied = rentalMarkupFromPrice(editing.cost, Number(editing.price));
-          return implied != null ? String(implied) : "";
+          const implied = rentalMarkupFromPrice(
+            editing.cost,
+            Number(editing.price)
+          );
+          if (implied == null || implied <= 0 || implied > 100) return "";
+          return String(implied);
         })(),
         price: String(Number(editing.price)),
         description: editing.description || "",

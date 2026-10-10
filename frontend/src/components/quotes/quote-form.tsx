@@ -30,7 +30,6 @@ import { appSelectClass } from "@/components/ui/field-label";
 import { RENTAL_UNIT } from "@/lib/rental";
 import { groupRentalCatalog, rentalPickerLabel } from "@/lib/rental-catalog";
 import {
-  rentalMarkupFromPrice,
   rentalPriceFromCost,
 } from "@/lib/rental-pricing";
 import { cn, dateInputToIso, formatCurrency, toDateInputValue } from "@/lib/utils";
@@ -252,10 +251,9 @@ export function QuoteForm({
     }
   }, [settingsData, initial]);
 
-  // In modifica: collega costo/markup alle righe noleggio dal catalogo live.
+  // In modifica: collega il costo acquisto alle righe noleggio, senza compilare la percentuale.
   useEffect(() => {
     if (!catalogRentals.length) return;
-    const markupDefault = Number(defaultRentalMarkupPercent) || 0;
     setItems((rows) => {
       let changed = false;
       const next = rows.map((row) => {
@@ -263,18 +261,15 @@ export function QuoteForm({
         if (row.unit && row.unit !== RENTAL_UNIT) return row;
         const p = catalogRentals.find((x) => x.id === row.productId);
         if (!p || p.cost == null || !(Number(p.cost) > 0)) return row;
-        const cost = Number(p.cost);
         changed = true;
         return {
           ...row,
-          costSnapshot: cost,
-          rentalMarkupPercent:
-            rentalMarkupFromPrice(cost, row.unitPrice) ?? markupDefault,
+          costSnapshot: Number(p.cost),
         };
       });
       return changed ? next : rows;
     });
-  }, [catalogRentals, defaultRentalMarkupPercent]);
+  }, [catalogRentals]);
 
   function updateItem(index: number, patch: Partial<QuoteItemDraft>) {
     setItems((rows) =>
@@ -326,12 +321,6 @@ export function QuoteForm({
       : p.name;
     const cost = p.cost != null ? Number(p.cost) : NaN;
     const unitPrice = Number(p.price) || 0;
-    const implied =
-      Number.isFinite(cost) && cost > 0
-        ? rentalMarkupFromPrice(cost, unitPrice)
-        : null;
-    const markup =
-      implied != null ? implied : Number(defaultRentalMarkupPercent) || 0;
     setItems((rows) => {
       const blank =
         rows.length === 1 && !rows[0].description.trim();
@@ -343,9 +332,7 @@ export function QuoteForm({
         unit: p.unit || RENTAL_UNIT,
         unitPrice,
         vatRate: 22,
-        ...(Number.isFinite(cost) && cost > 0
-          ? { costSnapshot: cost, rentalMarkupPercent: markup }
-          : {}),
+        ...(Number.isFinite(cost) && cost > 0 ? { costSnapshot: cost } : {}),
       };
       return blank ? [row] : [...rows, row];
     });
