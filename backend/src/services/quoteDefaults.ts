@@ -3,17 +3,17 @@ import { prisma } from "../lib/prisma.js";
 export type QuoteDefaults = {
   withholdingTaxPercent: number;
   stampDutyAmount: number;
-  /** Markup % sul costo acquisto → prezzo noleggio €/gg suggerito. */
+  /** % del prezzo di acquisto → prezzo noleggio €/gg (tipico 2–5). */
   defaultRentalMarkupPercent: number;
 };
 
 const FALLBACK: QuoteDefaults = {
   withholdingTaxPercent: 0,
   stampDutyAmount: 0,
-  defaultRentalMarkupPercent: 30,
+  defaultRentalMarkupPercent: 3,
 };
 
-/** Default ritenuta / marca da bollo / markup noleggio (Impostazioni → quote_defaults). */
+/** Default ritenuta / marca da bollo / percentuale noleggio (Impostazioni → quote_defaults). */
 export async function getQuoteDefaults(): Promise<QuoteDefaults> {
   try {
     const row = await prisma.setting.findUnique({ where: { key: "quote_defaults" } });

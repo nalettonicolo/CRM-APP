@@ -121,9 +121,9 @@ export function QuoteForm({
   const [pickService, setPickService] = useState("");
   const [pickProduct, setPickProduct] = useState("");
   const [pickRental, setPickRental] = useState("");
-  /** Markup % generico usato quando si aggiunge una voce noleggio (modificabile sul form). */
+  /** % del prezzo di acquisto usata quando si aggiunge una voce noleggio. */
   const [defaultRentalMarkupPercent, setDefaultRentalMarkupPercent] =
-    useState("30");
+    useState("3");
 
   const [clientId, setClientId] = useState("");
   const [title, setTitle] = useState("");
@@ -755,7 +755,7 @@ export function QuoteForm({
             {!isIe && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <label className="text-xs text-muted-foreground">
-                  Markup noleggio default %
+                  Noleggio % default
                 </label>
                 <Input
                   type="number"
@@ -766,8 +766,8 @@ export function QuoteForm({
                   onChange={(e) => setDefaultRentalMarkupPercent(e.target.value)}
                 />
                 <span className="text-[10px] text-muted-foreground">
-                  Se c&apos;è costo acquisto: prezzo = costo × (1 + %). Modificabile
-                  per riga.
+                  Se c&apos;è prezzo di acquisto: noleggio = acquisto × %. Esempio
+                  100 € × 3% = 3 €/gg. Modificabile per riga.
                 </span>
               </div>
             )}
@@ -783,9 +783,9 @@ export function QuoteForm({
                 <th className="px-3 py-2 font-medium text-left w-24">U.M.</th>
                 {!isIe && (
                   <th className="px-3 py-2 font-medium text-right w-20">
-                    Markup %
+                    Noleggio %
                     <span className="block text-[10px] font-normal text-muted-foreground">
-                      noleggio
+                      sull&apos;acquisto
                     </span>
                   </th>
                 )}
@@ -879,7 +879,7 @@ export function QuoteForm({
                       onValueChange={(v) =>
                         updateItem(index, {
                           unitPrice: v,
-                          // Prezzo modificato a mano: lascia markup informativo se presente
+                          // Prezzo modificato a mano: lascia la % informativa se presente
                         })
                       }
                     />

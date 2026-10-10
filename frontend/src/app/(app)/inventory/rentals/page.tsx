@@ -46,7 +46,7 @@ function useDefaultRentalMarkupPercent() {
   });
   const raw = (data?.quote_defaults as { defaultRentalMarkupPercent?: number } | undefined)
     ?.defaultRentalMarkupPercent;
-  return raw != null ? Number(raw) : 30;
+  return raw != null ? Number(raw) : 3;
 }
 
 const FILTER_TABS: { id: RentalFilter; label: string }[] = [
@@ -686,8 +686,9 @@ export default function RentalsPage() {
                   }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Listino auto = costo × (1 + {defaultMarkup}%). Markup in
-                  Impostazioni → Preventivi.
+                  Listino auto = acquisto × {defaultMarkup}%. Esempio: 100 € ×{" "}
+                  {defaultMarkup}% = {(defaultMarkup).toFixed(2)} €/gg. Percentuale
+                  in Impostazioni → Preventivi (di solito 2–5%).
                 </p>
               </div>
               <div>
@@ -724,7 +725,7 @@ export default function RentalsPage() {
                       }
                     }}
                   >
-                    Calcola da acquisto (+{defaultMarkup}%)
+                    Calcola da acquisto ({defaultMarkup}%)
                   </Button>
                 </div>
               </div>

@@ -69,7 +69,7 @@ export default function SettingsPage() {
   const [quoteDefaults, setQuoteDefaults] = useState({
     withholdingTaxPercent: "20",
     stampDutyAmount: "2",
-    defaultRentalMarkupPercent: "30",
+    defaultRentalMarkupPercent: "3",
   });
   const [smtp, setSmtp] = useState({
     host: "smtp.gmail.com",
@@ -492,7 +492,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Preventivi — valori predefiniti</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Ritenuta d&apos;acconto, marca da bollo e markup noleggio
+              Ritenuta d&apos;acconto, marca da bollo e percentuale di noleggio
               applicati automaticamente ai nuovi preventivi (modificabili per
               singolo documento / riga). Non si applicano a fatture o altri
               moduli.
@@ -537,7 +537,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">
-                  Markup noleggio % (default)
+                  Percentuale noleggio % (default)
                 </label>
                 <Input
                   type="number"
@@ -552,8 +552,9 @@ export default function SettingsPage() {
                   }
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Prezzo €/gg = costo acquisto × (1 + %). Sul preventivo puoi
-                  cambiarlo per riga.
+                  Prezzo €/gg = prezzo di acquisto × %. Esempio: acquisto 100 €
+                  e 3% → 3 €/gg. Di solito tra 2% e 5%. Sul preventivo puoi
+                  cambiarla per riga.
                 </p>
               </div>
             </div>
