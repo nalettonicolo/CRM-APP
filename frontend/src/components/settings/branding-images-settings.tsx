@@ -54,8 +54,8 @@ export function BrandingImagesSettings() {
         <CardHeader>
           <CardTitle>Logo e favicon</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Il logo compare in home, login e PDF. La favicon nel browser e sul
-            telefono (PNG o SVG consigliato, sfondo trasparente per il logo).
+            Il logo compare in home, login, PDF e sull&apos;icona del telefono
+            (schermata Home iPhone e browser).
           </p>
         </CardHeader>
         <CardContent className="space-y-6">

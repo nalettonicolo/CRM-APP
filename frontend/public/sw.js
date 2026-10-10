@@ -1,4 +1,4 @@
-const CACHE = "crm-shell-v5";
+const CACHE = "crm-shell-v6";
 const PRECACHE = ["/manifest.json"];
 
 self.addEventListener("install", (event) => {

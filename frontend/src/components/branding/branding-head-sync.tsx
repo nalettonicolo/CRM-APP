@@ -3,11 +3,18 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { settingsApi } from "@/lib/api";
-import {
-  DEFAULT_APP_NAME,
-  mergeSiteHome,
-  publicAssetUrl,
-} from "@/lib/branding";
+import { DEFAULT_APP_NAME, mergeSiteHome } from "@/lib/branding";
+
+function ensureHeadIcon(rel: string, href: string, sizes: string) {
+  let link = document.querySelector(`link[rel='${rel}']`);
+  if (!link) {
+    link = document.createElement("link");
+    link.setAttribute("rel", rel);
+    document.head.appendChild(link);
+  }
+  link.setAttribute("href", href);
+  link.setAttribute("sizes", sizes);
+}
 
 export function BrandingHeadSync() {
   const { data } = useQuery({
@@ -37,17 +44,8 @@ export function BrandingHeadSync() {
     }
     descEl.setAttribute("content", metaDesc);
 
-    const favUrl = (data.favicon as { url?: string })?.url?.trim();
-    const href = favUrl ? publicAssetUrl(favUrl) : "";
-    if (href) {
-      let link = document.querySelector("link[rel='icon']");
-      if (!link) {
-        link = document.createElement("link");
-        link.setAttribute("rel", "icon");
-        document.head.appendChild(link);
-      }
-      link.setAttribute("href", href);
-    }
+    ensureHeadIcon("apple-touch-icon", "/apple-touch-icon.png", "180x180");
+    ensureHeadIcon("icon", "/favicon.png", "32x32");
   }, [data]);
 
   return null;
