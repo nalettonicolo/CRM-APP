@@ -324,11 +324,14 @@ export function QuoteForm({
     const desc = p.description
       ? `${p.name} — ${p.description}`
       : p.name;
-    const markup = Number(defaultRentalMarkupPercent) || 0;
     const cost = p.cost != null ? Number(p.cost) : NaN;
-    const fromCost = rentalPriceFromCost(cost, markup);
-    const unitPrice =
-      fromCost != null ? fromCost : Number(p.price) || 0;
+    const unitPrice = Number(p.price) || 0;
+    const implied =
+      Number.isFinite(cost) && cost > 0
+        ? rentalMarkupFromPrice(cost, unitPrice)
+        : null;
+    const markup =
+      implied != null ? implied : Number(defaultRentalMarkupPercent) || 0;
     setItems((rows) => {
       const blank =
         rows.length === 1 && !rows[0].description.trim();
@@ -766,8 +769,8 @@ export function QuoteForm({
                   onChange={(e) => setDefaultRentalMarkupPercent(e.target.value)}
                 />
                 <span className="text-[10px] text-muted-foreground">
-                  Se c&apos;è prezzo di acquisto: noleggio = acquisto × %. Esempio
-                  100 € × 3% = 3 €/gg. Modificabile per riga.
+                  La % di ogni articolo si imposta nel catalogo. Qui e sulla riga
+                  puoi cambiarla: €/gg = acquisto × %.
                 </span>
               </div>
             )}

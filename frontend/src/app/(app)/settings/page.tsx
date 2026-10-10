@@ -552,9 +552,9 @@ export default function SettingsPage() {
                   }
                 />
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Prezzo €/gg = prezzo di acquisto × %. Esempio: acquisto 100 €
-                  e 3% → 3 €/gg. Di solito tra 2% e 5%. Sul preventivo puoi
-                  cambiarla per riga.
+                  Valore iniziale del campo «Percentuale noleggio %» sui nuovi
+                  articoli. Su ogni articolo la modifichi tu: €/gg = prezzo di
+                  acquisto × %. Esempio: 100 € × 3% = 3 €/gg.
                 </p>
               </div>
             </div>

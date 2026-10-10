@@ -35,7 +35,10 @@ import {
   type RentalDepartmentId,
   type RentalFilter,
 } from "@/lib/rental-catalog";
-import { rentalPriceFromCost } from "@/lib/rental-pricing";
+import {
+  rentalMarkupFromPrice,
+  rentalPriceFromCost,
+} from "@/lib/rental-pricing";
 import { SECTION_CREATE } from "@/lib/section-create";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -64,6 +67,7 @@ const emptyForm = {
   modelName: "",
   sku: "",
   cost: "",
+  rentalPercent: "",
   price: "",
   description: "",
 };
@@ -116,11 +120,12 @@ export default function RentalsPage() {
     setEditing(null);
     setForm({
       ...emptyForm,
+      rentalPercent: String(defaultMarkup),
       departmentId: departmentId ?? "audio",
       family: RENTAL_FAMILIES[departmentId ?? "audio"][0],
     });
     setOpen(true);
-  }, []);
+  }, [defaultMarkup]);
 
   useEffect(() => {
     if (searchParams.get("new") !== "1") return;
@@ -177,6 +182,10 @@ export default function RentalsPage() {
           editing.cost != null && Number(editing.cost) > 0
             ? String(Number(editing.cost))
             : "",
+        rentalPercent: (() => {
+          const implied = rentalMarkupFromPrice(editing.cost, Number(editing.price));
+          return implied != null ? String(implied) : String(defaultMarkup);
+        })(),
         price: String(Number(editing.price)),
         description: editing.description || "",
       });
@@ -662,7 +671,7 @@ export default function RentalsPage() {
               )}
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-medium text-muted-foreground">
                   Prezzo acquisto (€)
@@ -675,20 +684,49 @@ export default function RentalsPage() {
                   value={form.cost}
                   onChange={(e) => {
                     const cost = e.target.value;
-                    const suggested = rentalPriceFromCost(cost, defaultMarkup);
-                    setForm((f) => ({
-                      ...f,
-                      cost,
-                      ...(suggested != null
-                        ? { price: String(suggested) }
-                        : {}),
-                    }));
+                    setForm((f) => {
+                      const rate = Number(f.rentalPercent);
+                      const suggested =
+                        f.rentalPercent.trim() === ""
+                          ? null
+                          : rentalPriceFromCost(cost, rate);
+                      return {
+                        ...f,
+                        cost,
+                        ...(suggested != null ? { price: String(suggested) } : {}),
+                      };
+                    });
+                  }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  Percentuale noleggio %
+                </label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="es. 3"
+                  value={form.rentalPercent}
+                  onChange={(e) => {
+                    const rentalPercent = e.target.value;
+                    setForm((f) => {
+                      const rate = Number(rentalPercent);
+                      const suggested =
+                        rentalPercent.trim() === ""
+                          ? null
+                          : rentalPriceFromCost(f.cost, rate);
+                      return {
+                        ...f,
+                        rentalPercent,
+                        ...(suggested != null ? { price: String(suggested) } : {}),
+                      };
+                    });
                   }}
                 />
                 <p className="mt-1 text-[10px] text-muted-foreground">
-                  Listino auto = acquisto × {defaultMarkup}%. Esempio: 100 € ×{" "}
-                  {defaultMarkup}% = {(defaultMarkup).toFixed(2)} €/gg. Percentuale
-                  in Impostazioni → Preventivi (di solito 2–5%).
+                  La imposti tu. €/gg = prezzo acquisto × %. Esempio: 100 € × 3% = 3 €.
                 </p>
               </div>
               <div>
@@ -701,33 +739,18 @@ export default function RentalsPage() {
                   min="0"
                   placeholder="0.00"
                   value={form.price}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, price: e.target.value }))
-                  }
+                  onChange={(e) => {
+                    const price = e.target.value;
+                    const implied = rentalMarkupFromPrice(form.cost, Number(price));
+                    setForm((f) => ({
+                      ...f,
+                      price,
+                      ...(implied != null
+                        ? { rentalPercent: String(implied) }
+                        : {}),
+                    }));
+                  }}
                 />
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <p className="text-[10px] text-muted-foreground">
-                    Fallback se manca il costo; sul preventivo puoi ricalcolare.
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-7 text-xs"
-                    disabled={!(Number(form.cost) > 0)}
-                    onClick={() => {
-                      const suggested = rentalPriceFromCost(
-                        form.cost,
-                        defaultMarkup
-                      );
-                      if (suggested != null) {
-                        setForm((f) => ({ ...f, price: String(suggested) }));
-                      }
-                    }}
-                  >
-                    Calcola da acquisto ({defaultMarkup}%)
-                  </Button>
-                </div>
               </div>
             </div>
 
