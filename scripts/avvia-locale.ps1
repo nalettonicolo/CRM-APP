@@ -31,23 +31,30 @@ Start-Sleep -Seconds 2
 
 $logDir = Join-Path $Root "logs"
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
-$apiLog = Join-Path $logDir "backend-dev.log"
-$webLog = Join-Path $logDir "frontend-dev.log"
+$apiOut = Join-Path $logDir "backend-dev.out.log"
+$apiErr = Join-Path $logDir "backend-dev.err.log"
+$webOut = Join-Path $logDir "frontend-dev.out.log"
+$webErr = Join-Path $logDir "frontend-dev.err.log"
+
+$npmCmd = $null
+$npmInfo = Get-Command npm.cmd -ErrorAction SilentlyContinue
+if ($npmInfo) { $npmCmd = $npmInfo.Source }
+if (-not $npmCmd) { $npmCmd = (Get-Command npm -ErrorAction Stop).Source }
 
 Write-Host "==> Avvio API (porta $ApiPort)"
-Start-Process -FilePath "npm" -ArgumentList @("run", "dev", "--workspace=backend") `
+Start-Process -FilePath $npmCmd -ArgumentList @("run", "dev", "--workspace=backend") `
   -WorkingDirectory $Root `
   -WindowStyle Hidden `
-  -RedirectStandardOutput $apiLog `
-  -RedirectStandardError $apiLog `
+  -RedirectStandardOutput $apiOut `
+  -RedirectStandardError $apiErr `
   -PassThru | Out-Null
 
 Write-Host "==> Avvio frontend (porta $WebPort)"
-Start-Process -FilePath "npm" -ArgumentList @("run", "dev", "--workspace=crm-frontend") `
+Start-Process -FilePath $npmCmd -ArgumentList @("run", "dev", "--workspace=crm-frontend") `
   -WorkingDirectory $Root `
   -WindowStyle Hidden `
-  -RedirectStandardOutput $webLog `
-  -RedirectStandardError $webLog `
+  -RedirectStandardOutput $webOut `
+  -RedirectStandardError $webErr `
   -PassThru | Out-Null
 
 Write-Host "==> Attendo health…"
