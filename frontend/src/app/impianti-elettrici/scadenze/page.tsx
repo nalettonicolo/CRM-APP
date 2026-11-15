@@ -21,12 +21,12 @@ import {
   invoicesApi,
   supplierBillsApi,
   clientExpensesApi,
+  storedFilesApi,
   type Invoice,
   type SupplierBill,
   type ClientExpense,
   type Client,
 } from "@/lib/api";
-import { publicAssetUrl } from "@/lib/branding";
 import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { paymentStatusLabels } from "@/lib/labels";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
@@ -162,14 +162,17 @@ function DocumentLink({
     return (
       <p className="text-sm text-slate-400">
         Documento:{" "}
-        <a
-          href={publicAssetUrl(filePath)}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={() =>
+            storedFilesApi
+              .open(filePath, fileName)
+              .catch(() => window.alert("Impossibile aprire il documento."))
+          }
           className="text-sky-300 underline-offset-2 hover:underline"
         >
           {fileName || "Apri documento"}
-        </a>
+        </button>
       </p>
     );
   }

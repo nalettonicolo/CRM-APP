@@ -27,14 +27,13 @@ const upload = multer({
   limits: { fileSize: config.upload.maxSize },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    const okExt = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".ico"].includes(
-      ext
-    );
+    // SVG rifiutato: può contenere script e verrebbe servito pubblicamente.
+    const okExt = [".png", ".jpg", ".jpeg", ".webp", ".gif", ".ico"].includes(ext);
     const okMime =
-      /^image\//.test(file.mimetype) ||
+      (/^image\//.test(file.mimetype) && file.mimetype !== "image/svg+xml") ||
       file.mimetype === "image/x-icon" ||
       file.mimetype === "image/vnd.microsoft.icon";
-    cb(null, okExt || okMime);
+    cb(null, ext !== ".svg" && (okExt || okMime));
   },
 });
 

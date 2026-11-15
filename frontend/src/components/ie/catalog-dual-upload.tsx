@@ -3,8 +3,7 @@
 import { useRef, useState } from "react";
 import { ExternalLink, FileText, FileUp, ImageIcon, Replace, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { publicAssetUrl } from "@/lib/branding";
-import type { SupplierCatalogFile } from "@/lib/api";
+import { storedFilesApi, type SupplierCatalogFile } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type SlotRole = "PRICE_LIST" | "CATALOG";
@@ -65,18 +64,21 @@ function SlotDropzone({
 
       {hasFile && file && (
         <div className="flex items-center gap-2 rounded-lg border border-slate-700/80 bg-slate-900/70 px-2.5 py-2">
-          <a
-            href={publicAssetUrl(file.filePath)}
-            target="_blank"
-            rel="noreferrer"
-            className="flex min-w-0 flex-1 items-center gap-2 text-sm text-sky-300 hover:underline"
+          <button
+            type="button"
+            onClick={() =>
+              storedFilesApi
+                .open(file.filePath, file.fileName)
+                .catch(() => window.alert("Impossibile aprire il file."))
+            }
+            className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm text-sky-300 hover:underline"
           >
             <FileText className="h-4 w-4 shrink-0" />
             <span className="truncate">
               {file.label || file.fileName || "PDF"}
             </span>
             <ExternalLink className="h-3.5 w-3.5 shrink-0 opacity-70" />
-          </a>
+          </button>
           {onDelete && file.id !== "legacy" && (
             <Button
               type="button"

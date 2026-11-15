@@ -15,6 +15,7 @@ import {
 import { logActivity } from "../services/activityLog.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import { sendStoredFile } from "../utils/sendStoredFile.js";
 
 const attachmentsDir = path.join(config.upload.dir, "attachments");
 
@@ -42,6 +43,10 @@ const entityTypeMap: Record<string, AttachmentEntity> = {
   invoice: "INVOICE_PREVIEW",
   site_visit: "SITE_VISIT",
 };
+
+function attachmentUrl(id: string): string {
+  return `${config.apiUrl.replace(/\/$/, "")}/api/attachments/${id}/file`;
+}
 
 const router = Router();
 router.use(authenticate);
@@ -167,7 +172,7 @@ router.post(
 
       res.status(201).json({
         ...record,
-        url: `${config.apiUrl.replace(/\/$/, "")}${relativePath}`,
+        url: attachmentUrl(record.id),
       });
     } catch (e) {
       if (req.file) {
@@ -213,13 +218,43 @@ router.get("/", requirePermission("attachments", "READ"), async (req: AuthReques
     res.json(
       attachments.map((a) => ({
         ...a,
-        url: `${config.apiUrl.replace(/\/$/, "")}${a.path}`,
+        url: attachmentUrl(a.id),
       }))
     );
   } catch (e) {
     next(e);
   }
 });
+
+router.get(
+  "/:id/file",
+  requirePermission("attachments", "READ"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const attachment = await prisma.attachment.findUnique({
+        where: { id: paramId(req) },
+      });
+      if (!attachment) throw new NotFoundError();
+
+      if (
+        req.user!.role === "CLIENT" &&
+        attachment.clientId !== req.user!.clientId
+      ) {
+        throw new NotFoundError();
+      }
+
+      const filePath = path.resolve(
+        attachmentsDir,
+        path.basename(attachment.filename)
+      );
+      if (!fs.existsSync(filePath)) throw new NotFoundError();
+
+      sendStoredFile(res, filePath, attachment.originalName);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.delete(
   "/:id",

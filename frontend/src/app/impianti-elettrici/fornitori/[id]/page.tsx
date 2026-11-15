@@ -12,14 +12,61 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PriceInput } from "@/components/ui/price-input";
-import { publicAssetUrl } from "@/lib/branding";
 import {
+  storedFilesApi,
   supplierCatalogsApi,
   type SupplierCatalogFile,
   type SupplierCatalogItem,
 } from "@/lib/api";
 import { useWorkspaceRoutes } from "@/contexts/workspace-context";
 import { cn, formatCurrency } from "@/lib/utils";
+
+/** Anteprima del file protetto: si scarica con il login e si mostra come file temporaneo. */
+function ProtectedFileFrame({
+  filePath,
+  title,
+}: {
+  filePath: string;
+  title: string;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    storedFilesApi
+      .fetchBlob(filePath)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [filePath]);
+
+  if (failed) {
+    return (
+      <p className="mt-3 text-xs text-red-300">Impossibile caricare l’anteprima.</p>
+    );
+  }
+  if (!src) {
+    return <p className="mt-3 text-xs text-slate-400">Caricamento anteprima…</p>;
+  }
+  return (
+    <iframe
+      title={title}
+      src={src}
+      className="mt-3 h-[70vh] w-full rounded-md border border-slate-800 bg-slate-950"
+    />
+  );
+}
 
 function CatalogItemEditableRow({
   item,
@@ -308,7 +355,7 @@ export default function IeSupplierCatalogDetailPage() {
                 </div>
 
                 {catalogImageFile && (() => {
-                  const catalogPdfUrl = publicAssetUrl(catalogImageFile.filePath);
+                  const catalogFilePath = catalogImageFile.filePath;
                   const sizeMb =
                     catalogImageFile.fileSize != null
                       ? Math.round(catalogImageFile.fileSize / (1024 * 1024))
@@ -324,14 +371,19 @@ export default function IeSupplierCatalogDetailPage() {
                           {sizeMb != null ? ` (${sizeMb} MB)` : ""}. Aprilo in
                           una scheda a parte mentre consulti i codici qui sotto.
                         </p>
-                        <a
-                          href={catalogPdfUrl}
-                          target="_blank"
-                          rel="noreferrer"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            storedFilesApi
+                              .open(catalogFilePath, catalogImageFile.fileName)
+                              .catch(() =>
+                                window.alert("Impossibile aprire il PDF.")
+                              )
+                          }
                           className="inline-flex items-center gap-1 rounded-md bg-emerald-700/80 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-600"
                         >
                           Apri PDF <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
+                        </button>
                         {!tooLargeToEmbed && (
                           <Button
                             type="button"
@@ -353,10 +405,9 @@ export default function IeSupplierCatalogDetailPage() {
                         </p>
                       )}
                       {showCatalogPreview && !tooLargeToEmbed && (
-                        <iframe
+                        <ProtectedFileFrame
+                          filePath={catalogFilePath}
                           title="Catalogo prodotti"
-                          src={catalogPdfUrl}
-                          className="mt-3 h-[70vh] w-full rounded-md border border-slate-800 bg-slate-950"
                         />
                       )}
                     </div>

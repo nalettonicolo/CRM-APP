@@ -113,14 +113,16 @@ export function AttachmentPanel({
                 </div>
               </div>
               <div className="flex shrink-0 gap-1">
-                <Button variant="ghost" size="icon" asChild>
-                  <a
-                    href={attachmentsApi.downloadUrl(f)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Download className="h-4 w-4" />
-                  </a>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    attachmentsApi
+                      .open(f)
+                      .catch(() => window.alert("Impossibile aprire l'allegato."))
+                  }
+                >
+                  <Download className="h-4 w-4" />
                 </Button>
                 {!readOnly && (
                   <Button
