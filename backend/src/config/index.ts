@@ -1,8 +1,10 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { assertProductionSecrets } from "../utils/productionChecks.js";
 
 dotenv.config();
+assertProductionSecrets(process.env);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +41,8 @@ export const config = {
   apiUrl: process.env.API_URL || "http://localhost:4100",
   frontendUrl,
   corsOrigins,
+  /** Accetta origini *.netlify.app (preview deploy): solo con ALLOW_NETLIFY_PREVIEWS=true. */
+  allowNetlifyPreviews: process.env.ALLOW_NETLIFY_PREVIEWS === "true",
   cookieSameSite,
   cookieSecure,
     databaseUrl: process.env.DATABASE_URL || "",

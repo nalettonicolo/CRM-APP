@@ -115,7 +115,21 @@ export async function api<T>(
   return data as T;
 }
 
-async function refreshToken(): Promise<boolean> {
+// Il backend ruota il refresh token a ogni uso: più richieste in 401
+// contemporanee devono condividere un solo rinnovo, altrimenti la seconda
+// userebbe un token già revocato e farebbe uscire l'utente.
+let refreshInFlight: Promise<boolean> | null = null;
+
+function refreshToken(): Promise<boolean> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefreshToken().finally(() => {
+      refreshInFlight = null;
+    });
+  }
+  return refreshInFlight;
+}
+
+async function doRefreshToken(): Promise<boolean> {
   try {
     const res = await fetch(apiUrl("/auth/refresh"), {
       method: "POST",
