@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -8,8 +9,11 @@ import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/branding/brand-logo";
 import { ContactForm } from "@/components/landing/contact-form";
 import { PublicHeader } from "@/components/landing/public-header";
+import { Reveal } from "@/components/landing/reveal";
 import { settingsApi } from "@/lib/api";
-import { useFadeUp } from "@/lib/motion-presets";
+import { REVEAL_EASE, useReveal } from "@/lib/motion-presets";
+import { publicFontClasses } from "@/lib/public-fonts";
+import { cn } from "@/lib/utils";
 import { EventGallerySection } from "@/components/landing/event-gallery-section";
 import { LegalFooterLinks } from "@/components/legal/legal-footer-links";
 import {
@@ -20,8 +24,12 @@ import {
 } from "@/lib/public-settings";
 
 const featureIcons = [Mic2, Lightbulb, Wrench];
+const riseDelay = (s: string) => ({ "--rise-delay": s }) as CSSProperties;
+/** Livelli del "meter" di ogni canale: puramente decorativi. */
+const meterLevels = [0.82, 0.64, 0.9];
 
-function ServiceFeatureCard({
+/** Un servizio = un canale del mixer: numero, titolo, descrizione e meter che sale. */
+function ServiceChannel({
   title,
   description,
   index,
@@ -31,15 +39,54 @@ function ServiceFeatureCard({
   index: number;
 }) {
   const Icon = featureIcons[index] ?? Mic2;
-  const fadeUp = useFadeUp(index * 0.08);
+  const { ref, shown } = useReveal<HTMLLIElement>();
+  const level = meterLevels[index] ?? 0.7;
   return (
-    <motion.div {...fadeUp} className="public-card p-6">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/20 text-primary">
-        <Icon className="h-6 w-6" />
+    <motion.li
+      ref={ref}
+      initial={false}
+      animate={
+        shown
+          ? {
+              opacity: 1,
+              y: 0,
+              transition: { duration: 0.55, delay: index * 0.1, ease: REVEAL_EASE },
+            }
+          : { opacity: 0, y: 24, transition: { duration: 0 } }
+      }
+      className="grid gap-3 border-t border-[color:var(--public-line)] py-8 md:grid-cols-[5.5rem_minmax(0,17rem)_minmax(0,1fr)] md:gap-8"
+    >
+      <p
+        className="public-display text-5xl text-primary md:text-6xl"
+        aria-hidden
+      >
+        {String(index + 1).padStart(2, "0")}
+      </p>
+      <h3 className="flex items-start gap-3 text-xl font-semibold text-[color:var(--public-bone)]">
+        <Icon className="mt-1 h-5 w-5 shrink-0 text-primary" aria-hidden />
+        {title}
+      </h3>
+      <div>
+        <p className="public-muted leading-relaxed">{description}</p>
+        <div
+          className="mt-5 h-1.5 w-full max-w-sm bg-[color:var(--public-line)]"
+          aria-hidden
+        >
+          <motion.span
+            initial={false}
+            animate={{
+              scaleX: shown ? level : 0,
+              transition: {
+                duration: 0.9,
+                delay: 0.2 + index * 0.1,
+                ease: REVEAL_EASE,
+              },
+            }}
+            className="block h-full origin-left bg-primary"
+          />
+        </div>
       </div>
-      <h3 className="text-lg font-semibold text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-slate-400">{description}</p>
-    </motion.div>
+    </motion.li>
   );
 }
 
@@ -62,34 +109,34 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
   const site = getSiteHome(settings);
   const appName = getAppName(settings);
   const logoSrc = getLogoPath(settings);
-  const heroMotion = useFadeUp(0, 12);
-  const cardsMotion = useFadeUp(0.12, 20);
 
   return (
-    <motion.div className="public-page min-h-screen">
+    <div className={cn("public-page min-h-screen", publicFontClasses)}>
       <PublicHeader appName={appName} logoSrc={logoSrc} />
 
-      <section className="relative overflow-hidden px-4 pb-14 pt-8 sm:px-6 sm:pb-16 sm:pt-10 lg:px-8 lg:pb-20">
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,oklch(0.45_0.15_270/0.22),transparent_45%)]" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_85%_40%,oklch(0.35_0.12_290/0.15),transparent_40%)]" />
-        <div className="relative mx-auto max-w-6xl">
-          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,240px)] lg:gap-14 xl:grid-cols-[minmax(0,1fr)_minmax(0,260px)]">
-            <motion.div
-              {...heroMotion}
-              className="mx-auto max-w-2xl text-center lg:mx-0 lg:max-w-none lg:text-left"
-            >
-              <span className="mb-4 inline-block rounded-full border border-violet-400/35 bg-violet-500/10 px-3.5 py-1 text-xs font-medium tracking-wide text-violet-200 sm:text-sm">
-                {site.badge}
-              </span>
-              <h1 className="text-[1.75rem] font-bold leading-[1.12] tracking-tight text-white sm:text-4xl lg:text-[2.65rem] xl:text-5xl">
+      <section className="px-4 pb-14 pt-10 sm:px-6 sm:pb-16 sm:pt-14 lg:px-8 lg:pb-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,17rem)] lg:gap-16">
+            <div>
+              <span className="public-tape public-tape-in mb-6">{site.badge}</span>
+              <h1
+                className="public-display public-rise text-[2.75rem] sm:text-6xl lg:text-7xl xl:text-[5.25rem]"
+                style={riseDelay("0.08s")}
+              >
                 {site.headline}
               </h1>
-              <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-slate-300/95 sm:text-lg lg:mx-0">
+              <p
+                className="public-muted public-rise mt-6 max-w-xl text-base leading-relaxed sm:text-lg"
+                style={riseDelay("0.18s")}
+              >
                 {site.subheadline}
               </p>
-              <motion.div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
+              <div
+                className="public-rise mt-8 flex flex-col gap-3 sm:flex-row"
+                style={riseDelay("0.28s")}
+              >
                 <Link href="#contatto" className="w-full sm:w-auto">
-                  <Button size="lg" className="h-12 w-full px-8 text-base shadow-lg shadow-primary/20 sm:w-auto">
+                  <Button size="lg" className="h-12 w-full rounded-sm px-8 text-base sm:w-auto">
                     Richiedi preventivo <ArrowRight className="h-4 w-4" />
                   </Button>
                 </Link>
@@ -97,107 +144,105 @@ export function LandingPage({ initialSettings = null }: LandingPageProps) {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-12 w-full border-white/20 bg-white/5 px-8 text-base text-white hover:border-white/30 hover:bg-white/10 sm:w-auto"
+                    className="h-12 w-full rounded-sm border-white/35 bg-transparent px-8 text-base text-[color:var(--public-bone)] hover:border-white/60 hover:bg-white/10 sm:w-auto"
                   >
                     I nostri servizi
                   </Button>
                 </Link>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
 
             {logoSrc && (
-              <motion.div
-                {...heroMotion}
-                className="hidden justify-center sm:flex lg:justify-end"
+              <div
+                className="public-rise hidden justify-center sm:flex lg:justify-end"
+                style={riseDelay("0.2s")}
               >
-                <BrandLogo
-                  logoUrl={logoSrc}
-                  appName={appName}
-                  variant="hero"
-                  animated
-                  className="lg:mr-2"
-                />
-              </motion.div>
+                <div className="public-case p-5">
+                  <BrandLogo logoUrl={logoSrc} appName={appName} variant="hero" />
+                </div>
+              </div>
             )}
           </div>
 
-          <motion.div
-            {...cardsMotion}
-            className="mx-auto mt-10 grid max-w-4xl gap-3 sm:mt-12 sm:grid-cols-3 sm:gap-4"
-          >
-            {[
-              { label: "Audio live", hint: "FOH · monitor · RF", icon: Mic2 },
-              { label: "Luci evento", hint: "DMX · atmosphere", icon: Lightbulb },
-              { label: "Produzione", hint: "Montaggio · allestimento", icon: Wrench },
-            ].map((card) => {
-              const Icon = card.icon;
-              return (
-              <motion.div
-                key={card.label}
-                className="public-card flex items-start gap-3 rounded-xl p-4 sm:p-5"
-              >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0 text-left">
-                  <p className="text-sm font-semibold text-white">{card.label}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
-                    {card.hint}
-                  </p>
-                </div>
-              </motion.div>
-              );
-            })}
-          </motion.div>
+          <Reveal delay={0.1} className="mt-12 sm:mt-16">
+            <ul className="grid divide-y divide-[color:var(--public-line)] border-y border-[color:var(--public-line)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+              {[
+                { label: "Audio live", hint: "FOH · monitor · RF", icon: Mic2 },
+                { label: "Luci evento", hint: "DMX · atmosphere", icon: Lightbulb },
+                { label: "Produzione", hint: "Montaggio · allestimento", icon: Wrench },
+              ].map((card, i) => {
+                const Icon = card.icon;
+                return (
+                  <li key={card.label} className="flex items-start gap-4 px-1 py-5 sm:px-6">
+                    <span className="public-display pt-0.5 text-2xl text-primary" aria-hidden>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-2 text-base font-semibold text-[color:var(--public-bone)]">
+                        <Icon className="h-4 w-4 text-primary" aria-hidden />
+                        {card.label}
+                      </p>
+                      <p className="public-muted mt-1 text-sm">{card.hint}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </Reveal>
         </div>
       </section>
 
-      <motion.div className="public-section-alt">
+      <div className="public-section-alt">
         <EventGallerySection />
-      </motion.div>
+      </div>
 
-      <section id="servizi" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <motion.div className="mb-10 text-center">
-          <h2 className="text-2xl font-bold text-white sm:text-3xl">Servizi</h2>
-          <p className="mx-auto mt-3 max-w-2xl text-slate-400">
+      <section
+        id="servizi"
+        className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 lg:px-8 lg:py-24"
+      >
+        <Reveal className="mb-10 max-w-2xl">
+          <span className="public-tape mb-4">Scaletta tecnica</span>
+          <h2 className="public-display text-4xl sm:text-5xl">Servizi</h2>
+          <p className="public-muted mt-4 text-lg">
             Soluzioni tecniche per eventi dal vivo — su misura per venue, artisti e
             organizzatori.
           </p>
-        </motion.div>
-        <div className="grid gap-6 md:grid-cols-3">
+        </Reveal>
+        <ol className="border-b border-[color:var(--public-line)]">
           {site.features.map((f, i) => (
-            <ServiceFeatureCard
+            <ServiceChannel
               key={`${f.title}-${i}`}
               title={f.title}
               description={f.description}
               index={i}
             />
           ))}
-        </div>
+        </ol>
       </section>
 
       <section
         id="contatto"
-        className="public-section-alt px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
+        className="public-section-alt scroll-mt-20 px-4 py-16 sm:px-6 lg:px-8 lg:py-24"
       >
-        <motion.div className="mx-auto max-w-lg">
-          <h2 className="text-center text-2xl font-bold text-white sm:text-3xl">
-            Contatti e preventivi
-          </h2>
-          <p className="mb-8 mt-3 text-center text-slate-400">{site.accessIntro}</p>
+        <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,34rem)] lg:gap-16">
+          <Reveal className="lg:pt-2">
+            <span className="public-tape mb-4">Prova audio</span>
+            <h2 className="public-display text-4xl sm:text-5xl">Contatti e preventivi</h2>
+            <p className="public-muted mt-4 max-w-md text-lg">{site.accessIntro}</p>
+          </Reveal>
           <ContactForm />
-        </motion.div>
+        </div>
       </section>
 
-      <footer className="border-t border-white/10 px-4 py-8 text-center text-sm text-slate-500">
+      <footer className="border-t border-[color:var(--public-line)] px-4 py-8 text-center text-sm text-[color:var(--public-muted)]">
         <p>
           © {new Date().getFullYear()} {site.footerLine}
         </p>
         <LegalFooterLinks
           className="mt-3"
-          linkClassName="text-slate-400 hover:text-violet-300"
+          linkClassName="text-[color:var(--public-muted)] hover:text-primary"
         />
       </footer>
-    </motion.div>
+    </div>
   );
 }

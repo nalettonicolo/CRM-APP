@@ -27,9 +27,9 @@ function GalleryItem({ item, index }: { item: GalleryItemData; index: number }) 
       />
       {(item.title || item.caption) && (
         <figcaption className="p-4 text-sm">
-          {item.title && <p className="font-medium text-white">{item.title}</p>}
+          {item.title && <p className="font-medium text-[color:var(--public-bone)]">{item.title}</p>}
           {item.caption && (
-            <p className={cn("text-slate-400", item.title && "mt-1")}>
+            <p className={cn("public-muted", item.title && "mt-1")}>
               {item.caption}
             </p>
           )}
@@ -50,11 +50,9 @@ export function EventGallerySection() {
 
   if (items.length === 0) {
     return (
-      <section id="eventi" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
-        <h2 className="mb-2 text-center text-2xl font-bold text-white sm:text-3xl">
-          I nostri eventi
-        </h2>
-        <p className="mx-auto max-w-xl text-center text-slate-400">
+      <section id="eventi" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 lg:px-8">
+        <h2 className="public-display mb-3 text-4xl sm:text-5xl">I nostri eventi</h2>
+        <p className="public-muted max-w-xl">
           Presto pubblicheremo foto e momenti dai concerti, matrimoni e manifestazioni che
           seguiamo.
         </p>
@@ -63,11 +61,12 @@ export function EventGallerySection() {
   }
 
   return (
-    <section id="eventi" className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-      <h2 className="mb-2 text-center text-2xl font-bold text-white sm:text-3xl">
-        I nostri eventi
-      </h2>
-      <p className="mb-10 text-center text-slate-400">
+    <section
+      id="eventi"
+      className="mx-auto max-w-6xl scroll-mt-20 px-4 py-16 sm:px-6 lg:px-8 lg:py-20"
+    >
+      <h2 className="public-display mb-3 text-4xl sm:text-5xl">I nostri eventi</h2>
+      <p className="public-muted mb-10">
         Alcuni momenti dai live che abbiamo seguito in sala.
       </p>
       <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
