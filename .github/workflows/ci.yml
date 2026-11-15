@@ -26,6 +26,9 @@ jobs:
       - name: Build backend (TypeScript)
         run: npm run build --workspace=backend
 
+      - name: Test backend
+        run: npm test --workspace=backend
+
   # Stesso flusso della build Netlify (monorepo root → workspace crm-frontend)
   frontend-netlify:
     runs-on: ubuntu-latest
