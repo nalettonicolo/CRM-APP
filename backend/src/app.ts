@@ -111,7 +111,18 @@ app.use("/uploads", (req, res, next) => {
   res.setHeader("Content-Security-Policy", `frame-ancestors ${ancestors}`);
   next();
 });
-app.use("/uploads", express.static(path.resolve(config.upload.dir)));
+// Pubbliche solo le cartelle usate dalla pagina pubblica e dai PDF.
+const uploadsRoot = path.resolve(config.upload.dir);
+app.use("/uploads/branding", express.static(path.join(uploadsRoot, "branding")));
+app.use("/uploads/gallery", express.static(path.join(uploadsRoot, "gallery")));
+// Gli allegati si aprono solo da /api/attachments/:id/file (login + ruolo).
+app.use("/uploads/attachments", (_req, res) => {
+  res.status(401).json({ error: "Accesso richiesto: apri l'allegato dal gestionale" });
+});
+// TODO sicurezza: ancora pubbliche, da proteggere come gli allegati (vedi documento).
+for (const dir of ["supplier-catalogs", "supplier-bills", "client-expenses"]) {
+  app.use(`/uploads/${dir}`, express.static(path.join(uploadsRoot, dir)));
+}
 
 app.get("/api/health", (_req, res) => {
   res.json({

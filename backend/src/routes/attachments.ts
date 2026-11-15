@@ -43,6 +43,21 @@ const entityTypeMap: Record<string, AttachmentEntity> = {
   site_visit: "SITE_VISIT",
 };
 
+// Solo questi tipi si aprono nel browser; il resto viene sempre scaricato
+// (un HTML/SVG caricato non deve mai eseguire script).
+const inlineTypes: Record<string, string> = {
+  ".pdf": "application/pdf",
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+};
+
+function attachmentUrl(id: string): string {
+  return `${config.apiUrl.replace(/\/$/, "")}/api/attachments/${id}/file`;
+}
+
 const router = Router();
 router.use(authenticate);
 
@@ -167,7 +182,7 @@ router.post(
 
       res.status(201).json({
         ...record,
-        url: `${config.apiUrl.replace(/\/$/, "")}${relativePath}`,
+        url: attachmentUrl(record.id),
       });
     } catch (e) {
       if (req.file) {
@@ -213,13 +228,51 @@ router.get("/", requirePermission("attachments", "READ"), async (req: AuthReques
     res.json(
       attachments.map((a) => ({
         ...a,
-        url: `${config.apiUrl.replace(/\/$/, "")}${a.path}`,
+        url: attachmentUrl(a.id),
       }))
     );
   } catch (e) {
     next(e);
   }
 });
+
+router.get(
+  "/:id/file",
+  requirePermission("attachments", "READ"),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const attachment = await prisma.attachment.findUnique({
+        where: { id: paramId(req) },
+      });
+      if (!attachment) throw new NotFoundError();
+
+      if (
+        req.user!.role === "CLIENT" &&
+        attachment.clientId !== req.user!.clientId
+      ) {
+        throw new NotFoundError();
+      }
+
+      const filePath = path.resolve(
+        attachmentsDir,
+        path.basename(attachment.filename)
+      );
+      if (!fs.existsSync(filePath)) throw new NotFoundError();
+
+      const inlineType = inlineTypes[path.extname(filePath).toLowerCase()];
+      const name = encodeURIComponent(attachment.originalName);
+      res.setHeader("Content-Type", inlineType ?? "application/octet-stream");
+      res.setHeader(
+        "Content-Disposition",
+        `${inlineType ? "inline" : "attachment"}; filename*=UTF-8''${name}`
+      );
+      res.setHeader("Cache-Control", "private, no-store");
+      res.sendFile(filePath);
+    } catch (e) {
+      next(e);
+    }
+  }
+);
 
 router.delete(
   "/:id",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Camera, FileUp, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,38 @@ import { cn } from "@/lib/utils";
 
 function isImage(mime: string) {
   return mime.startsWith("image/");
+}
+
+/** Foto protetta: si scarica con il login e si mostra come file temporaneo. */
+function AttachmentImage({
+  item,
+  className,
+}: {
+  item: AttachmentItem;
+  className?: string;
+}) {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    attachmentsApi
+      .fetchBlob(item)
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [item]);
+
+  if (!src) return <div className={cn("bg-muted/40", className)} />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt={item.originalName} className={className} />;
 }
 
 export function SiteVisitPhotos({
@@ -139,9 +171,8 @@ export function SiteVisitPhotos({
                   className="group relative overflow-hidden rounded-lg border border-border bg-muted/20"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={attachmentsApi.downloadUrl(f)}
-                    alt={f.originalName}
+                  <AttachmentImage
+                    item={f}
                     className="aspect-[4/3] w-full object-cover"
                   />
                   {!readOnly && (
@@ -170,14 +201,17 @@ export function SiteVisitPhotos({
                   key={f.id}
                   className="flex items-center justify-between gap-3 px-4 py-3 text-sm"
                 >
-                  <a
-                    href={attachmentsApi.downloadUrl(f)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="truncate text-primary hover:underline"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      attachmentsApi
+                        .open(f)
+                        .catch(() => window.alert("Impossibile aprire l'allegato."))
+                    }
+                    className="truncate text-left text-primary hover:underline"
                   >
                     {f.originalName}
-                  </a>
+                  </button>
                   {!readOnly && (
                     <Button
                       type="button"

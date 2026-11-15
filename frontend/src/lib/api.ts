@@ -1575,9 +1575,36 @@ export const attachmentsApi = {
   },
   remove: (id: string) =>
     api<{ success: boolean }>(`/attachments/${id}`, { method: "DELETE" }),
-  downloadUrl: (item: AttachmentItem) =>
-    item.url ||
-      `${API_ASSET_ORIGIN}${item.path.startsWith("/") ? item.path : `/${item.path}`}`,
+  /** Gli allegati non sono più pubblici: si scaricano con il login e si aprono come file temporaneo. */
+  fetchBlob: async (item: AttachmentItem): Promise<Blob> => {
+    const res = await fetch(apiUrl(`/attachments/${item.id}/file`), {
+      headers: apiAuthHeaders(),
+      credentials: "include",
+    });
+    if (!res.ok) throw new ApiError(res.status, "Allegato non disponibile");
+    return res.blob();
+  },
+  open: async (item: AttachmentItem) => {
+    // La scheda va aperta subito (clic dell'utente), altrimenti il browser la blocca.
+    const win = window.open("", "_blank");
+    try {
+      const blob = await attachmentsApi.fetchBlob(item);
+      const url = URL.createObjectURL(blob);
+      if (win && /^(image\/|application\/pdf)/.test(blob.type)) {
+        win.location.href = url;
+      } else {
+        win?.close();
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = item.originalName;
+        a.click();
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      win?.close();
+      throw e;
+    }
+  },
 };
 
 export interface ActivityLogItem {
