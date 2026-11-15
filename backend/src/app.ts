@@ -22,6 +22,7 @@ import dashboardRoutes from "./routes/dashboard.js";
 import notificationRoutes from "./routes/notifications.js";
 import uploadRoutes from "./routes/uploads.js";
 import attachmentRoutes from "./routes/attachments.js";
+import storedFilesRoutes from "./routes/storedFiles.js";
 import activityLogRoutes from "./routes/activityLogs.js";
 import leadRoutes from "./routes/leads.js";
 import invoiceRoutes from "./routes/invoices.js";
@@ -113,16 +114,27 @@ app.use("/uploads", (req, res, next) => {
 });
 // Pubbliche solo le cartelle usate dalla pagina pubblica e dai PDF.
 const uploadsRoot = path.resolve(config.upload.dir);
-app.use("/uploads/branding", express.static(path.join(uploadsRoot, "branding")));
+app.use(
+  "/uploads/branding",
+  express.static(path.join(uploadsRoot, "branding"), {
+    // Logo .svg già caricati: aperti direttamente non possono eseguire script
+    // (come immagine nella pagina si vedono normalmente).
+    setHeaders(res, filePath) {
+      if (/\.svg$/i.test(filePath)) {
+        res.setHeader(
+          "Content-Security-Policy",
+          "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:"
+        );
+      }
+    },
+  })
+);
 app.use("/uploads/gallery", express.static(path.join(uploadsRoot, "gallery")));
-// Gli allegati si aprono solo da /api/attachments/:id/file (login + ruolo).
-app.use("/uploads/attachments", (_req, res) => {
-  res.status(401).json({ error: "Accesso richiesto: apri l'allegato dal gestionale" });
+// Tutto il resto di /uploads (allegati, cataloghi, fatture fornitori, spese cliente)
+// si apre solo da /api/attachments/:id/file e /api/files/... (login + ruolo).
+app.use("/uploads", (_req, res) => {
+  res.status(401).json({ error: "Accesso richiesto: apri il file dal gestionale" });
 });
-// TODO sicurezza: ancora pubbliche, da proteggere come gli allegati (vedi documento).
-for (const dir of ["supplier-catalogs", "supplier-bills", "client-expenses"]) {
-  app.use(`/uploads/${dir}`, express.static(path.join(uploadsRoot, dir)));
-}
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -151,6 +163,7 @@ app.use("/api/portal", portalRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/attachments", attachmentRoutes);
+app.use("/api/files", storedFilesRoutes);
 app.use("/api/activity-logs", activityLogRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/invoices", invoiceRoutes);

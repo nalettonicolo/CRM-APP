@@ -1576,35 +1576,67 @@ export const attachmentsApi = {
   remove: (id: string) =>
     api<{ success: boolean }>(`/attachments/${id}`, { method: "DELETE" }),
   /** Gli allegati non sono più pubblici: si scaricano con il login e si aprono come file temporaneo. */
-  fetchBlob: async (item: AttachmentItem): Promise<Blob> => {
-    const res = await fetch(apiUrl(`/attachments/${item.id}/file`), {
-      headers: apiAuthHeaders(),
-      credentials: "include",
-    });
-    if (!res.ok) throw new ApiError(res.status, "Allegato non disponibile");
-    return res.blob();
-  },
-  open: async (item: AttachmentItem) => {
-    // La scheda va aperta subito (clic dell'utente), altrimenti il browser la blocca.
-    const win = window.open("", "_blank");
-    try {
-      const blob = await attachmentsApi.fetchBlob(item);
-      const url = URL.createObjectURL(blob);
-      if (win && /^(image\/|application\/pdf)/.test(blob.type)) {
-        win.location.href = url;
-      } else {
-        win?.close();
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = item.originalName;
-        a.click();
-      }
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch (e) {
+  fetchBlob: (item: AttachmentItem) =>
+    fetchProtectedBlob(`/attachments/${item.id}/file`),
+  open: (item: AttachmentItem) =>
+    openProtectedFile(`/attachments/${item.id}/file`, item.originalName),
+};
+
+async function fetchProtectedBlob(apiPath: string): Promise<Blob> {
+  const res = await fetch(apiUrl(apiPath), {
+    headers: apiAuthHeaders(),
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError(res.status, "File non disponibile");
+  return res.blob();
+}
+
+async function openProtectedFile(apiPath: string, downloadName: string) {
+  // La scheda va aperta subito (clic dell'utente), altrimenti il browser la blocca.
+  const win = window.open("", "_blank");
+  try {
+    const blob = await fetchProtectedBlob(apiPath);
+    const url = URL.createObjectURL(blob);
+    if (win && /^(image\/|application\/pdf)/.test(blob.type)) {
+      win.location.href = url;
+    } else {
       win?.close();
-      throw e;
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = downloadName;
+      a.click();
     }
-  },
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (e) {
+    win?.close();
+    throw e;
+  }
+}
+
+/**
+ * File salvati come "/uploads/<cartella>/<nome>" (cataloghi, fatture fornitori,
+ * spese cliente): non più pubblici, si aprono da /api/files/<cartella>/<nome>.
+ */
+function storedFileApiPath(filePath: string): string {
+  let p = filePath.trim();
+  if (/^https?:\/\//i.test(p)) {
+    try {
+      p = new URL(p).pathname;
+    } catch {
+      /* resta com'è */
+    }
+  }
+  return `/files/${p.replace(/^\/?uploads\//, "")}`;
+}
+
+export const storedFilesApi = {
+  fetchBlob: (filePath: string) =>
+    fetchProtectedBlob(storedFileApiPath(filePath)),
+  open: (filePath: string, downloadName?: string | null) =>
+    openProtectedFile(
+      storedFileApiPath(filePath),
+      downloadName || filePath.split("/").pop() || "file"
+    ),
 };
 
 export interface ActivityLogItem {

@@ -15,6 +15,7 @@ import {
 import { logActivity } from "../services/activityLog.js";
 import { NotFoundError, ValidationError } from "../utils/errors.js";
 import { paramId } from "../utils/params.js";
+import { sendStoredFile } from "../utils/sendStoredFile.js";
 
 const attachmentsDir = path.join(config.upload.dir, "attachments");
 
@@ -41,17 +42,6 @@ const entityTypeMap: Record<string, AttachmentEntity> = {
   report: "REPORT",
   invoice: "INVOICE_PREVIEW",
   site_visit: "SITE_VISIT",
-};
-
-// Solo questi tipi si aprono nel browser; il resto viene sempre scaricato
-// (un HTML/SVG caricato non deve mai eseguire script).
-const inlineTypes: Record<string, string> = {
-  ".pdf": "application/pdf",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".gif": "image/gif",
-  ".webp": "image/webp",
 };
 
 function attachmentUrl(id: string): string {
@@ -259,15 +249,7 @@ router.get(
       );
       if (!fs.existsSync(filePath)) throw new NotFoundError();
 
-      const inlineType = inlineTypes[path.extname(filePath).toLowerCase()];
-      const name = encodeURIComponent(attachment.originalName);
-      res.setHeader("Content-Type", inlineType ?? "application/octet-stream");
-      res.setHeader(
-        "Content-Disposition",
-        `${inlineType ? "inline" : "attachment"}; filename*=UTF-8''${name}`
-      );
-      res.setHeader("Cache-Control", "private, no-store");
-      res.sendFile(filePath);
+      sendStoredFile(res, filePath, attachment.originalName);
     } catch (e) {
       next(e);
     }
