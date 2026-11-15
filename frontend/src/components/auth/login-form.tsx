@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { authApi, settingsApi } from "@/lib/api";
@@ -13,6 +13,9 @@ import {
   getLogoPath,
   type PublicSettings,
 } from "@/lib/public-settings";
+import { REVEAL_EASE } from "@/lib/motion-presets";
+import { publicFontClasses } from "@/lib/public-fonts";
+import { cn } from "@/lib/utils";
 import { LegalFooterLinks } from "@/components/legal/legal-footer-links";
 
 export function LoginForm({
@@ -21,9 +24,12 @@ export function LoginForm({
   initialSettings?: PublicSettings | null;
 }) {
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const setUser = useAuthStore((s) => s.setUser);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  /** Destinazione dopo l'accesso: se valorizzata mostra il passaggio animato verso l'area. */
+  const [entering, setEntering] = useState<string | null>(null);
 
   const { data: pub } = useQuery({
     queryKey: ["settings", "public"],
@@ -54,15 +60,20 @@ export function LoginForm({
       const res = await authApi.login(email, fd.get("password") as string);
       localStorage.setItem("accessToken", res.accessToken);
       setUser(res.user);
+      let destination = "/dashboard";
       if (res.user.role === "CLIENT") {
-        router.push("/portal");
+        destination = "/portal";
       } else if (
         res.user.role === "ADMIN" ||
         res.user.role === "SUPER_ADMIN"
       ) {
-        router.push("/seleziona-area");
+        destination = "/seleziona-area";
+      }
+      if (reduceMotion) {
+        router.push(destination);
       } else {
-        router.push("/dashboard");
+        // il passaggio animato chiama router.push alla fine (vedi onAnimationComplete)
+        setEntering(destination);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Credenziali non valide";
@@ -84,36 +95,41 @@ export function LoginForm({
   }
 
   return (
-    <motion.div className="public-page flex min-h-screen" initial={false}>
-      <div className="hidden flex-1 flex-col justify-center p-12 lg:flex">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+    <div className={cn("public-page flex min-h-screen", publicFontClasses)}>
+      <div className="hidden flex-1 items-center gap-8 p-12 lg:flex">
+        <div className="public-ruler h-72 shrink-0" aria-hidden />
+        <div className="public-rise">
           {logoSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoSrc}
-              alt={appName}
-              className="mb-6 h-16 w-auto max-w-[200px] object-contain"
-            />
+            <div className="public-case mb-8 inline-block p-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoSrc}
+                alt={appName}
+                className="h-16 w-auto max-w-[200px] object-contain"
+              />
+            </div>
           ) : (
-            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white">
+            <div className="public-display mb-8 flex h-14 w-14 items-center justify-center bg-primary text-3xl text-primary-foreground">
               {brandInitial}
             </div>
           )}
-          <h1 className="text-3xl font-bold text-white">{appName}</h1>
-          {tagline && (
-            <p className="mt-1 text-sm text-slate-400">{tagline}</p>
-          )}
-          <p className="mt-4 max-w-md text-slate-400">
+          <h1 className="public-display text-6xl xl:text-7xl">{appName}</h1>
+          {tagline && <p className="public-muted mt-3 text-sm">{tagline}</p>}
+          <p className="public-muted mt-5 max-w-md text-lg">
             Area riservata al personale e agli amministratori.
           </p>
-        </motion.div>
+        </div>
       </div>
 
       <div className="flex flex-1 items-center justify-center p-4 sm:p-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="public-card w-full max-w-md p-6 sm:p-8"
+        <div
+          className="public-card public-case public-rise w-full max-w-md p-6 sm:p-8"
+          style={
+            {
+              "--rise-delay": "0.1s",
+              borderTop: "4px solid var(--public-tape)",
+            } as React.CSSProperties
+          }
         >
           {logoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -123,13 +139,13 @@ export function LoginForm({
               className="mx-auto mb-4 h-12 w-auto max-w-[160px] object-contain lg:hidden"
             />
           ) : null}
-          <h2 className="text-2xl font-semibold text-white">Accedi</h2>
-          <p className="mt-1 text-sm text-slate-400">
+          <h2 className="public-display text-4xl">Accedi</h2>
+          <p className="public-muted mt-2 text-sm">
             Usa l&apos;email e la password del tuo account.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
-            <motion.div>
+            <div>
               <label htmlFor="login-email" className="public-label">
                 Email
               </label>
@@ -142,8 +158,8 @@ export function LoginForm({
                 autoComplete="email"
                 className="public-input"
               />
-            </motion.div>
-            <motion.div>
+            </div>
+            <div>
               <label htmlFor="login-password" className="public-label">
                 Password
               </label>
@@ -156,33 +172,56 @@ export function LoginForm({
                 autoComplete="current-password"
                 className="public-input"
               />
-            </motion.div>
+            </div>
             {error && (
-              <p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-300">
+              <p
+                role="alert"
+                className="rounded-sm bg-red-500/15 px-3 py-2 text-sm text-red-300"
+              >
                 {error}
               </p>
             )}
-            <Button type="submit" className="h-12 w-full text-base" disabled={loading}>
+            <Button
+              type="submit"
+              className="h-12 w-full rounded-sm text-base"
+              disabled={loading || entering !== null}
+            >
               {loading ? "Accesso..." : "Accedi"}
             </Button>
           </form>
 
           <div className="mt-6 text-center text-sm">
-            <Link href="/forgot-password" className="text-violet-300 hover:underline">
+            <Link href="/forgot-password" className="text-primary underline-offset-4 hover:underline">
               Password dimenticata?
             </Link>
           </div>
-          <div className="mt-4 text-center text-sm text-slate-500">
-            <Link href="/" className="hover:text-slate-300 hover:underline">
+          <div className="mt-4 text-center text-sm text-[color:var(--public-muted)]">
+            <Link href="/" className="underline-offset-4 hover:text-primary hover:underline">
               ← Torna alla home
             </Link>
           </div>
           <LegalFooterLinks
-            className="mt-4"
-            linkClassName="text-slate-500 hover:text-violet-300"
+            className="mt-4 text-sm"
+            linkClassName="text-[color:var(--public-muted)] hover:text-primary"
           />
-        </motion.div>
+        </div>
       </div>
-    </motion.div>
+
+      {entering && (
+        <motion.div
+          role="status"
+          aria-live="polite"
+          initial={{ x: "-100%" }}
+          animate={{ x: 0 }}
+          transition={{ duration: 0.45, ease: REVEAL_EASE }}
+          onAnimationComplete={() => router.push(entering)}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-[color:var(--public-tape)]"
+        >
+          <p className="public-display text-5xl text-[color:var(--public-on-tape)] sm:text-7xl">
+            Accesso in corso
+          </p>
+        </motion.div>
+      )}
+    </div>
   );
 }

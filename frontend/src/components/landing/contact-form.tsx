@@ -91,7 +91,8 @@ export function ContactForm() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="public-card rounded-2xl border border-green-500/40 bg-green-500/10 p-8 text-center"
+        className="public-card border border-green-500/40 bg-green-500/10 p-8 text-center"
+        role="status"
       >
         <p className="font-medium text-green-300">Richiesta inviata con successo!</p>
         {emailWarning && (
@@ -105,7 +106,7 @@ export function ContactForm() {
     <motion.form
       {...formMotion}
       onSubmit={handleSubmit}
-      className="public-card space-y-5 rounded-2xl p-5 sm:p-6"
+      className="public-card public-case space-y-5 p-5 sm:p-7"
     >
       <motion.div className="space-y-5">
         <motion.div>
@@ -174,12 +175,13 @@ export function ContactForm() {
               <button
                 key={label}
                 type="button"
+                aria-pressed={selected}
                 onClick={() => toggleService(label)}
                 className={cn(
-                  "public-chip rounded-xl border text-left font-medium transition-colors",
+                  "public-chip rounded-sm border text-left font-medium transition-colors",
                   selected
-                    ? "border-primary bg-primary/25 text-violet-100"
-                    : "border-white/20 bg-slate-900/60 text-slate-300 hover:border-primary/50"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-white/30 bg-transparent text-[color:var(--public-bone)] hover:border-primary"
                 )}
               >
                 {label}
@@ -229,26 +231,28 @@ export function ContactForm() {
       </motion.div>
 
       {error && (
-        <p className="rounded-lg bg-red-500/15 px-3 py-2 text-sm text-red-300">{error}</p>
+        <p role="alert" className="rounded-sm bg-red-500/15 px-3 py-2 text-sm text-red-300">
+          {error}
+        </p>
       )}
-      <label className="flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+      <label className="flex cursor-pointer items-start gap-3 text-sm text-[color:var(--public-muted)]">
         <input
           type="checkbox"
           checked={privacyAccepted}
           onChange={(e) => setPrivacyAccepted(e.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-white/30"
+          className="mt-1 h-4 w-4 rounded-sm border-white/30 accent-[color:var(--public-tape)]"
           required
         />
         <span>
           Ho letto e accetto l&apos;{" "}
-          <Link href="/privacy" className="text-violet-300 underline" target="_blank">
+          <Link href="/privacy" className="text-primary underline" target="_blank">
             informativa privacy
           </Link>{" "}
           e autorizzo il trattamento dei miei dati per gestire la richiesta di
           contatto/preventivo. *
         </span>
       </label>
-      <Button type="submit" className="h-12 w-full text-base" disabled={loading}>
+      <Button type="submit" className="h-12 w-full rounded-sm text-base" disabled={loading}>
         {loading ? "Invio..." : "Invia richiesta preventivo"}
       </Button>
     </motion.form>

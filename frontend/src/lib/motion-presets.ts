@@ -1,6 +1,31 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useInView, useReducedMotion, type UseInViewOptions } from "framer-motion";
+
+/**
+ * Entrata alla comparsa nello schermo, sicura per l'idratazione:
+ * server e primo paint client mostrano tutto (`shown = true`), poi, solo se
+ * l'utente non ha chiesto "riduci movimento", gli elementi non ancora visibili
+ * si nascondono e compaiono quando entrano nello schermo.
+ */
+export function useReveal<T extends Element>(
+  margin: UseInViewOptions["margin"] = "0px 0px -10% 0px"
+) {
+  const ref = useRef<T>(null);
+  const reduced = useReducedMotion();
+  const inView = useInView(ref, { once: true, margin });
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    setArmed(true);
+  }, []);
+
+  return { ref, shown: !armed || !!reduced || inView, reduced: !!reduced };
+}
+
+/** Curva usata da tutte le entrate delle pagine pubbliche. */
+export const REVEAL_EASE = [0.22, 1, 0.36, 1] as const;
 
 type FadeUpProps =
   | { initial: false }

@@ -67,27 +67,116 @@ body {
 }
 
 /* Pagine pubbliche: home, login, recupero password */
+/*
+ * Direzione grafica: backstage di un service audio/luci.
+ * Flight case nero, nastro gaffer giallo, etichette a stencil, canali del mixer numerati.
+ * Palette: nero caldo (dominante), osso (testo), giallo gaffer (accento, poco), grigio caldo.
+ * Il colore primario delle impostazioni resta valido nel gestionale; qui l'accento è il giallo gaffer.
+ */
 .public-page {
-  color: oklch(0.95 0.01 270);
-  background-color: oklch(0.14 0.025 265);
-  background-image:
-    radial-gradient(ellipse 90% 60% at 50% -15%, oklch(0.38 0.14 270 / 0.45), transparent 55%),
-    radial-gradient(ellipse 50% 40% at 0% 80%, oklch(0.28 0.1 285 / 0.25), transparent 50%),
-    radial-gradient(ellipse 45% 35% at 100% 60%, oklch(0.25 0.08 250 / 0.2), transparent 45%),
-    linear-gradient(180deg, oklch(0.16 0.03 265) 0%, oklch(0.11 0.02 270) 100%);
+  --public-ink: oklch(0.17 0.008 70);
+  --public-surface: oklch(0.215 0.01 70);
+  --public-line: oklch(0.42 0.015 80 / 0.7);
+  --public-bone: oklch(0.95 0.015 90);
+  --public-muted: oklch(0.76 0.02 85);
+  --public-tape: oklch(0.86 0.17 95);
+  --public-on-tape: oklch(0.18 0.01 70);
+  --color-primary: var(--public-tape);
+  --color-primary-foreground: var(--public-on-tape);
+
+  color: var(--public-bone);
+  font-family: var(--font-public-text, "Inter"), system-ui, -apple-system, sans-serif;
+  background-color: var(--public-ink);
+  /* rigatura sottile, come la tela del case */
+  background-image: repeating-linear-gradient(
+    0deg,
+    oklch(1 0 0 / 0.025) 0,
+    oklch(1 0 0 / 0.025) 1px,
+    transparent 1px,
+    transparent 6px
+  );
+}
+
+.public-page .public-display {
+  font-family: var(--font-public-display, "Inter"), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  line-height: 0.98;
+}
+
+.public-page .public-muted {
+  color: var(--public-muted);
+}
+
+/* Striscia di nastro gaffer: etichetta ripetuta in tutta la pagina */
+.public-page .public-tape {
+  display: inline-block;
+  background: var(--public-tape);
+  color: var(--public-on-tape);
+  padding: 0.3rem 0.8rem;
+  font-family: var(--font-public-display, "Inter"), system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transform: rotate(-1.2deg);
+  clip-path: polygon(0 0, 100% 0, 99% 50%, 100% 100%, 0 100%, 1% 50%);
+}
+
+/* Angolari metallici del flight case */
+.public-page .public-case {
+  position: relative;
+  border: 1px solid var(--public-line);
+  background: var(--public-surface);
+}
+
+.public-page .public-case::before,
+.public-page .public-case::after {
+  content: "";
+  position: absolute;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 2px solid var(--public-tape);
+  pointer-events: none;
+}
+
+.public-page .public-case::before {
+  top: -2px;
+  left: -2px;
+  border-right: 0;
+  border-bottom: 0;
+}
+
+.public-page .public-case::after {
+  right: -2px;
+  bottom: -2px;
+  border-left: 0;
+  border-top: 0;
+}
+
+/* Scala del fader, solo decorativa */
+.public-page .public-ruler {
+  width: 0.75rem;
+  background: repeating-linear-gradient(
+    180deg,
+    var(--public-line) 0,
+    var(--public-line) 1px,
+    transparent 1px,
+    transparent 12px
+  );
+  mask-image: linear-gradient(180deg, transparent, #000 15%, #000 85%, transparent);
 }
 
 .public-page .public-section-alt {
-  background: oklch(0.12 0.02 270 / 0.65);
-  border-block: 1px solid oklch(0.35 0.04 270 / 0.25);
+  background: oklch(0.145 0.008 70);
+  border-block: 1px solid var(--public-line);
 }
 
 .public-page .public-card {
-  border-radius: 1rem;
-  border: 1px solid oklch(0.4 0.04 270 / 0.35);
-  background: oklch(0.18 0.025 265 / 0.75);
-  box-shadow: 0 25px 50px -12px oklch(0 0 0 / 0.45);
-  backdrop-filter: blur(12px);
+  border-radius: 0.25rem;
+  border: 1px solid var(--public-line);
+  background: var(--public-surface);
 }
 
 .public-page .public-label {
@@ -95,37 +184,82 @@ body {
   margin-bottom: 0.5rem;
   font-size: 0.875rem;
   font-weight: 600;
-  color: oklch(0.88 0.02 270);
+  color: var(--public-bone);
 }
 
 .public-page .public-input {
   display: flex;
   width: 100%;
   min-height: 3rem;
-  border-radius: 0.75rem;
-  border: 1px solid oklch(0.45 0.04 270 / 0.45);
-  background: oklch(0.2 0.03 265 / 0.9);
+  border-radius: 0.25rem;
+  border: 1px solid oklch(0.55 0.02 80 / 0.7);
+  background: oklch(0.14 0.008 70);
   padding: 0.75rem 1rem;
   font-size: 1rem;
   line-height: 1.5;
-  color: oklch(0.98 0 0);
+  color: var(--public-bone);
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
 .public-page .public-input::placeholder {
-  color: oklch(0.55 0.02 270);
+  color: oklch(0.66 0.02 85);
 }
 
 .public-page .public-input:focus-visible {
   outline: none;
-  border-color: oklch(0.6 0.18 270 / 0.7);
-  box-shadow: 0 0 0 3px oklch(0.55 0.2 270 / 0.25);
+  border-color: var(--public-tape);
+  box-shadow: 0 0 0 3px oklch(0.86 0.17 95 / 0.3);
 }
 
 .public-page .public-chip {
   min-height: 2.75rem;
   padding: 0.5rem 1rem;
   font-size: 0.8125rem;
+}
+
+.public-page a:focus-visible,
+.public-page button:focus-visible {
+  outline: 2px solid var(--public-tape);
+  outline-offset: 2px;
+}
+
+/* Entrata dell'eroe: solo CSS, così il titolo (LCP) non aspetta JavaScript */
+@keyframes public-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes public-tape-in {
+  from {
+    transform: translateX(-24px) rotate(-1.2deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-1.2deg);
+    opacity: 1;
+  }
+}
+
+.public-page .public-rise {
+  animation: public-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0s);
+}
+
+.public-page .public-tape-in {
+  animation: public-tape-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .public-page .public-rise,
+  .public-page .public-tape-in {
+    animation: none;
+  }
 }
 
 /* Logo hero: cornice + animazione leggera */

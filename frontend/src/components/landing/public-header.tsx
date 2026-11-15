@@ -17,7 +17,7 @@ export function PublicHeader({
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/10 bg-slate-950/80 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-[color:var(--public-line)] bg-[color:var(--public-ink)]">
       <nav className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
         <Link
           href="/"
@@ -25,7 +25,7 @@ export function PublicHeader({
           onClick={() => setOpen(false)}
         >
           <BrandLogo logoUrl={logoSrc || undefined} appName={appName} variant="nav" />
-          <span className="truncate text-base font-semibold text-white sm:text-lg">
+          <span className="public-display truncate text-xl text-[color:var(--public-bone)] sm:text-2xl">
             {appName}
           </span>
         </Link>
@@ -35,13 +35,13 @@ export function PublicHeader({
             <Button
               variant="ghost"
               size="sm"
-              className="text-slate-200 hover:bg-white/10 hover:text-white"
+              className="rounded-sm text-[color:var(--public-bone)] hover:bg-white/10"
             >
               Area riservata
             </Button>
           </Link>
           <Link href="#contatto">
-            <Button size="sm" className="shadow-lg shadow-primary/25">
+            <Button size="sm" className="rounded-sm">
               Richiedi preventivo <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -49,8 +49,9 @@ export function PublicHeader({
 
         <button
           type="button"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-white/15 text-white md:hidden"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm border border-white/30 text-[color:var(--public-bone)] md:hidden"
           aria-expanded={open}
+          aria-controls="menu-pubblico"
           aria-label={open ? "Chiudi menu" : "Apri menu"}
           onClick={() => setOpen((v) => !v)}
         >
@@ -72,8 +73,9 @@ function MobileMenu({
 }) {
   return (
     <div
+      id="menu-pubblico"
       className={cn(
-        "border-t border-white/10 bg-slate-950/95 px-4 py-4 md:hidden",
+        "border-t border-[color:var(--public-line)] bg-[color:var(--public-ink)] px-4 py-4 md:hidden",
         open ? "block" : "hidden"
       )}
     >
@@ -81,7 +83,7 @@ function MobileMenu({
         <Link href="/login" onClick={() => setOpen(false)}>
           <Button
             variant="outline"
-            className="h-12 w-full border-white/20 bg-transparent text-white"
+            className="h-12 w-full rounded-sm border-white/30 bg-transparent text-[color:var(--public-bone)]"
           >
             Area riservata
           </Button>
