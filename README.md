@@ -249,7 +249,7 @@ Non ho potuto eseguire questi script: prima di usarli leggi il contenuto dei fil
 **Checklist deploy:** [`docs/COSA-FARE.md`](docs/COSA-FARE.md)  
 **VPN privata (SSH/deploy da fuori casa):** [`docs/guida-vpn-privata-tailscale.md`](docs/guida-vpn-privata-tailscale.md)  
 **API pubblica (Tailscale Funnel):** [`docs/guida-tailscale-funnel.md`](docs/guida-tailscale-funnel.md)  
-Le guide su tunnel Cloudflare e Netlify non sono tutte ancora valide: lo stato di ognuna è in [`docs/README.md`](docs/README.md).  
+Tunnel Cloudflare (in uso sul Mint, da guida da pannello o da terminale): vedi l'elenco con lo stato di ogni guida in [`docs/README.md`](docs/README.md).  
 Indice documentazione: [`docs/README.md`](docs/README.md)  
 Guida Netlify **completa** (monorepo, UI Package directory, variabili, troubleshooting): [`docs/netlify-guida-completa.md`](docs/netlify-guida-completa.md).
 
