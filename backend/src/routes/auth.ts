@@ -96,7 +96,6 @@ router.post("/login", async (req, res, next) => {
         avatar: user.avatar,
       },
       accessToken,
-      refreshToken,
     });
   } catch (e) {
     next(e);
@@ -119,6 +118,17 @@ router.post("/refresh", async (req, res, next) => {
       throw new UnauthorizedError("Refresh token scaduto");
     }
 
+    // Rotazione: il vecchio token vale una sola volta. updateMany con
+    // revoked:false rende l'operazione atomica (se due richieste arrivano
+    // insieme col medesimo token, solo la prima passa).
+    const revoked = await prisma.refreshToken.updateMany({
+      where: { id: stored.id, revoked: false },
+      data: { revoked: true },
+    });
+    if (revoked.count === 0) {
+      throw new UnauthorizedError("Refresh token scaduto");
+    }
+
     const user = stored.user;
     const accessToken = signAccessToken({
       userId: user.id,
@@ -126,12 +136,28 @@ router.post("/refresh", async (req, res, next) => {
       role: user.role,
       clientId: user.clientId,
     });
+    const newRefreshToken = signRefreshToken({ userId: user.id });
+
+    await prisma.refreshToken.create({
+      data: {
+        token: newRefreshToken,
+        userId: user.id,
+        expiresAt: parseExpiresIn(config.jwt.refreshExpiresIn),
+      },
+    });
 
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: config.cookieSecure,
       sameSite: config.cookieSameSite,
       maxAge: 15 * 60 * 1000,
+    });
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: config.cookieSecure,
+      sameSite: config.cookieSameSite,
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/api/auth/refresh",
     });
 
     res.json({ accessToken });

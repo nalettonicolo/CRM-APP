@@ -21,7 +21,7 @@
     "db:normalize:invoice-numbers": "tsx scripts/normalize-invoice-numbers.ts",
     "backup": "tsx scripts/backup.ts",
     "test": "tsx --test src/**/*.test.ts",
-    "test:security": "tsx --test src/utils/queryInput.test.ts"
+    "test:security": "tsx --test src/utils/queryInput.test.ts src/utils/authHardening.test.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",

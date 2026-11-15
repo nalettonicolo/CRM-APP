@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+import { randomUUID } from "crypto";
 import { config } from "../config/index.js";
 import type { UserRole } from "@prisma/client";
 
@@ -16,7 +17,10 @@ export function signAccessToken(payload: TokenPayload): string {
 }
 
 export function signRefreshToken(payload: { userId: string }): string {
+  // jwtid: con la rotazione due token emessi nello stesso secondo sarebbero
+  // identici e violerebbero il vincolo unique su RefreshToken.token
   return jwt.sign(payload, config.jwt.refreshSecret, {
+    jwtid: randomUUID(),
     expiresIn: config.jwt.refreshExpiresIn as jwt.SignOptions["expiresIn"],
   });
 }

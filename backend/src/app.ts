@@ -7,6 +7,7 @@ import path from "path";
 import { config } from "./config/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { workspaceDbMiddleware } from "./middleware/workspaceDb.js";
+import { isAllowedOrigin } from "./utils/corsOrigin.js";
 
 import authRoutes from "./routes/auth.js";
 import clientRoutes from "./routes/clients.js";
@@ -46,27 +47,15 @@ const app = express();
 // Cloudflare tunnel / reverse proxy: rate limit e IP client corretti
 app.set("trust proxy", 1);
 
-const netlifyOrigin =
-  /^https:\/\/([a-z0-9][a-z0-9-]*\.)?netlify\.app$/i;
-
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin) {
-        callback(null, true);
-        return;
-      }
-      if (config.corsOrigins.includes(origin)) {
-        callback(null, true);
-        return;
-      }
-      // Produzione Netlify + preview deploy
-      if (netlifyOrigin.test(origin)) {
-        callback(null, true);
-        return;
-      }
-      callback(null, false);
+      // *.netlify.app (preview deploy) solo con ALLOW_NETLIFY_PREVIEWS=true
+      callback(
+        null,
+        isAllowedOrigin(origin, config.corsOrigins, config.allowNetlifyPreviews)
+      );
     },
     credentials: true,
     allowedHeaders: ["Content-Type", "Authorization", "X-Workspace"],
@@ -105,7 +94,7 @@ app.use("/uploads", (req, res, next) => {
   const ancestors = [
     "'self'",
     ...config.corsOrigins,
-    "https://*.netlify.app",
+    ...(config.allowNetlifyPreviews ? ["https://*.netlify.app"] : []),
   ].join(" ");
   res.removeHeader("X-Frame-Options");
   res.setHeader("Content-Security-Policy", `frame-ancestors ${ancestors}`);
