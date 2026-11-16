@@ -5,6 +5,9 @@
 # questo valore nel TOML deve prevalere.
 
 [build]
+  # Deploy solo a comando: le build partono solo dal build hook (pulsante «Pubblica» dell'Ufficio).
+  # Netlify non annulla mai le build avviate da un build hook, qualunque sia questo comando.
+  ignore = "exit 0"
   # --no-audit/--no-fund: evita round-trip npm in CI; dipendenze già validate in lockfile.
   # --prefer-offline: usa la dependency cache di Netlify quando disponibile.
   # NODE_ENV=production solo in build (non in npm ci), altrimenti manca @tailwindcss/postcss
