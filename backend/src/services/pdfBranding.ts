@@ -7,6 +7,7 @@ import { prisma } from "../lib/prisma.js";
 
 type PdfDoc = InstanceType<typeof PDFDocument>;
 import { config } from "../config/index.js";
+import { pdfReadyImagePath } from "./pdfImages.js";
 
 export type CompanyInfo = {
   name?: string;
@@ -31,7 +32,7 @@ export async function loadLogoFilePath(): Promise<string | null> {
   if (!url || !url.startsWith("/uploads/")) return null;
   const rel = url.replace(/^\/uploads\//, "");
   const full = path.join(config.upload.dir, rel);
-  return fs.existsSync(full) ? full : null;
+  return fs.existsSync(full) ? pdfReadyImagePath(full) : null;
 }
 
 /** Intestazione PDF: logo (se presente) + dati azienda; opzionale titolo a destra. */
