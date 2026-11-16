@@ -3,6 +3,7 @@ import path from "path";
 import { PDFDocument } from "pdf-lib";
 import type { Attachment } from "@prisma/client";
 import { config } from "../config/index.js";
+import { imageForPdf } from "./pdfImages.js";
 
 const A4_WIDTH = 595.28;
 const A4_HEIGHT = 841.89;
@@ -20,7 +21,8 @@ function isImageMime(mimeType: string): boolean {
   return (
     mimeType.startsWith("image/jpeg") ||
     mimeType.startsWith("image/jpg") ||
-    mimeType === "image/png"
+    mimeType === "image/png" ||
+    mimeType === "image/webp"
   );
 }
 
@@ -77,10 +79,20 @@ export async function appendAttachmentsToInvoicePdf(
     const maxW = width - MARGIN * 2;
     const maxH = slotHeight - 18;
 
+    // PNG e JPEG vanno dentro così come sono; le WebP vengono convertite (serve sharp nel backend)
+    const img = await imageForPdf(bytes);
+    if (!img) {
+      imagePage!.drawText(`Immagine "${attachment.originalName}" in formato WebP: non inseribile nel PDF, scaricala dall'app.`, {
+        x: MARGIN,
+        y: yBase + slotHeight / 2,
+        size: 9,
+      });
+      continue;
+    }
     const embedded =
-      mime === "image/png"
-        ? await pdfDoc.embedPng(bytes)
-        : await pdfDoc.embedJpg(bytes);
+      img.kind === "png"
+        ? await pdfDoc.embedPng(img.data)
+        : await pdfDoc.embedJpg(img.data);
 
     const scaled = embedded.scaleToFit(maxW, maxH);
     imagePage!.drawImage(embedded, {
