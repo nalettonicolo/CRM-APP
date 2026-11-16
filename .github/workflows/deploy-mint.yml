@@ -6,8 +6,7 @@
 name: Deploy Mint
 
 on:
-  push:
-    branches: [main]
+  # Deploy solo a comando: si avvia a mano (Actions → Run workflow) o dal pulsante «Pubblica» dell'Ufficio.
   workflow_dispatch:
 
 jobs:
